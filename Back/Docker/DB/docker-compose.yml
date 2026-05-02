@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  sajura-db:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sajura-db-container
+    ports:
+      # .env 파일의 DB_PORT 변수를 엄격하게 참조
+      - "${DB_PORT}:3306"
+    env_file:
+      # 최상단의 .env 파일을 참조
+      - ../../../.env
+    volumes:
+      # DB 데이터 영구 저장을 위한 볼륨 매핑
+      - db_data:/var/lib/mysql
+
+volumes:
+  db_data:
