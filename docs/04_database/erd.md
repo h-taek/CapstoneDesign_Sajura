@@ -1,169 +1,129 @@
 # ERD 설계서
 
-## 1. 도메인 및 엔티티
+## 1. 도메인 및 테이블 목록
 
-기술 문서 기준 시스템은 6개 도메인, 14개 클래스로 구성된다.
+| 도메인 | 테이블 |
+|--------|--------|
+| 인증 | `users`, `refresh_tokens` |
+| 매장/POS | `stores`, `pos_connections` |
+| 메뉴/레시피 | `menus`, `recipes`, `recipe_ingredients` |
+| 재고 | `inventory_items`, `inventory_lots`, `disposal_logs`, `sites`, `inventory_item_sites` |
+| 판매 | `sale_records` |
+| 수요예측 | `forecast_results` |
+| 발주 | `order_recommendations`, `order_recommendation_items`, `orders`, `order_items`, `order_approval_logs` |
+| 파이프라인 | `pipeline_jobs` |
 
-| 도메인 | 엔티티 |
-|---|---|
-| 점주 | 점주, POS인증정보 |
-| 메뉴 | 메뉴, 레시피, 재료항목 |
-| 재고 | 재고관리, 재고품목 |
-| 판매데이터 | 판매데이터 |
-| 수요예측 | 수요예측 |
-| 발주 | 발주, 발주품목, 거래처, 추천사이트, 추천발주 |
+총 20개 테이블
 
-## 2. 엔티티별 속성
+---
 
-### 2.1 점주
-
-- 점주ID
-- 이름
-- 업종
-- 연락번호
-
-### 2.2 POS인증정보
-
-- POS인증번호
-- POS인증키명
-- 상태
-- 연동일자
-
-### 2.3 메뉴
-
-- 메뉴ID
-- 메뉴명
-- 가격
-- 분류
-
-### 2.4 레시피
-
-- 레시피ID
-- 필요수량
-
-### 2.5 재료항목
-
-- 재료ID
-- 재료명
-- 규격
-- 단위
-
-### 2.6 재고관리
-
-- 재고ID
-- 최종수정일
-
-### 2.7 재고품목
-
-- 식자재명
-- 현재수량
-- 안전재고수량
-- 단위
-
-### 2.8 판매데이터
-
-- 판매데이터ID
-- 판매날짜
-- 가격
-
-### 2.9 수요예측
-
-- 예측ID
-- 예측기간시작
-- 예측기간마감
-- 예측수량
-- 생성일시
-
-### 2.10 발주
-
-- 발주번호
-- 발주일자
-- 발주상태
-- 총수량
-
-### 2.11 발주품목
-
-- 발주수량
-- 단가
-
-### 2.12 거래처
-
-- 거래처ID
-- 거래처명
-- 연락처
-- 주소
-
-### 2.13 추천사이트
-
-- 사이트명
-- API주소
-
-### 2.14 추천발주
-
-- 추천발주번호
-- 추천수량
-- 생성일시
-
-## 3. 관계
+## 2. ERD 다이어그램
 
 ```mermaid
 erDiagram
-    점주 ||--|| POS인증정보 : owns
-    점주 ||--o{ 메뉴 : owns
-    점주 ||--|| 재고관리 : owns
-    점주 ||--o{ 판매데이터 : owns
-    점주 ||--o{ 수요예측 : owns
-    점주 ||--o{ 발주 : owns
-    메뉴 ||--|| 레시피 : has
-    레시피 ||--o{ 재료항목 : contains
-    재고관리 ||--o{ 재고품목 : contains
-    수요예측 ||--o{ 추천발주 : creates
-    발주 ||--o{ 발주품목 : contains
-    거래처 ||--o{ 발주 : receives
-    추천사이트 ||--o{ 추천발주 : links
+    users ||--|| stores : "1:1"
+    users ||--o{ refresh_tokens : "1:N"
+    stores ||--|| pos_connections : "1:1"
+    stores ||--o{ menus : "1:N"
+    stores ||--o{ inventory_items : "1:N"
+    stores ||--o{ sale_records : "1:N"
+    stores ||--o{ forecast_results : "1:N"
+    stores ||--o{ order_recommendations : "1:N"
+    stores ||--o{ orders : "1:N"
+    stores ||--o{ pipeline_jobs : "1:N"
+    menus ||--o| recipes : "1:1"
+    menus ||--o{ sale_records : "1:N"
+    menus ||--o{ forecast_results : "1:N"
+    recipes ||--o{ recipe_ingredients : "1:N"
+    recipe_ingredients }o--|| inventory_items : "N:1"
+    inventory_items ||--o{ inventory_lots : "1:N"
+    inventory_items ||--o{ disposal_logs : "1:N"
+    inventory_items ||--o{ inventory_item_sites : "1:N"
+    inventory_items ||--o{ recipe_ingredients : "1:N"
+    inventory_items ||--o{ order_recommendation_items : "1:N"
+    inventory_items ||--o{ order_items : "1:N"
+    inventory_items ||--o{ order_approval_logs : "1:N"
+    inventory_lots ||--o{ disposal_logs : "1:N"
+    sites ||--o{ inventory_item_sites : "1:N"
+    order_recommendations ||--o{ order_recommendation_items : "1:N"
+    order_recommendations ||--o{ orders : "1:N"
+    orders ||--o{ order_items : "1:N"
+    orders ||--o{ order_approval_logs : "1:N"
 ```
 
-## 4. 관계 구조
+---
 
-```text
-점주 (1) -- (1) POS인증정보
-점주 (1) -- (N) 메뉴
-점주 (1) -- (1) 재고관리
-점주 (1) -- (N) 판매데이터
-점주 (1) -- (N) 수요예측
-점주 (1) -- (N) 발주
-메뉴 (1) -- (1) 레시피
-레시피 (1) -- (N) 재료항목
-재고관리 (1) -- (N) 재고품목
-수요예측 (1) -- (N) 추천발주
-발주 (1) -- (N) 발주품목
-발주 (N) -- (1) 거래처
-추천발주 (N) -- (1) 추천사이트
+## 3. 관계 구조
+
+```
+users (1) ── (1) stores
+users (1) ── (N) refresh_tokens
+
+stores (1) ── (1) pos_connections
+stores (1) ── (N) menus
+stores (1) ── (N) inventory_items
+stores (1) ── (N) sale_records
+stores (1) ── (N) forecast_results
+stores (1) ── (N) order_recommendations
+stores (1) ── (N) orders
+stores (1) ── (N) pipeline_jobs
+
+menus  (1) ── (1) recipes
+menus  (1) ── (N) sale_records
+menus  (1) ── (N) forecast_results
+
+recipes (1) ── (N) recipe_ingredients
+recipe_ingredients (N) ── (1) inventory_items
+
+inventory_items (1) ── (N) inventory_lots
+inventory_items (1) ── (N) disposal_logs
+inventory_items (1) ── (N) inventory_item_sites
+
+inventory_lots (1) ── (N) disposal_logs
+
+sites (1) ── (N) inventory_item_sites
+
+order_recommendations (1) ── (N) order_recommendation_items
+order_recommendation_items (N) ── (1) inventory_items
+
+orders (N) ── (1) order_recommendations   [NULL 허용 — 수동 발주 대비]
+orders (1) ── (N) order_items
+orders (1) ── (N) order_approval_logs
+
+order_items (N) ── (1) inventory_items
+order_approval_logs (N) ── (1) inventory_items
 ```
 
-## 5. 데이터 흐름
+---
 
-```text
-POS
-→ 판매데이터 저장
-→ AI 입력(외부 변수 결합)
-→ 수요예측 생성(배치)
-→ 추천발주 생성(사전)
-→ 점주 확인/수정/승인
-→ 발주 확정
-→ Playwright를 통해 쿠팡 장바구니 자동 담기
-→ 실제 결제는 쿠팡에서 진행
-→ 폐기 데이터 + 점주 수정 이력
-→ 모델 재학습 트리거
+## 4. 데이터 흐름
+
 ```
+POS 연동 / CSV 업로드
+→ sale_records 적재
 
-## 추가 작업 필요 항목
+배치 스케줄러 (매일 02:00)
+→ forecast_results 생성 (AI Server 호출)
+→ order_recommendations + order_recommendation_items 생성
 
-- 실제 DB 테이블명 확정 필요
-- 컬럼 타입, 길이, NULL 허용 여부 정의 필요
-- PK/FK 컬럼 상세 정의 필요
-- 인덱스 설계 필요
-- OrderApprovalLog 테이블 상세 정의 필요
-- 암호화 대상 컬럼 정의 필요
-- 파티셔닝 및 복제 적용 기준 정의 필요
+점주 확인/수정
+→ order_recommendation_items.adjusted_quantity 업데이트
 
+점주 발주 확정
+→ orders + order_items 생성
+→ order_approval_logs 기록 (추천값 vs 최종값)
+
+Playwright 쿠팡 자동화
+→ orders.status 업데이트 (AUTOMATED 또는 MANUAL_REQUIRED)
+
+판매 발생
+→ inventory_lots.remaining_quantity FIFO 차감
+
+폐기 처리
+→ disposal_logs 기록
+→ inventory_lots.remaining_quantity 차감
+
+배치 스케줄러 (매주 일요일 02:00)
+→ pipeline_jobs 생성 (TRAIN)
+→ AI Server 재학습 트리거
+```
