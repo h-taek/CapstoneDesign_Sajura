@@ -61,14 +61,18 @@ CREATE TABLE refresh_tokens (
 
 ```sql
 CREATE TABLE stores (
-    store_id    CHAR(36)        NOT NULL,
-    user_id     CHAR(36)        NOT NULL,
-    store_name  VARCHAR(100)    NOT NULL,
-    business_no VARCHAR(20)     NOT NULL,
-    address     VARCHAR(255)    NULL,
-    phone       VARCHAR(20)     NULL,
-    created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    store_id              CHAR(36)                                    NOT NULL,
+    user_id               CHAR(36)                                    NOT NULL,
+    store_name            VARCHAR(100)                                NOT NULL,
+    business_no           VARCHAR(20)                                 NOT NULL,
+    business_type         VARCHAR(50)                                 NOT NULL COMMENT '업종 (AI 예측 지역 변수)',
+    store_size            ENUM('SMALL','MEDIUM','LARGE')              NOT NULL COMMENT '소형~10석 / 중형11~30석 / 대형31석~',
+    operation_type        ENUM('HALL','DELIVERY','BOTH')              NOT NULL COMMENT '홀 운영 / 배달 전용 / 홀+배달',
+    address               VARCHAR(255)                                NULL,
+    phone                 VARCHAR(20)                                 NULL,
+    onboarding_completed  TINYINT(1)                                  NOT NULL DEFAULT 0,
+    created_at            DATETIME                                    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at            DATETIME                                    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (store_id),
     UNIQUE KEY uq_stores_user_id (user_id),
     UNIQUE KEY uq_stores_business_no (business_no),
@@ -99,16 +103,20 @@ CREATE TABLE pos_connections (
 
 ```sql
 CREATE TABLE menus (
-    menu_id     CHAR(36)        NOT NULL,
-    store_id    CHAR(36)        NOT NULL,
-    name        VARCHAR(100)    NOT NULL,
-    category    VARCHAR(50)     NULL,
-    price       INT             NOT NULL,
-    is_active   TINYINT(1)      NOT NULL DEFAULT 1,
-    created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    menu_id                  CHAR(36)      NOT NULL,
+    store_id                 CHAR(36)      NOT NULL,
+    name                     VARCHAR(100)  NOT NULL,
+    category                 VARCHAR(50)   NULL,
+    price                    INT           NOT NULL,
+    is_active                TINYINT(1)    NOT NULL DEFAULT 1,
+    use_inventory_deduction  TINYINT(1)    NOT NULL DEFAULT 1 COMMENT '재고 차감 사용 여부',
+    is_deleted               TINYINT(1)    NOT NULL DEFAULT 0 COMMENT '점주 삭제 표시 여부',
+    deleted_at               DATETIME      NULL COMMENT '소프트 삭제 시각',
+    created_at               DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at               DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (menu_id),
     KEY idx_menus_store_id (store_id),
+    KEY idx_menus_store_deleted (store_id, is_deleted),
     CONSTRAINT fk_menus_store FOREIGN KEY (store_id) REFERENCES stores (store_id) ON DELETE CASCADE
 );
 ```
@@ -152,6 +160,8 @@ CREATE TABLE inventory_items (
     name                VARCHAR(100)    NOT NULL,
     unit                VARCHAR(20)     NOT NULL,
     low_stock_threshold DECIMAL(10,3)   NOT NULL DEFAULT 0,
+    lead_time_days      INT             NULL COMMENT '추천발주 리드타임(일). NULL이면 기본값 1일 사용',
+    safety_stock        DECIMAL(10,3)   NULL COMMENT '추천발주 안전재고 수량. NULL이면 기본값 0 사용',
     created_at          DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (item_id),
@@ -179,7 +189,35 @@ CREATE TABLE inventory_lots (
 );
 ```
 
-### 3.10 disposal_logs
+### 3.10 inventory_adjustment_logs
+
+```sql
+CREATE TABLE inventory_adjustment_logs (
+    adjustment_id       CHAR(36)        NOT NULL,
+    lot_id              CHAR(36)        NOT NULL,
+    item_id             CHAR(36)        NOT NULL COMMENT '조회 편의용 비정규화',
+    store_id            CHAR(36)        NOT NULL COMMENT '조회 편의용 비정규화',
+    user_id             CHAR(36)        NOT NULL,
+    before_quantity     DECIMAL(10,3)   NOT NULL,
+    after_quantity      DECIMAL(10,3)   NOT NULL,
+    delta_quantity      DECIMAL(10,3)   NOT NULL,
+    before_expiry_date  DATE            NULL,
+    after_expiry_date   DATE            NULL,
+    reason              ENUM('STOCKTAKE','EXPIRY_CORRECTION','OTHER') NOT NULL,
+    memo                VARCHAR(255)    NULL,
+    adjusted_at         DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (adjustment_id),
+    KEY idx_inventory_adjustment_logs_store_id (store_id),
+    KEY idx_inventory_adjustment_logs_item_id (item_id),
+    KEY idx_inventory_adjustment_logs_lot_id (lot_id),
+    CONSTRAINT fk_inventory_adjustment_logs_lot FOREIGN KEY (lot_id) REFERENCES inventory_lots (lot_id),
+    CONSTRAINT fk_inventory_adjustment_logs_item FOREIGN KEY (item_id) REFERENCES inventory_items (item_id),
+    CONSTRAINT fk_inventory_adjustment_logs_store FOREIGN KEY (store_id) REFERENCES stores (store_id),
+    CONSTRAINT fk_inventory_adjustment_logs_user FOREIGN KEY (user_id) REFERENCES users (user_id)
+);
+```
+
+### 3.11 disposal_logs
 
 ```sql
 CREATE TABLE disposal_logs (
@@ -187,6 +225,7 @@ CREATE TABLE disposal_logs (
     lot_id      CHAR(36)        NOT NULL,
     item_id     CHAR(36)        NOT NULL COMMENT '조회 편의용 비정규화',
     store_id    CHAR(36)        NOT NULL COMMENT '조회 편의용 비정규화',
+    user_id     CHAR(36)        NOT NULL COMMENT '폐기 처리 사용자 (감사 로그용)',
     quantity    DECIMAL(10,3)   NOT NULL,
     reason      VARCHAR(255)    NULL,
     disposed_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -195,11 +234,12 @@ CREATE TABLE disposal_logs (
     KEY idx_disposal_logs_item_id (item_id),
     CONSTRAINT fk_disposal_logs_lot FOREIGN KEY (lot_id) REFERENCES inventory_lots (lot_id),
     CONSTRAINT fk_disposal_logs_item FOREIGN KEY (item_id) REFERENCES inventory_items (item_id),
-    CONSTRAINT fk_disposal_logs_store FOREIGN KEY (store_id) REFERENCES stores (store_id)
+    CONSTRAINT fk_disposal_logs_store FOREIGN KEY (store_id) REFERENCES stores (store_id),
+    CONSTRAINT fk_disposal_logs_user FOREIGN KEY (user_id) REFERENCES users (user_id)
 );
 ```
 
-### 3.11 sites
+### 3.12 sites
 
 ```sql
 CREATE TABLE sites (
@@ -212,7 +252,7 @@ CREATE TABLE sites (
 );
 ```
 
-### 3.12 inventory_item_sites
+### 3.13 inventory_item_sites
 
 ```sql
 CREATE TABLE inventory_item_sites (
@@ -229,20 +269,24 @@ CREATE TABLE inventory_item_sites (
 );
 ```
 
-### 3.13 sale_records
+> API 응답의 `coupang_url`(= `product_url`)과 `last_price`는 이 테이블에서 쿠팡 사이트(`sites.name = '쿠팡'`) 기준으로 JOIN하여 제공한다. `inventory_items`에 직접 컬럼이 없으므로 서비스 레이어에서 JOIN 처리가 필요하다. MVP에서는 쿠팡 단일 사이트만 지원한다.
+
+### 3.14 sale_records
 
 ```sql
 CREATE TABLE sale_records (
-    sale_id     CHAR(36)        NOT NULL,
-    store_id    CHAR(36)        NOT NULL,
-    menu_id     CHAR(36)        NOT NULL,
-    quantity    INT             NOT NULL,
-    unit_price  INT             NOT NULL,
-    total_price INT             NOT NULL,
-    sold_at     DATETIME        NOT NULL,
-    source      ENUM('POS','CSV') NOT NULL DEFAULT 'POS',
-    created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    sale_id          CHAR(36)        NOT NULL,
+    store_id         CHAR(36)        NOT NULL,
+    menu_id          CHAR(36)        NOT NULL,
+    external_sale_id VARCHAR(100)    NULL COMMENT 'POS/CSV 원본 판매 식별자',
+    quantity         INT             NOT NULL,
+    unit_price       INT             NOT NULL,
+    total_price      INT             NOT NULL,
+    sold_at          DATETIME        NOT NULL,
+    source           ENUM('POS','CSV') NOT NULL DEFAULT 'POS',
+    created_at       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (sale_id),
+    UNIQUE KEY uq_sale_records_source_external (store_id, source, external_sale_id),
     KEY idx_sale_records_store_sold_at (store_id, sold_at),
     KEY idx_sale_records_menu_id (menu_id),
     CONSTRAINT fk_sale_records_store FOREIGN KEY (store_id) REFERENCES stores (store_id),
@@ -250,7 +294,7 @@ CREATE TABLE sale_records (
 );
 ```
 
-### 3.14 forecast_results
+### 3.15 forecast_results
 
 ```sql
 CREATE TABLE forecast_results (
@@ -262,6 +306,8 @@ CREATE TABLE forecast_results (
     confidence_score        DECIMAL(4,3)    NOT NULL,
     is_low_confidence       TINYINT(1)      NOT NULL DEFAULT 0,
     low_confidence_reason   VARCHAR(255)    NULL,
+    explanation_text        TEXT            NULL COMMENT 'Top-3 영향 변수 기반 자연어 설명',
+    top_factors             JSON            NULL COMMENT 'Top-3 영향 변수 목록 및 기여도',
     generated_at            DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (forecast_id),
     UNIQUE KEY uq_forecast_store_menu_date (store_id, menu_id, target_date),
@@ -270,12 +316,13 @@ CREATE TABLE forecast_results (
 );
 ```
 
-### 3.15 order_recommendations
+### 3.16 order_recommendations
 
 ```sql
 CREATE TABLE order_recommendations (
     recommendation_id   CHAR(36)    NOT NULL,
     store_id            CHAR(36)    NOT NULL,
+    target_date         DATE        NOT NULL COMMENT '추천발주 대상 발주일 (n8n 배치 기준일)',
     generated_at        DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (recommendation_id),
     KEY idx_order_recommendations_store_id (store_id),
@@ -283,7 +330,7 @@ CREATE TABLE order_recommendations (
 );
 ```
 
-### 3.16 order_recommendation_items
+### 3.17 order_recommendation_items
 
 ```sql
 CREATE TABLE order_recommendation_items (
@@ -292,6 +339,9 @@ CREATE TABLE order_recommendation_items (
     item_id                 CHAR(36)        NOT NULL,
     recommended_quantity    DECIMAL(10,3)   NOT NULL,
     adjusted_quantity       DECIMAL(10,3)   NOT NULL,
+    lead_time_days          INT             NOT NULL COMMENT '추천 계산 시 사용한 리드타임 스냅샷',
+    safety_stock            DECIMAL(10,3)   NOT NULL COMMENT '추천 계산 시 사용한 안전재고 스냅샷',
+    config_status           ENUM('USER_CONFIGURED','DEFAULT_USED') NOT NULL COMMENT '추천 계산 시 설정값 사용 상태',
     last_price              INT             NULL,
     PRIMARY KEY (id),
     KEY idx_order_rec_items_recommendation_id (recommendation_id),
@@ -300,7 +350,7 @@ CREATE TABLE order_recommendation_items (
 );
 ```
 
-### 3.17 orders
+### 3.18 orders
 
 ```sql
 CREATE TABLE orders (
@@ -319,7 +369,7 @@ CREATE TABLE orders (
 );
 ```
 
-### 3.18 order_items
+### 3.19 order_items
 
 ```sql
 CREATE TABLE order_items (
@@ -336,7 +386,7 @@ CREATE TABLE order_items (
 );
 ```
 
-### 3.19 order_approval_logs
+### 3.20 order_approval_logs
 
 ```sql
 CREATE TABLE order_approval_logs (
@@ -354,7 +404,7 @@ CREATE TABLE order_approval_logs (
 );
 ```
 
-### 3.20 pipeline_jobs
+### 3.21 pipeline_jobs
 
 ```sql
 CREATE TABLE pipeline_jobs (
@@ -362,6 +412,7 @@ CREATE TABLE pipeline_jobs (
     store_id        CHAR(36)        NOT NULL,
     type            ENUM('FORECAST','TRAIN') NOT NULL,
     status          ENUM('QUEUED','RUNNING','DONE','FAILED') NOT NULL DEFAULT 'QUEUED',
+    triggered_by    ENUM('USER','N8N') NOT NULL DEFAULT 'USER',
     started_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     finished_at     DATETIME        NULL,
     error_message   VARCHAR(500)    NULL,
@@ -378,7 +429,10 @@ CREATE TABLE pipeline_jobs (
 
 | 테이블 | 인덱스 | 목적 |
 |--------|--------|------|
+| `menus` | `(store_id, is_deleted)` | 운영 메뉴 목록 조회 시 삭제 메뉴 제외 |
+| `inventory_adjustment_logs` | `(store_id)`, `(item_id)`, `(lot_id)` | 재고 조정 이력 조회 |
 | `sale_records` | `(store_id, sold_at)` | 기간별 판매 조회 (가장 빈번) |
+| `sale_records` | `(store_id, source, external_sale_id)` UNIQUE | POS/CSV 원본 ID가 있는 판매 데이터 중복 수집 방지 |
 | `inventory_lots` | `expiry_date` | 소비기한 경고 배치 조회 |
 | `forecast_results` | `(store_id, menu_id, target_date)` UNIQUE | 중복 예측 방지 + 빠른 조회 |
 | `orders` | `(store_id, approved_at)` | 발주 이력 기간 조회 |
@@ -387,7 +441,31 @@ CREATE TABLE pipeline_jobs (
 
 ---
 
-## 5. 암호화 대상 컬럼
+## 5. DB 계정 분리 정책
+
+DB 직접 접근은 용도별 전용 계정으로 분리한다. 개발자·운영팀의 DB 직접 접근은 VPN 또는 배스천 호스트를 경유한다.
+
+| 계정 | 용도 | 권한 요약 |
+|------|------|-----------|
+| `app_user` | Backend 애플리케이션 | SELECT, INSERT, UPDATE, DELETE (운영 테이블 전체, DDL 없음) |
+| `n8n_user` | n8n 배치 워크플로우 | 아래 표 참조 |
+| `dev_readonly` | 개발자 디버깅·조회 | SELECT (전체 테이블), VPN 경유 필수 |
+| `ops_readonly` | 운영팀 모니터링 | SELECT (`pipeline_jobs`, `stores` 집계), VPN 경유 필수 |
+
+### n8n_user 권한 상세
+
+| 권한 | 테이블 |
+|------|--------|
+| SELECT | `stores`, `menus`, `recipes`, `recipe_ingredients`, `inventory_items`, `inventory_lots`, `sale_records`, `forecast_results`, `order_recommendations`, `order_recommendation_items`, `order_approval_logs` |
+| INSERT | `pipeline_jobs`, `forecast_results`, `order_recommendations`, `order_recommendation_items` |
+| UPDATE | `pipeline_jobs` |
+| DELETE | 없음 |
+
+n8n은 운영 데이터 원본을 삭제하지 않는다. n8n의 쓰기 대상은 배치 산출물과 실행 이력 테이블로 제한한다.
+
+---
+
+## 6. 암호화 대상 컬럼
 
 | 테이블 | 컬럼 | 방식 |
 |--------|------|------|

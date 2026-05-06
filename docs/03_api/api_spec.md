@@ -136,7 +136,8 @@ Authorization: Bearer <access_token>
 {
   "access_token": "jwt_string",
   "token_type": "bearer",
-  "expires_in": 3600
+  "expires_in": 3600,
+  "onboarding_completed": true
 }
 // Refresh Token은 HttpOnly Cookie로 Set-Cookie
 ```
@@ -198,8 +199,10 @@ Authorization: Bearer <access_token>
   "user_id": "uuid",
   "email": "owner@example.com",
   "name": "홍길동",
+  "auth_provider": "LOCAL",
   "store_name": "길동 카페",
   "business_no": "123-45-67890",
+  "onboarding_completed": true,
   "created_at": "2026-01-01T00:00:00Z"
 }
 ```
@@ -246,6 +249,7 @@ Authorization: Bearer <access_token>
 |--------|------|------|
 | `GET` | `/api/store` | 내 매장 정보 조회 |
 | `PATCH` | `/api/store` | 매장 정보 수정 |
+| `POST` | `/api/store/onboarding/complete` | 온보딩 완료 처리 |
 | `GET` | `/api/store/pos` | POS 연동 정보 조회 |
 | `POST` | `/api/store/pos` | POS 연동 등록 |
 | `PATCH` | `/api/store/pos` | POS 연동 정보 수정 |
@@ -263,8 +267,12 @@ Authorization: Bearer <access_token>
   "store_id": "uuid",
   "store_name": "길동 카페",
   "business_no": "123-45-67890",
+  "business_type": "카페",
+  "store_size": "SMALL",
+  "operation_type": "HALL",
   "address": "서울시 강남구 ...",
   "phone": "02-1234-5678",
+  "onboarding_completed": true,
   "created_at": "2026-01-01T00:00:00Z"
 }
 ```
@@ -275,11 +283,27 @@ Authorization: Bearer <access_token>
 // Request (변경할 필드만)
 {
   "store_name": "새 카페",
+  "business_type": "카페",
+  "store_size": "SMALL",
+  "operation_type": "HALL",
   "address": "서울시 서초구 ...",
   "phone": "02-9999-8888"
 }
 // Response 200: GET /api/store 와 동일 구조
 ```
+
+### POST /api/store/onboarding/complete
+
+```json
+// Request: body 없음
+// Response 200
+{
+  "onboarding_completed": true,
+  "store_id": "uuid"
+}
+```
+
+> 온보딩 Step 4(초기 재고/메뉴 입력) 완료 후 Frontend가 호출한다. `stores.onboarding_completed`를 `true`로 업데이트하고, 이후 로그인 응답에 `onboarding_completed: true`가 반환된다. 이미 완료된 상태에서 재호출 시 동일 응답을 반환(멱등).
 
 ### GET /api/store/pos
 
@@ -365,6 +389,7 @@ Authorization: Bearer <access_token>
 
 ```json
 // Query: ?page=1&size=20&sort=name&order=asc&category=음료
+// 기본적으로 is_deleted=false 메뉴만 반환
 // Response 200
 {
   "items": [
@@ -373,7 +398,9 @@ Authorization: Bearer <access_token>
       "name": "아메리카노",
       "category": "음료",
       "price": 4500,
-      "is_active": true
+      "is_active": true,
+      "use_inventory_deduction": true,
+      "is_deleted": false
     }
   ],
   "total": 30,
@@ -391,7 +418,8 @@ Authorization: Bearer <access_token>
   "name": "아메리카노",
   "category": "음료",
   "price": 4500,
-  "is_active": true
+  "is_active": true,
+  "use_inventory_deduction": true
 }
 
 // Response 201
@@ -401,6 +429,9 @@ Authorization: Bearer <access_token>
   "category": "음료",
   "price": 4500,
   "is_active": true,
+  "use_inventory_deduction": true,
+  "is_deleted": false,
+  "deleted_at": null,
   "created_at": "2026-05-06T00:00:00Z"
 }
 ```
@@ -415,7 +446,8 @@ Authorization: Bearer <access_token>
       "name": "아메리카노",
       "category": "음료",
       "price": 4500,
-      "is_active": true
+      "is_active": true,
+      "use_inventory_deduction": true
     }
   ]
 }
@@ -427,6 +459,7 @@ Authorization: Bearer <access_token>
   "skipped_names": ["라떼", "에스프레소"]
 }
 // skipped: 동일 이름 메뉴가 이미 존재하는 경우
+// 메뉴명 중복 검증은 동일 매장의 is_deleted=false 메뉴만 대상으로 수행
 ```
 
 ### GET /api/menus/{menu_id}
@@ -439,6 +472,9 @@ Authorization: Bearer <access_token>
   "category": "음료",
   "price": 4500,
   "is_active": true,
+  "use_inventory_deduction": true,
+  "is_deleted": false,
+  "deleted_at": null,
   "created_at": "2026-05-06T00:00:00Z",
   "updated_at": "2026-05-06T00:00:00Z"
 }
@@ -450,7 +486,8 @@ Authorization: Bearer <access_token>
 // Request (변경할 필드만)
 {
   "price": 5000,
-  "is_active": false
+  "is_active": false,
+  "use_inventory_deduction": false
 }
 // Response 200: GET /api/menus/{menu_id} 와 동일 구조
 ```
@@ -459,6 +496,8 @@ Authorization: Bearer <access_token>
 
 ```
 // Response: 204 No Content
+// 실제 DB 삭제가 아니라 is_deleted=true, deleted_at=현재시각으로 소프트 삭제
+// 삭제된 메뉴의 과거 판매 데이터는 menu_id 참조로 유지
 ```
 
 ### GET /api/menus/{menu_id}/recipe
@@ -524,6 +563,7 @@ Authorization: Bearer <access_token>
 | `DELETE` | `/api/inventory/{item_id}` | 재고 품목 삭제 |
 | `POST` | `/api/inventory/{item_id}/lots` | 입고 등록 (로트 추가) |
 | `GET` | `/api/inventory/{item_id}/lots` | 로트 목록 조회 |
+| `PATCH` | `/api/inventory/{item_id}/lots/{lot_id}` | 로트 수량/소비기한 수정 |
 | `POST` | `/api/inventory/{item_id}/dispose` | 폐기 처리 |
 
 ### GET /api/inventory
@@ -556,7 +596,9 @@ Authorization: Bearer <access_token>
 {
   "name": "원두",
   "unit": "g",
-  "low_stock_threshold": 500.0
+  "low_stock_threshold": 500.0,
+  "lead_time_days": 2,
+  "safety_stock": 1000.0
 }
 
 // Response 201
@@ -565,6 +607,8 @@ Authorization: Bearer <access_token>
   "name": "원두",
   "unit": "g",
   "low_stock_threshold": 500.0,
+  "lead_time_days": 2,
+  "safety_stock": 1000.0,
   "total_quantity": 0.0,
   "created_at": "2026-05-06T00:00:00Z"
 }
@@ -603,6 +647,8 @@ Authorization: Bearer <access_token>
 
 ### GET /api/inventory/{item_id}
 
+> `coupang_url`과 `last_price`는 `inventory_item_sites` JOIN 결과 (쿠팡 사이트 기준). 등록된 쿠팡 상품이 없으면 `null`.
+
 ```json
 // Response 200
 {
@@ -610,6 +656,8 @@ Authorization: Bearer <access_token>
   "name": "원두",
   "unit": "g",
   "low_stock_threshold": 500.0,
+  "lead_time_days": 2,
+  "safety_stock": 1000.0,
   "total_quantity": 2000.0,
   "alert_status": "NORMAL",
   "coupang_url": "https://www.coupang.com/...",
@@ -621,10 +669,14 @@ Authorization: Bearer <access_token>
 
 ### PATCH /api/inventory/{item_id}
 
+> `coupang_url` 변경 시 `inventory_item_sites`의 쿠팡 레코드를 UPSERT. 기존 레코드가 없으면 신규 생성.
+
 ```json
 // Request (변경할 필드만)
 {
   "low_stock_threshold": 800.0,
+  "lead_time_days": 3,
+  "safety_stock": 1200.0,
   "coupang_url": "https://www.coupang.com/..."
 }
 // Response 200: GET /api/inventory/{item_id} 와 동일 구조
@@ -678,6 +730,43 @@ Authorization: Bearer <access_token>
   ]
 }
 ```
+
+### PATCH /api/inventory/{item_id}/lots/{lot_id}
+
+```json
+// Request (변경할 필드만, reason 필수)
+{
+  "remaining_quantity": 2800.0,
+  "expiry_date": "2026-08-10",
+  "reason": "STOCKTAKE",
+  "memo": "월말 실사 조정"
+}
+
+// Response 200
+{
+  "adjustment_id": "uuid",
+  "lot_id": "uuid",
+  "item_id": "uuid",
+  "before_quantity": 3000.0,
+  "after_quantity": 2800.0,
+  "delta_quantity": -200.0,
+  "before_expiry_date": "2026-08-06",
+  "after_expiry_date": "2026-08-10",
+  "reason": "STOCKTAKE",
+  "memo": "월말 실사 조정",
+  "adjusted_at": "2026-05-06T10:00:00Z"
+}
+```
+
+`reason` 값:
+
+| 값 | 설명 |
+|----|------|
+| `STOCKTAKE` | 실사 조정 |
+| `EXPIRY_CORRECTION` | 소비기한 정정 |
+| `OTHER` | 기타 |
+
+> 신규 납품 입고는 기존 로트 수정이 아니라 `POST /api/inventory/{item_id}/lots`로 새 로트를 생성한다.
 
 ### POST /api/inventory/{item_id}/dispose
 
@@ -789,6 +878,8 @@ Authorization: Bearer <access_token>
 // - menu_column: "메뉴명"
 // - quantity_column: "수량"
 // - price_column: "금액"
+// - external_sale_id_column: "영수증번호" (선택)
+// external_sale_id가 없으면 NULL로 저장하며, 이 경우 원본 ID 기반 중복 방지는 적용되지 않음
 
 // Response 201
 {
@@ -796,7 +887,8 @@ Authorization: Bearer <access_token>
   "skipped": 5,
   "skipped_reasons": [
     "3행: 메뉴명 없음",
-    "17행: 금액 형식 오류"
+    "17행: 금액 형식 오류",
+    "22행: 매장 메뉴와 매핑 실패"
   ]
 }
 ```
@@ -807,6 +899,7 @@ Authorization: Bearer <access_token>
 // Response 200
 {
   "sale_id": "uuid",
+  "external_sale_id": "pos-20260506-0001",
   "menu_id": "uuid",
   "menu_name": "아메리카노",
   "quantity": 3,
@@ -850,7 +943,28 @@ Authorization: Bearer <access_token>
       "menu_id": "uuid",
       "menu_name": "아메리카노",
       "predicted_quantity": 52,
-      "confidence_score": 0.87
+      "confidence_score": 0.87,
+      "explanation_text": "아메리카노 예상 판매량이 높은 주요 이유는 전주 동요일 판매량, 기온, 요일 효과입니다.",
+      "top_factors": [
+        {
+          "feature": "전주 동요일 판매량",
+          "value": 48,
+          "contribution": 0.41,
+          "direction": "positive"
+        },
+        {
+          "feature": "기온",
+          "value": 27.5,
+          "contribution": 0.23,
+          "direction": "positive"
+        },
+        {
+          "feature": "요일",
+          "value": "화요일",
+          "contribution": 0.17,
+          "direction": "positive"
+        }
+      ]
     }
   ]
 }
@@ -864,10 +978,12 @@ Authorization: Bearer <access_token>
   "target_date": "2026-05-07"
 }
 // Response 200: GET /api/forecast 와 동일 구조
-// 저장된 예측값 없을 때 AI Server 직접 호출 후 반환
+// 수동 실행이 허용된 경우 AI Server 단건 예측 호출 후 반환
 ```
 
 ### GET /api/orders/recommend
+
+> `coupang_url`은 `inventory_item_sites` JOIN 결과 (쿠팡 사이트 기준). `last_price`는 추천 생성 시 기록된 스냅샷(`order_recommendation_items.last_price`).
 
 ```json
 // Response 200
@@ -880,12 +996,45 @@ Authorization: Bearer <access_token>
       "unit": "g",
       "recommended_quantity": 5000.0,
       "adjusted_quantity": 5000.0,
+      "lead_time_days": 2,
+      "safety_stock": 1000.0,
+      "config_status": "USER_CONFIGURED",
       "last_price": 28000,
       "coupang_url": "https://www.coupang.com/..."
+    },
+    {
+      "item_id": "uuid",
+      "item_name": "우유",
+      "unit": "ml",
+      "recommended_quantity": 3000.0,
+      "adjusted_quantity": 3000.0,
+      "lead_time_days": 1,
+      "safety_stock": 0.0,
+      "config_status": "DEFAULT_USED",
+      "last_price": 6200,
+      "coupang_url": "https://www.coupang.com/..."
+    }
+  ],
+  "missing_config_items": [
+    {
+      "item_id": "uuid",
+      "item_name": "우유",
+      "missing_fields": ["lead_time_days", "safety_stock"],
+      "defaults_used": {
+        "lead_time_days": 1,
+        "safety_stock": 0.0
+      }
     }
   ]
 }
 ```
+
+`config_status` 값:
+
+| 값 | 설명 |
+|----|------|
+| `USER_CONFIGURED` | 리드타임과 안전재고를 모두 점주가 설정한 값으로 계산 |
+| `DEFAULT_USED` | 미설정 값이 있어 시스템 기본값(리드타임 1일, 안전재고 0)을 사용해 계산 |
 
 ### PATCH /api/orders/recommend
 
@@ -1017,7 +1166,7 @@ Authorization: Bearer <access_token>
 
 ## 8. AI Server 연동 API
 
-> Backend → AI Server 간 내부 호출 API. 외부 클라이언트 직접 호출 불가.
+> Backend 수동 실행 또는 n8n 배치 워크플로우에서 호출하는 서버 간 API. 외부 클라이언트 직접 호출 불가.
 > AI Server는 별도 포트로 분리 운영 (예: `http://ai-server:8001`).
 > prefix: `/ai/`
 
@@ -1026,6 +1175,7 @@ Authorization: Bearer <access_token>
 | Method | Path | 설명 |
 |--------|------|------|
 | `POST` | `/ai/forecast/predict` | 수요예측 실행 요청 |
+| `POST` | `/ai/orders/recommend` | 추천발주 생성 요청 |
 | `POST` | `/ai/forecast/train` | 모델 재학습 요청 |
 | `GET` | `/ai/forecast/status` | 예측/학습 작업 상태 조회 |
 | `POST` | `/ai/xai/shap` | SHAP 설명 생성 요청 |
@@ -1038,11 +1188,51 @@ Authorization: Bearer <access_token>
 {
   "store_id": "uuid",
   "target_date": "2026-05-07",
+  "store_profile": {
+    "business_type": "카페",
+    "store_size": "SMALL",
+    "operation_type": "HALL"
+  },
+  "menus": [
+    {
+      "menu_id": "uuid",
+      "name": "아메리카노",
+      "category": "음료"
+    }
+  ],
   "sales_data": [
     {
       "date": "2026-04-01",
       "menu_id": "uuid",
       "quantity": 45
+    }
+  ],
+  "weather_data": [
+    {
+      "date": "2026-05-07",
+      "temperature": 22.4,
+      "rainfall": 0.0,
+      "humidity": 55
+    }
+  ],
+  "foot_traffic_data": [
+    {
+      "date": "2026-05-07",
+      "estimated_count": 12000
+    }
+  ],
+  "search_trend_data": [
+    {
+      "date": "2026-05-07",
+      "keyword": "아메리카노",
+      "score": 78.2
+    }
+  ],
+  "event_data": [
+    {
+      "date": "2026-05-07",
+      "event_name": "지역 축제",
+      "distance_km": 1.2
     }
   ]
 }
@@ -1056,7 +1246,91 @@ Authorization: Bearer <access_token>
     {
       "menu_id": "uuid",
       "predicted_quantity": 52,
+      "confidence_score": 0.87,
+      "explanation_text": "아메리카노 예상 판매량이 높은 주요 이유는 전주 동요일 판매량, 기온, 요일 효과입니다.",
+      "top_factors": [
+        {
+          "feature": "전주 동요일 판매량",
+          "value": 48,
+          "contribution": 0.41,
+          "direction": "positive"
+        },
+        {
+          "feature": "기온",
+          "value": 27.5,
+          "contribution": 0.23,
+          "direction": "positive"
+        },
+        {
+          "feature": "요일",
+          "value": "화요일",
+          "contribution": 0.17,
+          "direction": "positive"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### POST /ai/orders/recommend
+
+```json
+// Request
+{
+  "store_id": "uuid",
+  "target_date": "2026-05-07",
+  "forecast_results": [
+    {
+      "menu_id": "uuid",
+      "predicted_quantity": 52,
       "confidence_score": 0.87
+    }
+  ],
+  "recipes": [
+    {
+      "menu_id": "uuid",
+      "item_id": "uuid",
+      "quantity_per_menu": 18.0,
+      "unit": "g"
+    }
+  ],
+  "inventory": [
+    {
+      "item_id": "uuid",
+      "current_quantity": 2400.0,
+      "unit": "g",
+      "lead_time_days": 2,
+      "safety_stock": 1000.0,
+      "last_price": 28000
+    }
+  ]
+}
+
+// Response 200
+{
+  "store_id": "uuid",
+  "target_date": "2026-05-07",
+  "recommendations": [
+    {
+      "item_id": "uuid",
+      "recommended_quantity": 5000.0,
+      "expected_stockout_date": "2026-05-09",
+      "lead_time_days": 2,
+      "safety_stock": 1000.0,
+      "config_status": "USER_CONFIGURED",
+      "defaults_used": null,
+      "recommendation_reason": "예측 판매량과 현재 재고 기준으로 2일 내 재고 부족이 예상됩니다.",
+      "top_factors": [
+        {
+          "factor": "predicted_demand",
+          "impact": "HIGH"
+        },
+        {
+          "factor": "current_inventory",
+          "impact": "MEDIUM"
+        }
+      ]
     }
   ]
 }
@@ -1129,6 +1403,8 @@ Authorization: Bearer <access_token>
 }
 ```
 
+> `POST /ai/forecast/predict`는 예측 결과와 함께 저장용 XAI 요약(`explanation_text`, `top_factors`)을 반환한다. `POST /ai/xai/shap`은 상세 SHAP 값 조회/생성용 보조 API로 사용한다.
+
 ### GET /ai/health
 
 ```json
@@ -1138,7 +1414,7 @@ Authorization: Bearer <access_token>
   "model_loaded": true,
   "last_trained_at": "2026-05-04T02:00:00Z"
 }
-// AI Server 다운 시 Backend가 503 반환
+// AI Server 다운 시 호출 주체(Backend 또는 n8n)가 실패 처리
 ```
 
 ---
@@ -1150,10 +1426,10 @@ Authorization: Bearer <access_token>
 | Method | Path | 설명 |
 |--------|------|------|
 | `GET` | `/api/dashboard` | 대시보드 전체 요약 데이터 조회 |
-| `GET` | `/api/dashboard/roi` | ROI 지표 조회 (월별 폐기 비용) |
+| `GET` | `/api/dashboard/roi` | ROI 지표 조회 (폐기 비용·폐기율·재고 회전율·MAPE) |
 | `GET` | `/api/dashboard/waste` | 폐기 현황 조회 |
 | `GET` | `/api/pipeline/status` | 파이프라인 최근 실행 상태 조회 |
-| `POST` | `/api/pipeline/run` | 파이프라인 수동 실행 요청 |
+| `POST` | `/api/pipeline/run` | 사용자 수동 실행 요청 |
 | `GET` | `/api/pipeline/history` | 파이프라인 실행 이력 목록 |
 | `GET` | `/api/data/export` | 데이터 CSV 다운로드 |
 | `DELETE` | `/api/data` | 전체 데이터 삭제 요청 |
@@ -1188,20 +1464,41 @@ Authorization: Bearer <access_token>
 ### GET /api/dashboard/roi
 
 ```json
-// Query: ?months=6 (최근 N개월)
+// Query: ?start_month=2026-01&end_month=2026-06
+// start_month 생략 시 end_month 기준 최근 6개월 자동 설정
 // Response 200
 {
-  "data": [
+  "period": {
+    "start_month": "2026-01",
+    "end_month": "2026-06"
+  },
+  "summary": {
+    "total_waste_cost": 300000,
+    "waste_cost_change_rate": -0.18,
+    "waste_reduction_rate": 0.18,
+    "inventory_turnover_change": 0.12,
+    "forecast_mape": 0.16
+  },
+  "monthly": [
     {
       "month": "2026-01",
       "waste_cost": 52000,
-      "mom_change_rate": null
+      "mom_change_rate": null,
+      "waste_reduction_rate": null,
+      "forecast_mape": 0.22
     },
     {
       "month": "2026-02",
       "waste_cost": 48000,
-      "mom_change_rate": -0.08
+      "mom_change_rate": -0.08,
+      "waste_reduction_rate": 0.08,
+      "forecast_mape": 0.19
     }
+  ],
+  "calculation_notes": [
+    "waste_reduction_rate는 기준월(start_month) 대비 각 월의 폐기 비용 감소율입니다.",
+    "inventory_turnover_change는 기준월 대비 기간 평균 재고 회전율 변화입니다.",
+    "forecast_mape는 해당 기간 예측 결과와 실제 판매량을 비교해 계산합니다."
   ]
 }
 ```
@@ -1260,9 +1557,12 @@ Authorization: Bearer <access_token>
   "job_id": "uuid",
   "type": "FORECAST",
   "status": "QUEUED",
+  "triggered_by": "USER",
   "queued_at": "2026-05-06T10:00:00Z"
 }
 ```
+
+> `/api/pipeline/run`은 Frontend에서 점주/관리자가 수동으로 실행할 때만 사용한다. 야간 자동 배치는 Backend의 별도 배치용 API가 아니라 n8n의 DB 직접 접근과 AI Server 호출로 수행한다.
 
 ### GET /api/pipeline/history
 
@@ -1275,6 +1575,7 @@ Authorization: Bearer <access_token>
       "job_id": "uuid",
       "type": "FORECAST",
       "status": "DONE",  // QUEUED | RUNNING | DONE | FAILED
+      "triggered_by": "N8N",
       "started_at": "2026-05-06T02:00:00Z",
       "finished_at": "2026-05-06T02:03:12Z",
       "error_message": null
@@ -1316,5 +1617,5 @@ Authorization: Bearer <access_token>
 |------|------|
 | 프로토콜 | REST API |
 | 데이터 형식 | JSON (CSV 다운로드/업로드 제외) |
-| 인증 방식 | JWT Bearer Token |
+| 인증 방식 | 사용자 API는 JWT Bearer Token, n8n은 전용 DB 계정으로 배치 산출물을 직접 저장 |
 | 문서화 | OpenAPI(Swagger) 자동 문서화 (FastAPI 기본 제공) |

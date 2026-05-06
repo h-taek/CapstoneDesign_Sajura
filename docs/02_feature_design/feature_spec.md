@@ -4,7 +4,7 @@
 
 ### 1.1 소셜 로그인 (Google / 카카오)
 
-- Google과 카카오 모두 **Backend에서 OAuth 2.0 흐름을 직접 처리**한다. Firebase SDK 미사용.
+- Google과 카카오 모두 **Authlib 라이브러리를 사용하여 Backend에서 OAuth 2.0 흐름을 처리**한다. Firebase SDK 미사용.
 - Frontend는 각 로그인 버튼 클릭 시 Backend의 인가 URL로 리다이렉트만 수행한다.
 - Backend는 OAuth 콜백에서 사용자 정보를 조회하고, 회원 존재 여부를 DB에서 확인한다.
 - 신규 사용자이면 회원 정보를 저장하고 온보딩 흐름을 시작한다.
@@ -89,8 +89,8 @@ Frontend → GET /api/auth/login/kakao
 | | POS 종류 및 자격증명 | 필수 시도, 실패 시 CSV 임시 모드 허용 |
 | 출력 | store_id | |
 | | onboarding_completed | boolean |
-| | pos_linked | boolean |
-| | pos_mode | "api" / "csv" / "none" |
+
+> POS 연동 상태(`CONNECTED` / `CSV_MODE` / `DISCONNECTED`)는 온보딩 완료 후 `GET /api/store/pos/status`로 별도 조회한다.
 
 ## 2. 메뉴 관리
 
@@ -134,15 +134,16 @@ Frontend → GET /api/auth/login/kakao
 ### 2.4 메뉴 삭제
 
 - 점주 UI에서는 즉시 삭제로 표시되나 DB에는 소프트 삭제로 처리한다.
-- `deleted_at` 기준 6개월 후 배치 작업으로 DB에서 영구 삭제한다.
-- 삭제된 메뉴의 과거 판매 데이터는 `menu_id` 참조로 유지한다.
+- 삭제된 메뉴는 운영 메뉴 목록에서 제외하되 DB에는 유지한다.
+- 삭제된 메뉴의 과거 판매 데이터는 `menu_id` 참조로 계속 유지한다.
+- 메뉴명 중복 검증은 동일 매장의 삭제되지 않은 메뉴만 대상으로 수행한다.
 
 | 구분 | 항목 | 비고 |
 |---|---|---|
 | 입력 | menu_id | |
 | 출력 | 삭제 완료 여부 | |
 | DB 처리 | is_deleted: true, deleted_at 기록 | 소프트 삭제 |
-| 영구 삭제 | deleted_at + 6개월 후 배치 실행 | |
+| 보존 정책 | 영구 삭제 없음 | 과거 판매 데이터 참조 보존 |
 
 ## 3. 재고 관리
 
@@ -195,7 +196,7 @@ Frontend → GET /api/auth/login/kakao
 
 ### 3.4 재고 수동 수정
 
-- 신규 입고 시 새 로트를 추가한다 (수량 + 소비기한 입력).
+- 신규 입고 시 기존 로트를 수정하지 않고 새 로트를 추가한다 (수량 + 소비기한 입력).
 - 기존 로트의 소비기한 또는 수량을 직접 수정할 수 있다.
 - 수정 이력을 기록한다.
 
@@ -203,9 +204,9 @@ Frontend → GET /api/auth/login/kakao
 |---|---|---|
 | 입력 (신규 입고) | item_id, 입고 수량, 소비기한 | 새 로트 생성 |
 | 입력 (기존 로트 수정) | lot_id, 수정 수량 또는 소비기한 | |
-| 입력 공통 | 수정 사유 | 필수, 선택지 제공 (실사 조정 / 납품 입고 / 기타) |
+| 입력 공통 | 수정 사유 | 필수, 선택지 제공 (실사 조정 / 소비기한 정정 / 기타) |
 | 출력 | 수정 완료 여부 | |
-| 이력 기록 | 수정 전 수량, 수정 후 수량, 수정 사유, 수정 일시, user_id | |
+| 이력 기록 | 수정 전 수량, 수정 후 수량, 수정 전/후 소비기한, 수정 사유, 수정 일시, user_id | |
 
 ### 3.5 재고 폐기
 
@@ -248,10 +249,15 @@ Frontend → GET /api/auth/login/kakao
 
 | POS 소스 | 어댑터 | 공통 스키마 |
 |---|---|---|
-| 토스플레이스 | TossPlaceAdapter | `{ "timestamp": ..., "item_id": ..., "qty": ..., "unit": "kg" }` |
+| 토스플레이스 | TossPlaceAdapter | `{ "sold_at": ..., "external_sale_id": ..., "menu_name": ..., "quantity": ..., "unit_price": ..., "total_price": ... }` |
 | 키움페이 | KiwoomAdapter | 동일 공통 스키마 |
 | OKPOS | OKPOSAdapter | 동일 공통 스키마 |
 | CSV / Excel 업로드 | CSVAdapter | 동일 공통 스키마 |
+
+- POS 어댑터의 공통 스키마는 판매 메뉴 단위의 표준 판매 데이터이다.
+- Backend는 공통 스키마의 `menu_name`을 매장 메뉴와 매핑하여 내부 `menu_id`를 결정한다.
+- `external_sale_id`는 POS/CSV 원본 판매 식별자이며, 제공되지 않는 CSV 데이터에서는 NULL을 허용한다.
+- 매핑 실패 시 해당 행은 저장하지 않고 업로드/동기화 결과의 `skipped` 항목으로 반환한다.
 
 ### 4.3 POS API 연동
 
@@ -283,11 +289,11 @@ Frontend → GET /api/auth/login/kakao
 | 구분 | 항목 |
 |---|---|
 | 입력 | POS 원본 데이터 (각 POS별 포맷) |
-| 출력 | `{ timestamp, item_id, qty, unit }` 공통 스키마로 변환된 데이터 |
+| 출력 | `{ sold_at, external_sale_id, menu_name, quantity, unit_price, total_price }` 공통 판매 스키마로 변환된 데이터 |
 
 ### 4.6 데이터 품질 처리
 
-- JSON Schema 또는 Pydantic으로 스키마를 검증한다.
+- JSON Schema 또는 Pydantic으로 공통 판매 스키마를 검증한다.
 - IQR 및 Z-score 기반으로 이상치를 탐지한다.
 - 이상치 비율에 따라 처리 방식을 분기한다.
 
@@ -329,7 +335,11 @@ Frontend → GET /api/auth/login/kakao
 
 ### 5.1 배치 예측 (야간 자동 실행)
 
-- n8n이 매일 02:00에 전체 매장의 메뉴별 예측을 수행한다.
+- n8n이 매일 02:00에 야간 예측 워크플로우를 트리거한다.
+- n8n은 DB에서 판매 데이터, 메뉴, 레시피, 재고 등 예측 입력 데이터를 직접 조회한다.
+- n8n은 날씨, 유동인구, 검색량, 행사 정보 등 외부 데이터를 API로 수집한다.
+- n8n은 수집한 데이터를 전처리 및 정규화한 뒤 AI Server의 예측 API에 전달하고, 반환된 예측 결과를 DB에 직접 저장한다.
+- n8n 전처리에는 결측값 처리, 이상치 필터링, 단위 통일, 날짜/시간 기준 정렬, 메뉴/재료 매핑, 외부 변수 병합이 포함된다.
 - 예측 대상은 재고 차감 여부와 무관하게 전체 메뉴이다.
 - 예측 결과는 DB에 사전 저장하여 점주 요청 시 즉시 반환한다.
 
@@ -341,7 +351,7 @@ Frontend → GET /api/auth/login/kakao
 ### 5.2 예측 결과 조회 (점주 요청)
 
 - DB 캐시를 우선 조회하여 반환한다.
-- 저장된 예측 결과가 없을 경우 AI Server를 직접 호출하고 결과를 DB에 저장한다.
+- 저장된 예측 결과가 없고 수동 실행이 허용된 경우 Backend가 AI Server를 호출해 단건 예측을 수행할 수 있다.
 
 | 구분 | 항목 | 비고 |
 |---|---|---|
@@ -376,9 +386,12 @@ Frontend → GET /api/auth/login/kakao
 ### 6.1 추천발주 생성 (배치)
 
 - 수요예측 배치 완료 후 연속으로 실행한다.
-- 추천발주안을 DB에 사전 저장한다.
+- 추천발주 생성은 AI Server가 담당한다.
+- n8n은 AI Server가 반환한 추천발주안을 DB에 사전 저장한다.
 - 발주 연동 대상은 쿠팡이며 이후 추가 업체 확장을 고려한다.
 - 리드타임과 안전재고는 점주가 재료별로 직접 입력한다.
+- 리드타임과 안전재고는 `inventory_items.lead_time_days`, `inventory_items.safety_stock`에 재료별로 저장한다.
+- 리드타임 또는 안전재고가 미설정이면 AI Server 추천 생성 시 시스템 기본값(리드타임 1일, 안전재고 0)을 사용하되, 해당 품목에 `DEFAULT_USED` 상태를 표시하고 설정 필요 항목으로 안내한다.
 
 | 구분 | 항목 | 비고 |
 |---|---|---|
@@ -392,6 +405,8 @@ Frontend → GET /api/auth/login/kakao
 | | 추천 근거 | |
 
 ### 6.2 추천발주 산식
+
+추천발주 기본 산식은 AI Server 추천 모델의 베이스라인 로직으로 사용한다. 최종 추천발주 수량은 AI Server가 예측 결과, 레시피, 현재 재고, 리드타임, 안전재고, 단가를 반영해 생성한다.
 
 **단위 통일 (계산 수행 전 전처리)**
 
@@ -493,7 +508,7 @@ Frontend → GET /api/auth/login/kakao
 
 ### 8.2 ROI 대시보드
 
-- 기본 조회 단위는 주별이며 점주가 기간을 선택할 수 있다.
+- 기본 조회 단위는 월별이며 점주가 시작월·종료월을 선택할 수 있다.
 
 | 지표 | 산식 | 데이터 원천 |
 |---|---|---|
@@ -505,8 +520,9 @@ Frontend → GET /api/auth/login/kakao
 
 | 구분 | 항목 | 비고 |
 |---|---|---|
-| 입력 | store_id, 조회 기간 | 기본값 주별 |
-| 출력 | 폐기율, 재고 회전율, MAPE, 월별 폐기 비용, 전월 대비 폐기 비용 변화율 | |
+| 입력 | store_id, start_month, end_month | start_month 생략 시 최근 6개월 |
+| 출력 (summary) | waste_reduction_rate (폐기율 변화), inventory_turnover_change (재고 회전율 변화), forecast_mape, total_waste_cost, waste_cost_change_rate | 기간 전체 집계 |
+| 출력 (monthly) | 월별 waste_cost, mom_change_rate, waste_reduction_rate, forecast_mape | 월별 추세 |
 
 ## 9. XAI
 
@@ -515,6 +531,9 @@ Frontend → GET /api/auth/login/kakao
 - SHAP 기반 Top-3 영향 변수를 템플릿 기반 자연어로 변환한다.
 - 예측 결과와 함께 DB에 저장한다.
 - 예측 결과 화면에서 메뉴별로 펼쳐서 확인할 수 있다.
+- 예측 결과 화면에 표시되는 자연어 설명과 Top-3 영향 변수는 `forecast_results.explanation_text`, `forecast_results.top_factors`에 저장한다.
+- `POST /ai/forecast/predict`는 예측값과 함께 저장용 XAI 요약을 반환한다.
+- `POST /ai/xai/shap`은 상세 SHAP 조회/생성용으로 사용한다.
 
 | 구분 | 항목 | 비고 |
 |---|---|---|
@@ -536,24 +555,34 @@ Frontend → GET /api/auth/login/kakao
 
 - 예측 배치는 매일 02:00에 실행한다.
 - 모델 재학습은 매주 일요일 02:00에 실행한다 (예측 배치와 별도).
-- 각 단계 실패 시 3회 자동 재시도 후에도 실패가 지속되면 Slack 알림을 발송한다.
+- n8n은 정해진 시각에 배치 워크플로우를 트리거한다.
+- n8n은 DB 직접 조회/저장, 외부 API 수집, 데이터 전처리/정규화, AI Server 호출, 실행 이력 갱신을 담당한다.
+- AI Server는 n8n으로부터 예측, 추천발주, 학습 요청을 받아 모델 연산을 수행한다.
+- Backend는 점주용 조회/수정/승인 API와 수동 실행 보조 기능을 담당한다.
+- 각 단계 실패 시 n8n에서 3회 자동 재시도 후에도 실패가 지속되면 Slack 알림을 발송한다.
 
 | 단계 | 작업 | 실패 처리 |
 |---|---|---|
-| 1. 수집 | POS 판매 데이터, 날씨, 유동인구, 검색량, 행사 정보 수집 | 3회 재시도 → Slack 알림 |
-| 2. 전처리 | 이상치 탐지, 단위 통일, 결측값 처리 | 3회 재시도 → Slack 알림 |
-| 3. 예측 | 메뉴별 1~3일 수요 예측 (매일) | 3회 재시도 → Slack 알림 |
-| 4. 캐싱 | 예측 결과 + XAI 근거 DB 저장 | 3회 재시도 → Slack 알림 |
-| 5. 알림 | 점주에게 예측 완료 + 추천발주안 생성 알림 발송 | 로깅만 수행 |
+| 1. 작업 시작 기록 | n8n이 매장별로 `pipeline_jobs`에 `store_id`, `type=FORECAST`, `triggered_by=N8N`, `status=RUNNING`으로 INSERT | 3회 재시도 → Slack 알림 |
+| 2. DB 데이터 조회 | n8n이 DB에서 판매 데이터, 메뉴, 레시피, 재고, 리드타임, 안전재고, 기존 예측/발주 이력을 조회 | 3회 재시도 → Slack 알림 |
+| 3. 외부 데이터 수집 | n8n이 날씨, 유동인구, 검색량, 행사 정보 API를 호출 | 3회 재시도 → Slack 알림 |
+| 4. 입력 데이터 전처리/정규화 | n8n Function/Code Node에서 결측값 처리, 이상치 필터링, 단위 통일, 날짜/시간 기준 정렬, 메뉴/재료 매핑, 외부 변수 병합 후 AI Server 입력 스키마로 변환 | 3회 재시도 → Slack 알림 |
+| 5. 수요예측 실행 | n8n이 AI Server `/ai/forecast/predict`를 호출 | 3회 재시도 → Slack 알림 |
+| 6. 추천발주 생성 | n8n이 AI Server `/ai/orders/recommend`를 호출 | 3회 재시도 → Slack 알림 |
+| 7. 예측 결과 저장 | n8n이 `forecast_results`에 예측 결과와 XAI 요약을 INSERT/UPSERT | 3회 재시도 → Slack 알림 |
+| 8. 추천발주 저장 | n8n이 `order_recommendations`, `order_recommendation_items`에 추천발주 결과를 INSERT | 3회 재시도 → Slack 알림 |
+| 9. 작업 종료/알림 | n8n이 `pipeline_jobs`를 `DONE` 또는 `FAILED`로 UPDATE하고 Slack 또는 앱 알림 발송 | 로깅만 수행 |
 
 ### 10.2 주간 재학습 파이프라인 (매주 일요일 02:00)
 
 | 단계 | 작업 | 실패 처리 |
 |---|---|---|
-| 1. 피드백 수집 | 점주 수정 이력, 실제 판매 결과 수집 | 3회 재시도 → Slack 알림 |
-| 2. 학습 | 피드백 반영 모델 재학습 | 3회 재시도 → Slack 알림 |
-| 3. 검증 | 재학습 모델 성능 검증 | 3회 재시도 → Slack 알림 |
-| 4. 배포 | 검증 통과 시 모델 교체 | 3회 재시도 → Slack 알림 |
+| 1. 작업 시작 기록 | n8n이 매장별로 `pipeline_jobs`에 `store_id`, `type=TRAIN`, `triggered_by=N8N`, `status=RUNNING`으로 INSERT | 3회 재시도 → Slack 알림 |
+| 2. 학습 데이터 조회 | n8n이 DB에서 판매 데이터, 예측 결과, 점주 수정 이력, 발주 확정 이력을 조회 | 3회 재시도 → Slack 알림 |
+| 3. 학습 데이터 전처리/정규화 | n8n Function/Code Node에서 결측값 처리, 이상치 필터링, 단위 통일, 날짜/시간 기준 정렬 후 AI Server 학습 입력 스키마로 변환 | 3회 재시도 → Slack 알림 |
+| 4. 재학습 실행 | n8n이 AI Server `/ai/forecast/train`을 호출 | 3회 재시도 → Slack 알림 |
+| 5. 학습 상태 확인 | n8n이 AI Server `/ai/forecast/status`를 polling하여 완료 여부 확인 | 3회 재시도 → Slack 알림 |
+| 6. 작업 종료/알림 | n8n이 `pipeline_jobs`를 `DONE` 또는 `FAILED`로 UPDATE하고 Slack 알림 발송 | 로깅만 수행 |
 
 ## 11. 알림 정책
 
@@ -696,4 +725,3 @@ Frontend → GET /api/auth/login/kakao
 ## 추가 작업 필요 항목
 
 - API endpoint 및 Request/Response 상세 정의 필요 (03_api에서 진행)
-
