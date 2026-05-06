@@ -90,12 +90,16 @@ Authorization: Bearer <access_token>
 | Method | Path | 설명 | 인증 필요 |
 |--------|------|------|-----------|
 | `POST` | `/api/auth/register` | 회원가입 (사업자번호 검증 포함) | X |
-| `POST` | `/api/auth/login` | 로그인 | X |
+| `POST` | `/api/auth/login` | 이메일/비밀번호 로그인 | X |
+| `GET` | `/api/auth/login/kakao` | 카카오 OAuth 인가 URL 리다이렉트 | X |
+| `GET` | `/api/auth/callback/kakao` | 카카오 인가 코드 수신 → 자체 JWT 발급 | X |
+| `GET` | `/api/auth/login/google` | 구글 OAuth 인가 URL 리다이렉트 | X |
+| `GET` | `/api/auth/callback/google` | 구글 인가 코드 수신 → 자체 JWT 발급 | X |
 | `POST` | `/api/auth/logout` | 로그아웃 | O |
 | `POST` | `/api/auth/refresh` | Access Token 재발급 | X (Cookie) |
 | `GET` | `/api/auth/me` | 내 정보 조회 | O |
 | `PATCH` | `/api/auth/me` | 일반 정보 수정 | O |
-| `PATCH` | `/api/auth/password` | 비밀번호 변경 | O |
+| `PATCH` | `/api/auth/password` | 비밀번호 변경 (LOCAL 계정만) | O |
 | `DELETE` | `/api/auth/me` | 회원 탈퇴 | O |
 
 ### POST /api/auth/register
@@ -135,6 +139,34 @@ Authorization: Bearer <access_token>
   "expires_in": 3600
 }
 // Refresh Token은 HttpOnly Cookie로 Set-Cookie
+```
+
+### GET /api/auth/login/kakao
+
+```
+// Response: 302 Redirect → 카카오 OAuth 인가 페이지
+```
+
+### GET /api/auth/callback/kakao
+
+```
+// Query: ?code=인가코드&state=csrf_state
+// Response 200: POST /api/auth/login 과 동일 구조
+// + Refresh Token Set-Cookie
+```
+
+### GET /api/auth/login/google
+
+```
+// Response: 302 Redirect → 구글 OAuth 인가 페이지
+```
+
+### GET /api/auth/callback/google
+
+```
+// Query: ?code=인가코드&state=csrf_state
+// Response 200: POST /api/auth/login 과 동일 구조
+// + Refresh Token Set-Cookie
 ```
 
 ### POST /api/auth/logout

@@ -24,14 +24,17 @@
 
 ```sql
 CREATE TABLE users (
-    user_id     CHAR(36)        NOT NULL,
-    email       VARCHAR(255)    NOT NULL,
-    password_hash VARCHAR(255)  NOT NULL,
-    name        VARCHAR(50)     NOT NULL,
-    created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    user_id       CHAR(36)                            NOT NULL,
+    email         VARCHAR(255)                        NOT NULL,
+    password_hash VARCHAR(255)                        NULL COMMENT '소셜 로그인 계정은 NULL',
+    name          VARCHAR(50)                         NOT NULL,
+    auth_provider ENUM('LOCAL','KAKAO','GOOGLE')      NOT NULL DEFAULT 'LOCAL',
+    social_id     VARCHAR(100)                        NULL COMMENT '소셜 서비스의 사용자 고유 ID',
+    created_at    DATETIME                            NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME                            NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id),
-    UNIQUE KEY uq_users_email (email)
+    UNIQUE KEY uq_users_email (email),
+    UNIQUE KEY uq_users_social (auth_provider, social_id)
 );
 ```
 

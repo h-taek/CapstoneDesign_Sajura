@@ -2,32 +2,53 @@
 
 ## 1. 인증 및 회원가입
 
-### 1.1 Google 로그인
+### 1.1 소셜 로그인 (Google / 카카오)
 
-- Firebase Auth를 사용한다.
-- Frontend에서 Google 인증을 수행한다.
-- 인증 토큰을 Backend로 전달한다.
-- Backend는 회원 존재 여부를 DB에서 조회한다.
-- 신규 사용자이면 회원 정보를 저장한다.
+- Google과 카카오 모두 **Backend에서 OAuth 2.0 흐름을 직접 처리**한다. Firebase SDK 미사용.
+- Frontend는 각 로그인 버튼 클릭 시 Backend의 인가 URL로 리다이렉트만 수행한다.
+- Backend는 OAuth 콜백에서 사용자 정보를 조회하고, 회원 존재 여부를 DB에서 확인한다.
+- 신규 사용자이면 회원 정보를 저장하고 온보딩 흐름을 시작한다.
+- 인증 제공자와 무관하게 동일한 자체 JWT를 발급한다.
+
+**Google 로그인 흐름:**
+```
+Frontend → GET /api/auth/login/google
+         → 302 Redirect → Google OAuth 인가 페이지
+         → Google 인증 완료
+         → GET /api/auth/callback/google?code=...
+         → Backend: 구글 사용자 정보 조회 → 자체 JWT 발급
+         → Frontend: Access Token 수신 + Refresh Token Cookie 저장
+```
+
+**카카오 로그인 흐름:**
+```
+Frontend → GET /api/auth/login/kakao
+         → 302 Redirect → 카카오 OAuth 인가 페이지
+         → 카카오 인증 완료
+         → GET /api/auth/callback/kakao?code=...
+         → Backend: 카카오 사용자 정보 조회 → 자체 JWT 발급
+         → Frontend: Access Token 수신 + Refresh Token Cookie 저장
+```
 
 | 구분 | 항목 |
 |---|---|
-| 입력 | Firebase ID Token |
+| 입력 | OAuth 인가 코드 (Backend 콜백으로 수신) |
 | 출력 | JWT Access Token, JWT Refresh Token, user_id, email, onboarding_completed |
 
-### 1.2 카카오 로그인
+### 1.2 이메일/비밀번호 로그인
 
-- Authlib를 사용한다.
-- OAuth 2.0 흐름은 Backend에서 직접 처리한다.
+- 사업자가 직접 이메일과 비밀번호로 가입 및 로그인하는 방식.
+- 비밀번호는 bcrypt로 해시하여 저장한다.
+- 소셜 로그인 계정은 비밀번호 변경 기능을 사용할 수 없다.
 
 | 구분 | 항목 |
 |---|---|
-| 입력 | 카카오 Authorization Code |
+| 입력 | email, password |
 | 출력 | JWT Access Token, JWT Refresh Token, user_id, email, onboarding_completed |
 
 ### 1.3 JWT 토큰 정책
 
-- Google과 카카오 모두 Backend가 자체 JWT를 발급하여 인증 제공자와 무관하게 동일한 토큰 구조를 사용한다.
+- 모든 인증 방식(Google, 카카오, 이메일)에서 동일한 자체 JWT 구조를 사용한다.
 - Access Token 유효 기간은 1시간이다.
 - Refresh Token 유효 기간은 30일이며 HttpOnly Cookie에 저장한다.
 - Refresh Token은 사용 시마다 새 토큰으로 교체한다(Rotation).
