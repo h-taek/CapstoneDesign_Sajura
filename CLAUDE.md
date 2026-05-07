@@ -16,11 +16,21 @@
 
 | 파일 | 역할 | 정의하는 사실 |
 |------|------|--------------|
-| `feature_spec.md` | 비즈니스 규칙 원본 | 신뢰도 기준, FIFO 로직, 알림 정책 등 |
+| `requirements.md` | 요구사항 원본 | 프로젝트 목표·고객·기능·비기능 요구사항 |
+| `usecase_spec.md` | 유즈케이스 원본 | 액터 관계, UC별 목적·흐름·조건 |
+| `feature_list.md` | 기능 목록 원본 | 기능 분류, 베이스라인 모델 순서, 추천발주 단계 정책 |
+| `feature_spec.md` | 비즈니스 규칙 원본 | 신뢰도 기준, FIFO 로직, 인증 정책, 알림 정책 |
 | `api_spec.md` | API 계약 원본 | 요청/응답 구조, 상태코드, AI Server API |
 | `schema.md` | DB 구조 원본 | 컬럼명, 타입, FK, 인덱스 |
 | `erd.md` | schema.md 시각화 | schema와 항상 동기화 필요 |
-| `service_design.md` | 구현 설계 | schema·api_spec 결정을 반영 |
+| `service_design.md` | 백엔드 구현 설계 | 기술스택, 서비스 클래스·메서드 시그니처 |
+| `ml_pipeline.md` | AI 파이프라인 원본 | 파이프라인 단계·입출력·전처리·배치 실행 시각 |
+| `model_spec.md` | ML 모델 설계 원본 | 베이스라인 순서, 입력피처, 출력, XAI 설계 |
+| `sequence.md` | 시스템 흐름 시각화 | 소셜로그인·수요예측·발주 시퀀스 다이어그램 |
+| `user_flow.md` | UX 흐름 원본 | 점주 사용 흐름, 화면 IA |
+| `performance.md` | 성능 기준 원본 | API SLA, 배치 SLA, Playwright 타임아웃 기준 |
+| `security.md` | 보안 정책 원본 | 토큰 정책, 암호화, 접근통제, 감사로그 항목 |
+| `mvp_scope.md` | MVP 범위 원본 | 포함/제외 기능, 성공기준, 로드맵, 개발역할 |
 | `docs/prompts/06_ai_handoff.md` | 06_ai 작업 인수인계 | 01~05 확정 내용 요약 |
 | `docs/prompts/consistency_check.md` | 일관성 검증 체크리스트 | 교차 검증 항목 + 수정 기록 |
 

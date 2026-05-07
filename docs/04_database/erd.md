@@ -44,7 +44,6 @@ erDiagram
     inventory_items ||--o{ inventory_adjustment_logs : "1:N"
     inventory_items ||--o{ disposal_logs : "1:N"
     inventory_items ||--o{ inventory_item_sites : "1:N"
-    inventory_items ||--o{ recipe_ingredients : "1:N"
     inventory_items ||--o{ order_recommendation_items : "1:N"
     inventory_items ||--o{ order_items : "1:N"
     inventory_items ||--o{ order_approval_logs : "1:N"

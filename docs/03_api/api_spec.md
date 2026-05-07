@@ -1590,6 +1590,8 @@ Authorization: Bearer <access_token>
 
 ### GET /api/data/export
 
+> **MVP 제외 — 2단계 구현 예정** (mvp_scope.md 섹션 4 참조)
+
 ```
 // Query: ?type=sales&start_date=2026-01-01&end_date=2026-01-31
 // type: sales | inventory | orders
@@ -1599,6 +1601,8 @@ Authorization: Bearer <access_token>
 ```
 
 ### DELETE /api/data
+
+> **MVP 제외 — 2단계 구현 예정** (mvp_scope.md 섹션 4 참조)
 
 ```json
 // Request

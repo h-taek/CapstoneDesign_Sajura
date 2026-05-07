@@ -198,6 +198,8 @@
 
 ### DataService
 
+> **MVP 제외 — 2단계 구현 예정** (mvp_scope.md 섹션 4 참조)
+
 | 메서드 | 파라미터 | 반환 | 설명 |
 |--------|----------|------|------|
 | `export_data` | store_id, type, start_date, end_date | `CsvStream` | 판매/재고/발주 데이터를 CSV로 내보내기 (type: sales, inventory, orders) |
