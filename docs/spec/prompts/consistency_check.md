@@ -2,29 +2,29 @@
 
 ## 이 프롬프트의 목적
 
-`docs/01` ~ `docs/09` 문서들 간의 내용 불일치, 누락, 모순을 검출하고 수정합니다.
-단, `docs/06_ai` 문서는 AI 담당자가 인수인계 후 작성할 예정이므로, 작성 완료 전까지는 확정 내용 검증 대상이 아니라 연동 예정 항목으로만 확인합니다.
+`docs/spec/01` ~ `docs/spec/09` 문서들 간의 내용 불일치, 누락, 모순을 검출하고 수정합니다.
+단, `docs/spec/06_ai` 문서는 AI 담당자가 인수인계 후 작성할 예정이므로, 작성 완료 전까지는 확정 내용 검증 대상이 아니라 연동 예정 항목으로만 확인합니다.
 
 ---
 
 ## 검증 대상 파일
 
 ```
-docs/01_requirements/requirements.md
-docs/01_requirements/usecase_spec.md
-docs/02_feature_design/feature_list.md
-docs/02_feature_design/feature_spec.md
-docs/03_api/api_spec.md
-docs/04_database/schema.md
-docs/04_database/erd.md
-docs/05_backend/service_design.md
-docs/06_ai/ml_pipeline.md              # 작성 예정: AI 담당자 인수인계 후 확정 검증
-docs/06_ai/model_spec.md               # 작성 예정: AI 담당자 인수인계 후 확정 검증
-docs/07_flow/sequence.md
-docs/07_flow/user_flow.md
-docs/08_nonfunctional/performance.md
-docs/08_nonfunctional/security.md
-docs/09_mvp/mvp_scope.md
+docs/spec/01_requirements/requirements.md
+docs/spec/01_requirements/usecase_spec.md
+docs/spec/02_feature_design/feature_list.md
+docs/spec/02_feature_design/feature_spec.md
+docs/spec/03_api/api_spec.md
+docs/spec/04_database/schema.md
+docs/spec/04_database/erd.md
+docs/spec/05_backend/service_design.md
+docs/spec/06_ai/ml_pipeline.md              # 작성 예정: AI 담당자 인수인계 후 확정 검증
+docs/spec/06_ai/model_spec.md               # 작성 예정: AI 담당자 인수인계 후 확정 검증
+docs/spec/07_flow/sequence.md
+docs/spec/07_flow/user_flow.md
+docs/spec/08_nonfunctional/performance.md
+docs/spec/08_nonfunctional/security.md
+docs/spec/09_mvp/mvp_scope.md
 ```
 
 ---
@@ -151,7 +151,7 @@ docs/09_mvp/mvp_scope.md
 
 ### 13. AI/수요예측 설계 일관성
 
-> `docs/06_ai` 작성 완료 전에는 아래 항목을 최종 불일치로 판단하지 말고, AI 담당자에게 전달할 인수인계/작성 확인 항목으로 기록하세요.
+> `docs/spec/06_ai` 작성 완료 전에는 아래 항목을 최종 불일치로 판단하지 말고, AI 담당자에게 전달할 인수인계/작성 확인 항목으로 기록하세요.
 
 - [ ] `feature_spec.md`의 수요예측/발주 추천 기능이 `ml_pipeline.md`, `model_spec.md`의 입력, 출력, 학습/추론 흐름과 일치하는지 확인
 - [ ] `api_spec.md`의 `GET /api/forecast`, `POST /api/pipeline/run`, `GET /api/pipeline/history` 요청/응답이 `ml_pipeline.md`의 파이프라인 입출력과 일치하는지 확인
@@ -181,7 +181,7 @@ docs/09_mvp/mvp_scope.md
 - [ ] API enum, DB enum, 화면 표시 상태, AI 파이프라인 상태가 같은 의미로 매핑되는지 확인
 - [ ] 문서 간 기능 번호, 섹션 번호, 참조 링크가 깨지거나 오래된 파일명을 가리키지 않는지 확인
 - [ ] `docs/사주라_기술문서.md`가 01~09 문서의 최신 확정 내용을 요약하는 경우, 해당 요약이 원문과 충돌하지 않는지 확인
-- [ ] 변경 후 `docs/prompts/writing_rules.md`, `docs/prompts/06_ai_handoff.md`에 남은 SSOT/인수인계 규칙이 01~09 최신 범위와 충돌하지 않는지 확인
+- [ ] 변경 후 `docs/README.md`(SSOT 테이블·파일 맵), `docs/spec/prompts/06_ai_handoff.md`(인수인계 규칙)이 01~09 최신 범위와 충돌하지 않는지 확인
 
 ---
 
@@ -194,113 +194,12 @@ docs/09_mvp/mvp_scope.md
 4. 수정 후 이 체크리스트에 수정 내용 기록
 
 01~09 전체 검증 시:
-1. 요구사항/유스케이스(`docs/01`)를 제품 범위의 최상위 기준으로 삼음
-2. 기능 상세(`docs/02`) → API(`docs/03`) → DB(`docs/04`) → Backend(`docs/05`) → Flow(`docs/07`) → 비기능(`docs/08`) → MVP(`docs/09`) 순으로 확정 문서 영향 범위를 추적
+1. 요구사항/유스케이스(`docs/spec/01`)를 제품 범위의 최상위 기준으로 삼음
+2. 기능 상세(`docs/spec/02`) → API(`docs/spec/03`) → DB(`docs/spec/04`) → Backend(`docs/spec/05`) → Flow(`docs/spec/07`) → 비기능(`docs/spec/08`) → MVP(`docs/spec/09`) 순으로 확정 문서 영향 범위를 추적
 3. 단, MVP 포함/제외 여부는 `mvp_scope.md`를 최종 범위 기준으로 삼고, 제외 기능이 다른 문서에서 필수 구현처럼 남아 있으면 수정
 4. 보안/성능 요구사항은 `security.md`, `performance.md`를 기준으로 삼되, 실제 구현 가능성은 API/DB/Backend/AI 문서와 교차 확인
-5. `docs/06_ai`는 AI 담당자 작성 전까지 수정하지 않고, 필요한 입력/출력/스키마/API 연동 요구사항만 인수인계 항목으로 기록
-6. 수정 후 기존 검증 기록 아래에 날짜별로 수정 내용과 영향을 받은 파일을 추가 기록
-
----
-
-## 검증 기록
-
-### 2026-05-07
-
-01~05 전체 비판적 일관성 검토 수행. C-series(기능 정확성) 5건, S-series(구조적 불일치) 6건 발견 및 전부 수정.
-
-**C-series 수정:**
-- C-1: `coupang_url`/`last_price`가 `inventory_item_sites` JOIN 결과임을 `api_spec.md`, `schema.md`, `service_design.md` 전체에 명시
-- C-2: `disposal_logs`에 `user_id` 컬럼 추가 (`schema.md`), ERD 관계 추가 (`erd.md`), `InventoryService.dispose` 파라미터에 `user_id` 추가 (`service_design.md`)
-- C-3: `order_recommendations`에 `target_date DATE NOT NULL` 컬럼 추가 (`schema.md`)
-- C-4: 쿠팡 자동화(`POST /api/orders/{order_id}/automate`)가 발주 확정과 독립된 별도 호출임을 `service_design.md` 섹션 6에 명시
-- C-5: `DataService` 클래스 및 `export_data`, `delete_data` 메서드 추가 (`service_design.md`)
-
-**S-series 수정:**
-- S-1: `erd.md` Mermaid 다이어그램에 `stores ||--o{ disposal_logs` 관계 추가 (섹션 3에는 이미 있었음)
-- S-2: `feature_spec.md` 1.4 온보딩 출력에서 `pos_mode`, `pos_linked` 제거 → `GET /api/store/pos/status`로 대체
-- S-3: `api_spec.md`에 `POST /api/store/onboarding/complete` 엔드포인트 추가
-- S-4: `service_design.md` 섹션 6에 coupang_url 최초 등록 시 즉시 단가 조회 흐름 추가
-- S-5: `DashboardService.get_roi` 설명에 재고 회전율 계산 방식 명시 (총 소모량: 판매×레시피 파생, 평균 재고: 시작/종료 역산)
-- S-6: `service_design.md` 섹션 6에 수동 파이프라인 실행 흐름 추가
-
-**추가 작업:**
-- `docs/prompts/06_ai_handoff.md` 전면 최신화 (AI Server API 추가, forecast_results/pipeline_jobs/order_recommendations 스키마 반영, 배치 흐름 상세화)
-- `docs/prompts/writing_rules.md` 신규 작성 (SSOT 테이블, 작업 전/중/후 체크리스트, 연동 수정 맵)
-- `CLAUDE.md` 신규 작성 (세션 자동 로드)
-
-### 2026-05-07 (5차)
-
-01~09 전체 일관성 검증 수행 (06_ai 제외). 37개 세부 항목 검토, 불일치 4건 수정.
-
-**수정 내용:**
-- E-1 (erd.md): Mermaid 다이어그램에서 `inventory_items ||--o{ recipe_ingredients : "1:N"` 중복 선언 제거. `recipe_ingredients }o--|| inventory_items : "N:1"`(FK 방향)으로 단일 표현으로 정리.
-- E-2 (sequence.md 섹션 2): 소셜 로그인 이후 사업자번호 검증 단계에서 존재하지 않는 `POST /api/auth/register` 호출 제거. 사업자번호+매장 정보를 `PATCH /api/store` 단일 호출로 통합 (서버 측에서 국세청 API 검증 수행).
-- E-3 (sequence.md 섹션 2): POS 연동 엔드포인트 `POST /api/store/pos/link` → `POST /api/store/pos`로 수정 (api_spec.md 기준).
-- E-4 (sequence.md 섹션 4): 추천발주 엔드포인트명 `GET /api/orders/recommendations` → `GET /api/orders/recommend`, `PATCH /api/orders/recommendations/{id}` → `PATCH /api/orders/recommend`으로 수정 (api_spec.md 기준).
-- E-5 (api_spec.md, service_design.md): "데이터 내보내기·삭제(GDPR 대응)"가 mvp_scope.md 섹션 4에서 MVP 제외(2단계)로 분류되어 있으나 api_spec.md와 service_design.md에는 구현 대상으로 포함되어 있었음. 두 파일의 해당 섹션에 "MVP 제외 — 2단계 구현 예정" 주석 추가.
-
-**주의 사항(⚠️):**
-- `alert_status` 계산 기준(LOW 판단 임계치 등)이 service_design.md에 명시되지 않음 — 구현 시 `InventoryService.get_alerts` 메서드 설명에 추가 권장.
-- sequence.md 섹션 7(소비기한 배치) 트리거 주체가 모호함 — 06_ai 인수인계 시 배치 분리 여부 확인 필요.
-
-### 2026-05-07 (4차)
-
-09_mvp 작성 수행 (`mvp_scope.md` 전면 재작성).
-
-**mvp_scope.md 작성 내용:**
-- 섹션 1 MVP 목표: 핵심 흐름(데이터 적재→예측→발주 추천→점주 승인→쿠팡 자동화) end-to-end 완성 목표 정의
-- 섹션 2 1차 검증 업종: 주점 확정 (보유 POS 데이터 기반 CSV 업로드 방식)
-- 섹션 3 MVP 포함 기능: 프로토타입·MVP 비교 표 (n8n 수동 트리거→자동 스케줄 전환, 앱 내 알림 MVP 추가)
-- 섹션 4 MVP 제외 기능: POS API 연동, 주간 재학습 배치, ROI 대시보드, Cold-start, 다중 업종, GDPR 데이터 삭제 내보내기 유예
-- 섹션 5 고도화 로드맵: 2단계·3단계 주요 기능 정의
-- 섹션 6 데모 시나리오: 신규 점주 온보딩→당일 발주까지 Step 1~6 표 (확인 포인트 포함)
-- 섹션 7 MVP 성공 기준: 기능 완성(5개 항목), 예측 품질(MAPE 30% 이하), 성능(API 200ms/캐시 300ms) 정의
-- 섹션 8 데이터 확보 방식: 보유 주점 POS 데이터 CSV 변환 업로드, 30일 이상 데이터 확보 목표, 신뢰도 낮음 배지 예고
-- 섹션 9 역할 분담: Frontend(정동욱·이민욱·임형택), AI Modeling(정동욱·이민욱·서창현), Backend(서창현·임형택), 파트 간 공유 책임 명시
-
-### 2026-05-07 (3차)
-
-08_nonfunctional 전체 작성 수행 (`security.md`, `performance.md`).
-
-**security.md 수정:**
-- 섹션 2 인증: Firebase 기준 제거 → Google·카카오 모두 Authlib OAuth 2.0 기준으로 재작성
-- 섹션 2.3 토큰 정책 추가: Access Token·Refresh Token 역할·저장 위치·만료·Rotation·로그아웃 정책 명시
-- 섹션 3.1 개인정보 수집 항목 추가: 필수 수집·이용 중 수집·미수집·보유 기간 정의
-- 섹션 4.1 암호화 적용 대상 추가: AES-256(`pos_connections.api_key`), SHA-256(`refresh_tokens.token_hash`), 비적용 항목 이유 명시
-- 섹션 5 접근 통제 전면 재작성: 레이어 1(사용자 단 — store_id 검증, RBAC 추후 확장)·레이어 2(DB·인프라 단 — app_user/n8n_user/dev_readonly/ops_readonly 계정 분리, VPN 경유) 분리 명시
-- 섹션 5.3 감사 로그 대상 추가: order_approval_logs, disposal_logs, inventory_lots, pipeline_jobs
-
-**performance.md 수정:**
-- 섹션 1.1 API별 목표 응답 시간 추가: 일반 API 200ms / 예측 캐시 hit 300ms / 캐시 miss 5초 / Playwright 30초
-- 섹션 1.2 동시 사용자·매장 수 기준 추가: MVP 50개 매장·20명 동시 접속, 단계별 확장 목표 정의
-- 섹션 2.2 캐싱: Redis TTL 기반 캐싱 언급 추가, 상세는 service_design.md 섹션 9 참조 처리
-- 섹션 2.4 배치 처리 SLA 추가: 예측 배치 3시간 내, 재학습 배치 4시간 내, 실패 시 처리 정책 명시
-- 섹션 2.5 Playwright 타임아웃 추가: 품목당 10초·전체 30초, 재시도 없음 (feature_spec.md 7.2 기준)
-- 성능 리스크 표: Playwright 항목 재시도 정책 수정
-
-### 2026-05-07 (2차)
-
-07_flow 전체 작성 수행 (`user_flow.md`, `sequence.md`).
-
-**user_flow.md 수정:**
-- 섹션 2 핵심 사용 흐름: POS 연동 성공/실패 분기, 쿠팡 자동화 전체/부분/전체 실패 분기 추가
-- 섹션 3 온보딩 흐름: Firebase 기준 제거 → Authlib OAuth 2.0 기준으로 재작성, 사업자등록번호 국세청 API 검증 단계 추가, POS 실패 → CSV 임시 모드 분기 추가
-- 섹션 5·6: 신규 입고(로트 추가)·수정 사유 보강, 재고 차감 경고·소프트 삭제 내용 추가
-- 신규 섹션 9~15 추가: 화면 IA, 대시보드/ROI 조회, 소비기한 관리, 알림 수신, 쿠팡 자동화 실패 분기, 리드타임/안전재고 설정, 설정 관리
-
-**sequence.md 수정:**
-- 섹션 2 회원가입 시퀀스: Firebase 기준 전면 재작성 → Authlib OAuth 2.0 기준, 사업자번호 검증, POS 실패 분기, `POST /api/store/onboarding/complete` 호출 포함
-- 섹션 3 수요예측: n8n 배치 주도 역할 명시, 캐시 없음 시 Backend 단건 호출 분기 추가
-- 섹션 4 발주요청: 발주 확정(`POST /api/orders/approve`)과 쿠팡 자동화(`POST /api/orders/{order_id}/automate`) 별도 엔드포인트 분리 명시, 전체/부분/전체 실패 분기 추가
-- 신규 섹션 5~8 추가: 야간 배치 파이프라인 (n8n 주도), 재고 자동 차감 FIFO, 소비기한 배치·알림, Refresh Token 갱신
-
-### 2026-05-06
-
-- 검증 대상 5개 문서(`feature_spec.md`, `api_spec.md`, `schema.md`, `erd.md`, `service_design.md`)를 체크리스트 기준으로 교차 확인함.
-- 수정 1: `docs/03_api/api_spec.md`의 `GET /api/menus`, `GET /api/menus/{menu_id}`, `PATCH /api/menus/{menu_id}` 예시에 `use_inventory_deduction` 필드를 추가하여 `feature_spec.md`의 "재고 차감 사용 여부"와 `schema.md`의 `menus.use_inventory_deduction` 컬럼에 맞춤.
-- 수정 2: `docs/05_backend/service_design.md`에 "서비스 호출 흐름" 섹션을 추가하여 `PosService.sync_pos` → `SaleService.save_pos_sales`, `SaleService.save_pos_sales` → `InventoryService.deduct_stock`, `PipelineService.run_forecast_batch` → `OrderService.create_recommendations`, `OrderService.approve_order` → `SiteScrapingService.scrape_prices_bulk` 호출 구조를 명시함.
-- 나머지 항목은 현재 문서 간 일관성이 확인됨.
+5. `docs/spec/06_ai`는 AI 담당자 작성 전까지 수정하지 않고, 필요한 입력/출력/스키마/API 연동 요구사항만 인수인계 항목으로 기록
+6. 수정 후 `PROGRESS.md` 섹션 4에 날짜별로 수정 내용과 영향받은 파일을 추가 기록
 
 ---
 

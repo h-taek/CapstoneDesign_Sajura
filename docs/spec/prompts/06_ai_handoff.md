@@ -7,7 +7,7 @@
 
 ## 이 문서의 목적
 
-`docs/06_ai/ml_pipeline.md`와 `docs/06_ai/model_spec.md`를 작성·보완할 때 필요한 확정 내용을 정리한 문서.
+`docs/spec/06_ai/ml_pipeline.md`와 `docs/spec/06_ai/model_spec.md`를 작성·보완할 때 필요한 확정 내용을 정리한 문서.
 01~05 설계서에서 AI 관련 결정 사항을 모두 추출하여 재정리했으므로, 반드시 이 문서를 읽은 뒤 작업한다.
 
 ---
