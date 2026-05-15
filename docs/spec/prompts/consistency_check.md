@@ -3,7 +3,7 @@
 ## 이 프롬프트의 목적
 
 `docs/spec/01` ~ `docs/spec/09` 문서들 간의 내용 불일치, 누락, 모순을 검출하고 수정합니다.
-단, `docs/spec/06_ai` 문서는 AI 담당자가 인수인계 후 작성할 예정이므로, 작성 완료 전까지는 확정 내용 검증 대상이 아니라 연동 예정 항목으로만 확인합니다.
+단, `docs/spec/08_ai` 문서는 AI 담당자가 인수인계 후 작성할 예정이므로, 작성 완료 전까지는 확정 내용 검증 대상이 아니라 연동 예정 항목으로만 확인합니다.
 
 ---
 
@@ -12,19 +12,19 @@
 ```
 docs/spec/01_requirements/requirements.md
 docs/spec/01_requirements/usecase_spec.md
-docs/spec/02_feature_design/feature_list.md
-docs/spec/02_feature_design/feature_spec.md
-docs/spec/03_api/api_spec.md
-docs/spec/04_database/schema.md
-docs/spec/04_database/erd.md
-docs/spec/05_backend/service_design.md
-docs/spec/06_ai/ml_pipeline.md              # 작성 예정: AI 담당자 인수인계 후 확정 검증
-docs/spec/06_ai/model_spec.md               # 작성 예정: AI 담당자 인수인계 후 확정 검증
-docs/spec/07_flow/sequence.md
-docs/spec/07_flow/user_flow.md
-docs/spec/08_nonfunctional/performance.md
-docs/spec/08_nonfunctional/security.md
-docs/spec/09_mvp/mvp_scope.md
+docs/spec/03_feature_design/feature_list.md
+docs/spec/03_feature_design/feature_spec.md
+docs/spec/05_api/api_spec.md
+docs/spec/06_database/schema.md
+docs/spec/06_database/erd.md
+docs/spec/07_backend/service_design.md
+docs/spec/08_ai/ml_pipeline.md              # 작성 예정: AI 담당자 인수인계 후 확정 검증
+docs/spec/08_ai/model_spec.md               # 작성 예정: AI 담당자 인수인계 후 확정 검증
+docs/spec/04_flow/sequence.md
+docs/spec/04_flow/user_flow.md
+docs/spec/09_nonfunctional/performance.md
+docs/spec/09_nonfunctional/security.md
+docs/spec/02_mvp/mvp_scope.md
 ```
 
 ---
@@ -151,7 +151,7 @@ docs/spec/09_mvp/mvp_scope.md
 
 ### 13. AI/수요예측 설계 일관성
 
-> `docs/spec/06_ai` 작성 완료 전에는 아래 항목을 최종 불일치로 판단하지 말고, AI 담당자에게 전달할 인수인계/작성 확인 항목으로 기록하세요.
+> `docs/spec/08_ai` 작성 완료 전에는 아래 항목을 최종 불일치로 판단하지 말고, AI 담당자에게 전달할 인수인계/작성 확인 항목으로 기록하세요.
 
 - [ ] `feature_spec.md`의 수요예측/발주 추천 기능이 `ml_pipeline.md`, `model_spec.md`의 입력, 출력, 학습/추론 흐름과 일치하는지 확인
 - [ ] `api_spec.md`의 `GET /api/forecast`, `POST /api/pipeline/run`, `GET /api/pipeline/history` 요청/응답이 `ml_pipeline.md`의 파이프라인 입출력과 일치하는지 확인
@@ -181,7 +181,7 @@ docs/spec/09_mvp/mvp_scope.md
 - [ ] API enum, DB enum, 화면 표시 상태, AI 파이프라인 상태가 같은 의미로 매핑되는지 확인
 - [ ] 문서 간 기능 번호, 섹션 번호, 참조 링크가 깨지거나 오래된 파일명을 가리키지 않는지 확인
 - [ ] `docs/사주라_기술문서.md`가 01~09 문서의 최신 확정 내용을 요약하는 경우, 해당 요약이 원문과 충돌하지 않는지 확인
-- [ ] 변경 후 `docs/README.md`(SSOT 테이블·파일 맵), `docs/spec/prompts/06_ai_handoff.md`(인수인계 규칙)이 01~09 최신 범위와 충돌하지 않는지 확인
+- [ ] 변경 후 `docs/README.md`(SSOT 테이블·파일 맵), `docs/spec/prompts/08_ai_handoff.md`(인수인계 규칙)이 01~09 최신 범위와 충돌하지 않는지 확인
 
 ---
 
@@ -198,7 +198,7 @@ docs/spec/09_mvp/mvp_scope.md
 2. 기능 상세(`docs/spec/02`) → API(`docs/spec/03`) → DB(`docs/spec/04`) → Backend(`docs/spec/05`) → Flow(`docs/spec/07`) → 비기능(`docs/spec/08`) → MVP(`docs/spec/09`) 순으로 확정 문서 영향 범위를 추적
 3. 단, MVP 포함/제외 여부는 `mvp_scope.md`를 최종 범위 기준으로 삼고, 제외 기능이 다른 문서에서 필수 구현처럼 남아 있으면 수정
 4. 보안/성능 요구사항은 `security.md`, `performance.md`를 기준으로 삼되, 실제 구현 가능성은 API/DB/Backend/AI 문서와 교차 확인
-5. `docs/spec/06_ai`는 AI 담당자 작성 전까지 수정하지 않고, 필요한 입력/출력/스키마/API 연동 요구사항만 인수인계 항목으로 기록
+5. `docs/spec/08_ai`는 AI 담당자 작성 전까지 수정하지 않고, 필요한 입력/출력/스키마/API 연동 요구사항만 인수인계 항목으로 기록
 6. 수정 후 `PROGRESS.md` 섹션 4에 날짜별로 수정 내용과 영향받은 파일을 추가 기록
 
 ---
@@ -213,5 +213,5 @@ docs/spec/09_mvp/mvp_scope.md
 | 경제지표/검색량/SNS 데이터 사용 여부 | ml_pipeline.md | AI 담당자가 확정 예정 |
 | LightGBM → DNN 전환 기준 | model_spec.md | AI 담당자가 확정 예정 |
 | Regression vs Classification 확정 | model_spec.md | AI 담당자가 확정 예정 |
-| 06_ai 문서 전체 | ml_pipeline.md, model_spec.md | 다른 인원이 인수인계 받아 작성 예정. 작성 완료 전까지는 수정하지 않고 연동 요구사항만 기록 |
-| 07_flow, 08_nonfunctional, 09_mvp | 해당 파일들 | 2026-05-07 이전 기록: 당시 작업 미시작. 01~09 검증 확장 이후에는 검증 대상에 포함 |
+| 08_ai 문서 전체 | ml_pipeline.md, model_spec.md | 다른 인원이 인수인계 받아 작성 예정. 작성 완료 전까지는 수정하지 않고 연동 요구사항만 기록 |
+| 04_flow, 09_nonfunctional, 02_mvp | 해당 파일들 | 2026-05-07 이전 기록: 당시 작업 미시작. 01~09 검증 확장 이후에는 검증 대상에 포함 |

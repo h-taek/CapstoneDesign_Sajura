@@ -69,7 +69,7 @@ CREATE TABLE stores (
     store_size            ENUM('SMALL','MEDIUM','LARGE')              NOT NULL COMMENT '소형~10석 / 중형11~30석 / 대형31석~',
     operation_type        ENUM('HALL','DELIVERY','BOTH')              NOT NULL COMMENT '홀 운영 / 배달 전용 / 홀+배달',
     address               VARCHAR(255)                                NULL,
-    phone                 VARCHAR(20)                                 NULL,
+    phone                 VARCHAR(20)                                 NULL COMMENT 'NATIONAL 형식 010-1234-5678 — BE가 phonenumbers로 정규화 후 저장',
     onboarding_completed  TINYINT(1)                                  NOT NULL DEFAULT 0,
     created_at            DATETIME                                    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at            DATETIME                                    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -423,6 +423,51 @@ CREATE TABLE pipeline_jobs (
 );
 ```
 
+### 3.22 notifications
+
+```sql
+CREATE TABLE notifications (
+    notification_id        CHAR(36)        NOT NULL,
+    user_id                CHAR(36)        NOT NULL,
+    store_id               CHAR(36)        NOT NULL,
+    type                   ENUM('STOCK_LOW','EXPIRY_D3','EXPIRY_D1','EXPIRY_OVER','FORECAST_DONE','ANOMALY_HIGH') NOT NULL,
+    priority               ENUM('INFO','WARNING','URGENT') NOT NULL DEFAULT 'INFO',
+    title                  VARCHAR(200)    NOT NULL,
+    body                   TEXT            NULL,
+    related_resource_type  VARCHAR(50)     NULL COMMENT 'inventory_item / forecast / order 등',
+    related_resource_id    CHAR(36)        NULL,
+    is_read                TINYINT(1)      NOT NULL DEFAULT 0,
+    created_at             DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (notification_id),
+    KEY idx_notifications_user_unread (user_id, is_read, created_at),
+    KEY idx_notifications_store (store_id),
+    CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_notifications_store FOREIGN KEY (store_id) REFERENCES stores (store_id) ON DELETE CASCADE
+);
+```
+
+> 인앱 알림 저장소. `feature_spec.md` §11 알림 정책 모두 본 테이블에 INSERT된다. Web Push 발송은 `push_subscriptions`를 참조해 BE Service가 비동기로 수행한다.
+
+### 3.23 push_subscriptions
+
+```sql
+CREATE TABLE push_subscriptions (
+    subscription_id  CHAR(36)        NOT NULL,
+    user_id          CHAR(36)        NOT NULL,
+    endpoint         VARCHAR(500)    NOT NULL COMMENT '브라우저별 Push Service endpoint URL',
+    p256dh           VARCHAR(255)    NOT NULL COMMENT 'VAPID 공개 키 (브라우저 발급)',
+    auth             VARCHAR(255)    NOT NULL COMMENT 'VAPID 인증 시크릿',
+    user_agent       VARCHAR(255)    NULL,
+    created_at       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (subscription_id),
+    UNIQUE KEY uq_push_subscriptions_endpoint (endpoint),
+    KEY idx_push_subscriptions_user (user_id),
+    CONSTRAINT fk_push_subscriptions_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
+);
+```
+
+> VAPID 표준 Web Push 구독 정보. Push Service가 410(Gone) 응답 시 endpoint 만료 → 본 행 삭제.
+
 ---
 
 ## 4. 인덱스 설계 요약
@@ -438,6 +483,8 @@ CREATE TABLE pipeline_jobs (
 | `orders` | `(store_id, approved_at)` | 발주 이력 기간 조회 |
 | `pipeline_jobs` | `status` | 실행 중 작업 모니터링 |
 | `refresh_tokens` | `token_hash` UNIQUE | 토큰 검증 |
+| `notifications` | `(user_id, is_read, created_at)` | 점주 미읽음 알림 목록 조회 |
+| `push_subscriptions` | `endpoint` UNIQUE | 브라우저 구독 endpoint 중복 방지 |
 
 ---
 
@@ -461,6 +508,8 @@ DB 직접 접근은 용도별 전용 계정으로 분리한다. 개발자·운�
 | UPDATE | `pipeline_jobs` |
 | DELETE | 없음 |
 
+> 점주 대상 알림(`notifications`·`push_subscriptions`)은 BE `NotificationService.create_and_push`가 일관 처리한다. n8n은 AI 파이프라인 종료 시점에 BE 내부 API를 호출해 알림을 트리거할 뿐, `notifications` 테이블에 직접 INSERT하지 않는다 — 따라서 n8n_user에 해당 권한 부여 없음.
+
 n8n은 운영 데이터 원본을 삭제하지 않는다. n8n의 쓰기 대상은 배치 산출물과 실행 이력 테이블로 제한한다.
 
 ---
@@ -470,5 +519,5 @@ n8n은 운영 데이터 원본을 삭제하지 않는다. n8n의 쓰기 대상�
 | 테이블 | 컬럼 | 방식 |
 |--------|------|------|
 | `users` | `password_hash` | bcrypt |
-| `pos_connections` | `api_key` | AES-256 (애플리케이션 레벨) |
+| `pos_connections` | `api_key` | AES-256-GCM (애플리케이션 레벨) |
 | `refresh_tokens` | `token_hash` | SHA-256 |

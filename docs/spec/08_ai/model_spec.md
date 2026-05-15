@@ -8,21 +8,21 @@
 
 ## 2. 베이스라인 비교 순서
 
-| 순서 | 모델 | 역할 | 상태 |
-|---|---|---|---|
-| 1 | 이동평균 | baseline 1단계 | 확정 |
-| 2 | ARIMA / Prophet | baseline 2단계 | 확정 |
-| 3 | XGBoost / LightGBM | baseline 3단계 / 초기 AI 모델 | 확정 |
-| 4 | LSTM / RNN | baseline 4단계 | 검토 예정 |
-| 5 | TimExer | 외생 변수 통합 참고 아키텍처 | 검토 예정 |
+| 순서 | 모델 | 역할 |
+|---|---|---|
+| 1 | 이동평균 | baseline 1단계 |
+| 2 | ARIMA / Prophet | baseline 2단계 |
+| 3 | XGBoost / LightGBM | baseline 3단계 / 초기 AI 모델 |
+
+> baseline 4단계(LSTM/RNN)·5단계(TimExer)는 조사 중. 진행 상황은 `docs/research/ai/01_model_selection.md` §1 참조.
 
 ## 3. 초기 모델
 
 - 초기 AI 모델은 XGBoost / LightGBM 계열이다.
 - ML Server는 LightGBM과 SHAP을 사용한다.
 - PyTorch 기반 DNN도 기술 스택에 포함된다.
-- LightGBM과 DNN의 구체적 전환 기준은 확실하지 않음.
-- Regression vs Classification 방식 선택은 확실하지 않음.
+
+> LightGBM↔DNN 전환 기준, Regression vs Classification 선택은 조사 중. `docs/research/ai/01_model_selection.md` §2 참조.
 
 ## 4. 예측 대상
 
@@ -92,12 +92,6 @@
 
 위 경우에는 예측 신뢰도 낮음 경고 배지를 표시한다.
 
-## 추가 작업 필요 항목
+---
 
-- 모델별 학습/검증 데이터 분리 기준 정의 필요
-- 평가 지표와 목표 성능 기준 정의 필요
-- LightGBM과 DNN 전환 기준 정의 필요
-- Regression vs Classification 방식 확정 필요
-- Cold-start 모델 상세 로직 정의 필요
-- SHAP 자연어 변환 템플릿 상세 정의 필요
-
+> 미확정 항목(데이터 분리·평가 지표·전환 기준·Regression vs Classification·Cold-start·SHAP 템플릿)은 `docs/research/ai/01_model_selection.md` §3 참조.

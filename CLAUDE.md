@@ -21,7 +21,7 @@
 - AI가 먼저 항목을 제안하고 담당자가 확정
 - 확정된 내용은 즉시 문서에 반영
 - 제안 시 **추가/제외 추천 항목을 항상 함께 제시**
-- 06_ai 작업 시 → `docs/spec/prompts/06_ai_handoff.md` 먼저 읽고 시작
+- 08_ai 작업 시 → `docs/spec/prompts/08_ai_handoff.md` 먼저 읽고 시작
 - 새 정책·방향 결정 발생 시 → `PROGRESS.md` 섹션 3에 기록
 
 ---

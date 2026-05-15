@@ -12,8 +12,9 @@
 | 수요예측 | `forecast_results` |
 | 발주 | `order_recommendations`, `order_recommendation_items`, `orders`, `order_items`, `order_approval_logs` |
 | 파이프라인 | `pipeline_jobs` |
+| 알림 | `notifications`, `push_subscriptions` |
 
-총 21개 테이블
+총 23개 테이블
 
 ---
 
@@ -35,6 +36,9 @@ erDiagram
     stores ||--o{ order_recommendations : "1:N"
     stores ||--o{ orders : "1:N"
     stores ||--o{ pipeline_jobs : "1:N"
+    stores ||--o{ notifications : "1:N"
+    users ||--o{ notifications : "1:N"
+    users ||--o{ push_subscriptions : "1:N"
     menus ||--o| recipes : "1:1"
     menus ||--o{ sale_records : "1:N"
     menus ||--o{ forecast_results : "1:N"
@@ -76,6 +80,10 @@ stores (1) ── (N) forecast_results
 stores (1) ── (N) order_recommendations
 stores (1) ── (N) orders
 stores (1) ── (N) pipeline_jobs
+stores (1) ── (N) notifications
+
+users  (1) ── (N) notifications
+users  (1) ── (N) push_subscriptions
 
 menus  (1) ── (1) recipes
 menus  (1) ── (N) sale_records

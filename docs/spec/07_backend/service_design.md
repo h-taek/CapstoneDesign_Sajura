@@ -5,21 +5,69 @@
 | 라이브러리 | 역할 |
 |-----------|------|
 | **FastAPI** | HTTP 요청/응답 처리, 라우팅, Swagger 자동 문서화 |
+| **Uvicorn** | 로컬 개발용 ASGI 서버 (`uvicorn main:app --reload`) |
+| **Gunicorn + uvicorn.workers** | 운영용 프로세스 매니저 + ASGI 워커 결합. `-w 4 --timeout 60 --graceful-timeout 30 --keepalive 5 --max-requests 1000 --max-requests-jitter 50 --preload` 기준. 상세 근거·옵션 표는 `docs/research/backend/02_app_server.md` §4 참조 |
+| **Caddy v2** | 외부 HTTPS·HTTP/2/3 종료, 리버스 프록시, PWA 정적 파일 서빙. Let's Encrypt 자동 발급·갱신. upstream `keepalive 5s` / `read·write_timeout 65s` 로 Gunicorn과 정합. 상세 Caddyfile·옵션은 `docs/research/backend/03_reverse_proxy.md` §4 참조 |
 | **SQLAlchemy (async)** | Python 객체로 DB를 조작하는 ORM. 직접 SQL 대신 Python 코드로 쿼리 작성 |
 | **aiomysql** | SQLAlchemy가 MySQL과 실제로 통신하는 async 드라이버 |
+| **PyMySQL** | Alembic 마이그레이션 스크립트 한정 sync MySQL 드라이버 (`mysql+pymysql://`) |
+| **Pydantic v2** | 모든 Request/Response DTO 검증·직렬화, OpenAPI 스키마 자동 생성 |
+| **pydantic-settings** | `.env`·환경변수·secrets 디렉터리 → 타입 안전 Settings 클래스 |
+| **orjson** | FastAPI 응답 JSON 직렬화 가속. `FastAPI(default_response_class=ORJSONResponse)` |
+| **python-multipart** | `POST /api/sales/upload` CSV 멀티파트 처리 |
+| **pandas** | CSV 파싱, 기간별 매출 집계, IQR/Z-score 이상치 탐지, ROI 계산 |
+| **numpy** | 통계 연산 (pandas/IQR 백엔드) |
 | **python-jose** | JWT Access Token 생성 및 검증 |
 | **passlib (bcrypt)** | 이메일 로그인용 비밀번호 bcrypt 해싱 |
 | **Authlib** | Google/카카오 OAuth 2.0 흐름 처리 (인가 URL 생성, 코드 교환, 사용자 정보 조회) |
+| **cryptography** | `pos_connections.api_key` AES-256-GCM 암호화·복호화. python-jose `[cryptography]` extras 백엔드. `security.md` §4.1 적용 |
 | **Playwright (async)** | 쿠팡 장바구니 자동 담기 및 단가 조회용 브라우저 자동화 |
 | **Alembic** | DB 스키마 변경 이력 관리 및 자동 마이그레이션 |
-| **httpx** | AI Server 호출용 async HTTP 클라이언트 |
-| **Redis** | 수요예측 결과 캐싱 + Refresh Token 블랙리스트 관리 |
+| **httpx** | AI Server·국세청·외부 공공 API 호출용 async HTTP 클라이언트 (sync 스크립트는 `httpx.Client`) |
+| **tenacity** | 외부 API 호출 재시도. `stop_after_attempt(3)` + `wait_exponential_jitter` (`feature_spec.md` §10 정합) |
+| **aiobreaker** | AI Server 호출 차단기. CLOSED→OPEN→HALF_OPEN 자동 회복 |
+| **BeautifulSoup4 (lxml 파서)** | Playwright `page.content()` HTML 파싱 — 쿠팡 단가·재고 표시 추출 |
+| **slack_sdk** | 파이프라인 실패 알림(개발팀 채널). `AsyncWebhookClient` 단방향 |
+| **pywebpush** | 점주 Web Push 알림 (VAPID 표준, iOS Safari 16.4+). `push_subscriptions` 테이블 사용 |
+| **fastapi-mail** | 회원 탈퇴 증빙·파기 통보 이메일 (SMTP + Jinja) |
+| **Redis** | 수요예측 결과 캐싱 + Refresh Token 블랙리스트 관리. 캐시 패턴은 §9 참조 |
+| **redis-py (async)** | Python Redis 클라이언트 (4.x async 통합, Sentinel·Cluster 지원). Service 계층에서 §9 명시 키로 직접 호출 |
+| **structlog** | 구조화 JSON 로깅. `request_id`·`user_id`·`store_id` contextvars 자동 부여. 표준 `logging` bridge |
+| **asgi-correlation-id** | ASGI 미들웨어. `X-Request-ID` 처리·UUID 생성·contextvars 저장 |
+| **sentry-sdk[fastapi]** | 에러·성능 추적. `environment` 분리·PII scrubbing·`traces_sample_rate=0.1`(prod) |
+| **ARQ** | Redis 기반 async 잡 큐 + 정기 작업(cron). 쿠팡 자동화·단가 일괄 갱신·예약 발송 등 영속 잡과 BE 도메인 cron(소비기한 일일 체크 매일 02:00 등)을 함께 처리. 운영 시 BE Gunicorn 컨테이너와 별도 워커 컨테이너로 실행 (`arq <module>.WorkerSettings` — `functions` + `cron_jobs`). 짧은 후처리(1~3초)는 FastAPI BackgroundTasks 사용 |
+| **fastapi-limiter** | Redis 기반 async Rate Limit. 인증 API `5/min`(login·register)·`30/min`(refresh), 알림 발송 `30/min`, 알림 조회 `60/min`. 일반 API 미적용 |
+| **phonenumbers** | `stores.phone` 검증·정규화 (Google libphonenumber). KR 국가 코드 검증 후 NATIONAL 형식(`010-1234-5678`)으로 저장 |
 
 ### 외부 운영 도구
 
 | 도구 | 역할 |
 |------|------|
 | **n8n** | GUI 기반 배치 오케스트레이션 (스케줄 트리거, DB 직접 조회/저장, 외부 API 수집, 데이터 전처리/정규화, AI Server 호출, 재시도, Slack 알림) |
+| **Docker (Engine)** | 컨테이너 런타임 — BE·ARQ 워커·MySQL·Redis·n8n·Caddy 컨테이너화 |
+| **Docker Compose (V2)** | 멀티 컨테이너 정의 — 단일 `docker-compose.yml`로 6 서비스 정의. 환경 override (`docker-compose.staging.yml`·`docker-compose.prod.yml`) |
+| **GitHub Actions** | CI/CD — uv sync → pre-commit → pytest → Buildx 멀티 아키 빌드 → Trivy 스캔 → 레지스트리 push → 운영 배포 |
+
+### 개발·테스트 도구
+
+| 도구 | 역할 |
+|------|------|
+| **pytest** | 테스트 러너 |
+| **pytest-asyncio** | async fixture·코루틴 테스트 (`mode=auto`) |
+| **pytest-cov** | branch coverage. 목표: MVP 60%, 2단계 80%, 핵심 모듈 항상 80%+ |
+| **factory_boy** | SQLAlchemy 모델·Pydantic DTO 픽스처 |
+| **Faker** | 더미 데이터 생성 (`ko_KR` 로케일) |
+| **testcontainers-python** | 통합 테스트용 실 MySQL/Redis 컨테이너 spawn |
+| **respx** | httpx 호출 mock (AI Server·국세청·외부 공공 API) |
+| **ruff** | linter + formatter + import 정렬 + pyupgrade 통합 (`ruff check`·`ruff format`) |
+| **mypy** | 정적 타입 검사 (`--strict`, `pydantic.mypy` + `sqlalchemy.ext.mypy_plugin`) |
+| **bandit** | 보안 정적 분석 (하드코딩 시크릿·SQL injection 등) |
+| **pip-audit** | Python 의존성 알려진 취약점 스캔 (`pip-audit --strict`) |
+| **pre-commit** | 커밋 훅 — ruff·mypy·bandit·pip-audit 일괄 실행 |
+| **uv** | Python 패키지·가상환경·빌드 통합 매니저 (Rust). `pyproject.toml` PEP 621 + `uv.lock` 잠금·해시 |
+| **Trivy** | 컨테이너 이미지 보안 스캔 (OS·언어 라이브러리·secret·misconfig). SARIF → GitHub Security 통합. pip-audit과 보완 |
+| **ipython** | 인터랙티브 REPL — 자동완성·매직 명령·히스토리. dev 의존성 |
+| **rich** | dev 콘솔 출력 — structlog `ConsoleRenderer`와 결합 (운영은 JSON 유지) |
 
 ---
 
@@ -63,6 +111,7 @@
 | `DashboardService` | 대시보드 집계, ROI, 폐기 현황 |
 | `PipelineService` | 파이프라인 실행 이력 조회 및 상태 표시 |
 | `DataService` | 데이터 CSV 내보내기, 전체 데이터 삭제 |
+| `NotificationService` | 인앱 알림 CRUD, Web Push 발송, 구독 관리 |
 | `AIServerClient` | AI Server HTTP 통신 (인프라 레이어) |
 
 > `AIServerClient`는 Service가 아닌 인프라 레이어 클라이언트. ForecastService → AIServerClient 의존성으로 DIP 만족.
@@ -78,7 +127,8 @@
 | `register` | email, password, name, business_no, store_name | `UserDTO` | 회원가입 + 국세청 검증 (응답에 onboarding_completed: false 포함) |
 | `login_with_email` | email, password | `TokenDTO` | 이메일 로그인 |
 | `login_with_oauth` | provider, code, state | `TokenDTO` | Google/카카오 OAuth 로그인 |
-| `logout` | user_id, refresh_token_hash | `None` | Refresh Token 무효화 |
+| `logout` | user_id, refresh_token_hash | `None` | Refresh Token 무효화 (현 디바이스) |
+| `logout_all` | user_id | `None` | 모든 디바이스의 활성 Refresh Token 일괄 폐기. `security.md` §2.3 강제 로그아웃 정책 |
 | `refresh_token` | refresh_token | `TokenDTO` | Access Token 재발급 + Rotation |
 | `get_me` | user_id | `UserDTO` | 내 정보 조회 |
 | `update_me` | user_id, data | `UserDTO` | 일반 정보 수정 |
@@ -135,6 +185,7 @@
 | `get_alerts` | store_id | `AlertListDTO` | 부족/소비기한 경고 조회 |
 | `get_summary` | store_id | `InventorySummaryDTO` | 재고 현황 요약 |
 | `deduct_stock` | item_id, quantity | `None` | FIFO 재고 차감 (SaleService 내부 호출용) |
+| `check_expiry_batch` | — | `None` | **소비기한 일일 점검 — ARQ cron_jobs(매일 02:00) 진입점**. 전체 매장의 `inventory_lots.expiry_date` 조회 → D-3·D-1·초과 매칭 → `NotificationService.create_and_push` 호출하여 점주에게 인앱 + Web Push 발송 (`feature_spec.md` §3.6) |
 
 ### SaleService
 
@@ -196,9 +247,25 @@
 | `run_pipeline` | store_id, type | `PipelineJobDTO` | 점주/관리자 수동 실행 요청 처리 |
 | `get_history` | store_id, filters | `PaginatedDTO[PipelineJobDTO]` | n8n 배치 실행 이력 조회 |
 
+### NotificationService
+
+> 알림 정책: `feature_spec.md` §11 / 스키마: `schema.md` §3.22 `notifications`·§3.23 `push_subscriptions` / 라이브러리: `docs/research/backend/06_external_integration.md` §3
+
+| 메서드 | 파라미터 | 반환 | 설명 |
+|--------|----------|------|------|
+| `subscribe` | user_id, endpoint, p256dh, auth, user_agent | `PushSubscriptionDTO` | Web Push 구독 등록. endpoint UNIQUE 충돌 시 기존 행 갱신 |
+| `unsubscribe` | user_id, subscription_id | `None` | Web Push 구독 해제 |
+| `list_notifications` | user_id, is_read, page, limit | `PaginatedDTO[NotificationDTO]` | 인앱 알림 목록 조회 |
+| `mark_read` | user_id, notification_id | `None` | 알림 읽음 처리 |
+| `mark_all_read` | user_id | `None` | 전체 읽음 처리 |
+| `create_and_push` | user_id, store_id, type, priority, title, body, related_resource | `NotificationDTO` | 인앱 알림 INSERT 후 사용자의 모든 활성 구독에 Web Push 발송. Push Service 410 응답 시 해당 `push_subscriptions` 행 삭제 |
+| `send_slack_failure` | job_id, store_id, step, error | `None` | slack_sdk Webhook으로 개발팀 채널 단방향 알림 발송 (n8n에서 직접 호출 가능) |
+
+> 인앱 알림 INSERT는 다른 Service(`SaleService`·`InventoryService` 등)에서 `NotificationService.create_and_push`를 호출하는 방식으로 일관 처리한다. n8n 배치도 동일 메서드를 호출하거나 DB에 직접 INSERT(권한: `n8n_user` notifications INSERT 권한, `schema.md` §5).
+
 ### DataService
 
-> **MVP 제외 — 2단계 구현 예정** (mvp_scope.md 섹션 4 참조)
+> **MVP 범위 외** (`mvp_scope.md` §4 참조)
 
 | 메서드 | 파라미터 | 반환 | 설명 |
 |--------|----------|------|------|
@@ -421,3 +488,108 @@ n8n은 운영 데이터 원본을 삭제하지 않는다. n8n의 쓰기 대상�
 토큰 검증 시: Redis 블랙리스트 확인 → 존재하면 401 반환
 ```
 > 로그아웃 즉시 반영 필수이므로 Write-Through 적용.
+
+---
+
+## 10. 미들웨어 구성
+
+### 10.1 등록 순서
+
+요청은 다음 순서로 미들웨어를 거쳐 라우터에 도달한다 — 가장 바깥(보안·호스트) → 컨텍스트(요청 ID) → 관측(에러 추적) → 인증 → 라우터.
+
+```
+요청 →
+  1. CORSMiddleware (FastAPI 내장)
+  2. TrustedHostMiddleware (Starlette 내장)
+  3. asgi-correlation-id (X-Request-ID 처리·UUID 부여)
+  4. sentry-sdk[fastapi] 자동 통합 (예외·트랜잭션 추적)
+  5. 인증 의존성 (FastAPI Depends)
+  6. 라우터
+```
+
+### 10.2 CORS 정책
+
+| 항목 | 값 |
+|------|---|
+| `allow_origins` | 운영 PWA 도메인(`<sub>.iptime.org`) + 개발 환경(`localhost:5173` 등 환경별 `.env`로 주입) |
+| `allow_credentials` | `True` (Refresh Token HttpOnly Cookie 흐름) |
+| `allow_methods` | `["*"]` |
+| `allow_headers` | `["*"]` |
+
+### 10.3 TrustedHost 정책
+
+| 항목 | 값 |
+|------|---|
+| `allowed_hosts` | `["<sub>.iptime.org", "localhost", "be"]` (Caddy 내부 hostname `be` 포함) |
+
+### 10.4 Rate Limit 정책 (fastapi-limiter)
+
+| 대상 endpoint | 제한 | 키 |
+|------------|------|---|
+| `POST /api/auth/login` · `POST /api/auth/register` | 5/min | IP 기반 |
+| `POST /api/auth/refresh` | 30/min | IP 기반 |
+| `POST /api/notifications/subscribe` | 10/min | `user_id` |
+| `GET /api/notifications` | 60/min | `user_id` |
+| 그 외 일반 API | 미적용 | — |
+
+> 도구·결정 근거: `docs/research/backend/09_testing_quality.md` §3.4·§5.4·§5.5
+
+---
+
+## 11. 운영 토폴로지
+
+### 11.1 컨테이너 구성 (Docker Compose V2)
+
+단일 `docker-compose.yml`에 6 서비스 정의. 환경 override 파일로 staging·prod 분리.
+
+| 서비스 | 이미지 | 역할 |
+|--------|------|------|
+| `be` | 자체 빌드 (Gunicorn + uvicorn.workers) | FastAPI BE 본체 |
+| `arq-worker` | 자체 빌드 (`arq <module>.WorkerSettings`) | 잡 큐 + cron_jobs 실행 |
+| `mysql` | `mysql:8` | DB (`schema.md` §1) |
+| `redis` | `redis:7-alpine` | 캐시 + 잡 큐 브로커 + Rate Limit |
+| `n8n` | `n8nio/n8n` | AI 파이프라인 오케스트레이션 |
+| `caddy` | `caddy:alpine` | 리버스 프록시 + 자동 HTTPS + 정적 파일 서빙 |
+
+> AI Server는 `performance.md` §2.4 분리 배포 원칙에 따라 본 Compose 외부에 별도 배포.
+
+### 11.2 환경 분리
+
+| 환경 | 실행 |
+|------|------|
+| 로컬 개발 | `uv run uvicorn main:app --reload` + Compose는 MySQL·Redis만 |
+| 스테이징 | `docker compose -f docker-compose.yml -f docker-compose.staging.yml up` (`.env.staging`) |
+| 운영 | `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d` (`.env.prod`) |
+
+시크릿은 환경별 `.env.*` 파일 + Docker secret 마운트. 운영 비밀은 Git에 커밋 금지 (`.gitignore` 강제).
+
+### 11.3 CI 파이프라인 (GitHub Actions, 8단계)
+
+```
+1. checkout
+2. uv sync --frozen              (의존성 잠금 검증)
+3. pre-commit run --all-files    (ruff check + format + mypy + bandit + pip-audit)
+4. pytest --cov                  (단위 + 통합, testcontainers Docker 필요)
+5. docker buildx build           (linux/amd64,linux/arm64 멀티 아키)
+6. trivy image <built-image>     (SARIF → GitHub Security 통합)
+7. (main 브랜치) GHCR push
+8. (main 브랜치) 운영 호스트 pull-and-restart
+```
+
+| 단계 | 실패 처리 |
+|------|--------|
+| 2 · 3 · 4 · 6 | PR 머지 차단 |
+| 5 | 단일 아키 재시도 후에도 실패 시 차단 |
+| 7 · 8 | 이전 이미지 태그로 롤백 |
+
+### 11.4 이미지 태그 정책
+
+| 환경 | 태그 |
+|------|---|
+| 운영 | `git-<commit-sha-short>` + `prod-latest` |
+| 스테이징 | `git-<commit-sha-short>` + `staging-latest` |
+| 개발 | `dev-<branch>-<commit-sha-short>` |
+
+> Sentry Release tagging(`docs/research/backend/07_cache_observability.md` §3.3)에 동일 `<commit-sha-short>` 사용 — 운영 에러 추적 시 이미지·소스 일치.
+
+> 운영 환경(Mac mini M2 Pro 16GB)의 Docker Desktop 메모리 할당 권장값은 `performance.md` §1.3 참조.

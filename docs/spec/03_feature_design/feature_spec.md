@@ -224,7 +224,7 @@ Frontend → GET /api/auth/login/kakao
 
 ### 3.6 소비기한 관리
 
-- 야간 배치(02:00)에서 전체 로트의 소비기한을 체크한다.
+- 매일 02:00 BE가 ARQ `cron_jobs`로 전체 로트의 소비기한을 체크한다 (AI 야간 배치와 분리 — AI 파이프라인은 n8n, 재고 도메인 cron은 BE ARQ).
 - 점주가 직접 소비기한 초과 재료를 폐기 처리한다.
 
 | 조건 | 처리 |
@@ -233,9 +233,17 @@ Frontend → GET /api/auth/login/kakao
 | 소비기한 D-1일 | 긴급 알림 발송 + 재고 목록에 긴급 표시 |
 | 소비기한 초과 | 점주에게 폐기 요청 알림 발송 (자동 폐기 없음) |
 
+**실행 흐름**
+
+| 단계 | 작업 | 실패 처리 |
+|---|---|---|
+| 1. cron 트리거 | ARQ `cron_jobs`가 매일 02:00에 `InventoryService.check_expiry_batch` 호출 | ARQ 재시도 정책 |
+| 2. 로트 조회 | `InventoryService.check_expiry_batch`가 `inventory_lots`에서 `expiry_date` 기준 D-3·D-1·초과 매칭 로트 조회 | sentry-sdk 자동 포착 |
+| 3. 알림 발송 | `NotificationService.create_and_push` 호출 → `notifications` INSERT + `push_subscriptions` 대상 Web Push (pywebpush) | NotificationService 내부 처리 |
+
 | 구분 | 항목 |
 |---|---|
-| 입력 | 전체 로트의 소비기한 (야간 배치에서 자동 조회) |
+| 입력 | 전체 로트의 소비기한 |
 | 출력 | 소비기한 임박/초과 로트 목록, 알림 발송 여부 |
 
 ## 4. POS 연동
@@ -261,15 +269,15 @@ Frontend → GET /api/auth/login/kakao
 
 ### 4.3 POS API 연동
 
-- POS사별 API 자격증명 형식은 추후 각 POS사 API 문서 확인 후 정의한다.
-
 | 구분 | 항목 | 비고 |
 |---|---|---|
 | 입력 | POS 종류 선택 | TossPlace / 키움페이 / OKPOS |
-| | API 자격증명 | POS사별 형식 추후 정의 |
+| | API 자격증명 | |
 | | store_id | |
 | 출력 | 연동 성공/실패 여부 | |
 | | 초기 데이터 수집 건수 | |
+
+> POS사별 API 자격증명 형식·수집 방식은 조사 중. `docs/research/backend/13_pos_adapter.md` 참조.
 
 ### 4.4 CSV 업로드
 
@@ -722,6 +730,3 @@ Frontend → GET /api/auth/login/kakao
 | **계정 정보** | 매장 정보 수정, 로그아웃, 회원 탈퇴 (탈퇴 후 30일 뒤 데이터 영구 삭제) |
 | **앱 정보** | 앱 버전, 이용약관, 개인정보처리방침 |
 
-## 추가 작업 필요 항목
-
-- API endpoint 및 Request/Response 상세 정의 필요 (03_api에서 진행)

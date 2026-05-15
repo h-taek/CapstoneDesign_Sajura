@@ -61,6 +61,14 @@ Rotation은 Refresh Token 자체가 탈취된 경우에 유효하다. 탈취된 
 - Refresh Token을 DB에서 `is_revoked: 1`로 즉시 폐기한다.
 - HttpOnly Cookie에서 제거한다.
 
+**다중 디바이스 로그인**
+
+각 디바이스(PC·모바일 등)는 자체 Refresh Token을 발급받아 독립 Rotation 흐름을 유지한다. 한 디바이스의 Rotation·로그아웃은 다른 디바이스에 영향을 주지 않는다 — `refresh_tokens` 테이블의 user_id 동일·token_hash 별도 행으로 구분된다.
+
+**강제 로그아웃 (모든 디바이스)**
+
+분실·도난·계정 도용 의심 시 점주가 `POST /api/auth/logout-all`을 호출하면 해당 user_id의 활성 `refresh_tokens` 전체를 `is_revoked: 1`로 일괄 폐기한다. Access Token은 서명 검증만으로 동작하므로 자체 무효화 불가 — 최대 1시간(Access Token 유효기간) 이내 모든 디바이스가 401 응답을 받고 재로그인으로 이동한다.
+
 ## 3. 개인정보 및 데이터 보호
 
 - 회원가입 시 수집 항목, 이용 목적, 보유 기간을 명시한다.
@@ -87,7 +95,7 @@ Rotation은 Refresh Token 자체가 탈취된 경우에 유효하다. 탈취된 
 
 | 항목 | 수집 목적 |
 |------|----------|
-| POS API 자격증명 | POS 연동 인증 (AES-256 암호화 저장) |
+| POS API 자격증명 | POS 연동 인증 (AES-256-GCM 암호화 저장) |
 | 판매 데이터 | 수요예측 모델 학습·추론 입력 |
 | 재고 입력 데이터 | 추천발주 산출 기준 |
 | 발주 내역, 점주 수정 이력 | 모델 재학습 피드백 |
@@ -109,6 +117,7 @@ Rotation은 Refresh Token 자체가 탈취된 경우에 유효하다. 탈취된 
 
 - 백업 데이터에도 동일 암호화 정책을 적용한다.
 - 전송 구간에는 TLS 1.3을 적용한다.
+- TLS 종료는 외부 엣지(Caddy v2)에서 수행한다. 내부 BE upstream은 HTTP/1.1 평문이며 같은 호스트 또는 컨테이너 네트워크 내부로 한정한다. (구성 상세: `service_design.md` §1, `docs/research/backend/03_reverse_proxy.md` §4)
 
 ### 4.1 저장 암호화 적용 대상
 
@@ -118,7 +127,7 @@ Rotation은 Refresh Token 자체가 탈취된 경우에 유효하다. 탈취된 
 
 | 컬럼 | 방식 | 이유 |
 |------|------|------|
-| `pos_connections.api_key` | AES-256 (애플리케이션 레벨) | POS 외부 서비스 접근 자격증명 — 유출 시 타 매장 데이터 접근 가능 |
+| `pos_connections.api_key` | AES-256-GCM (애플리케이션 레벨) | POS 외부 서비스 접근 자격증명 — 유출 시 타 매장 데이터 접근 가능 |
 | `refresh_tokens.token_hash` | SHA-256 해시 | 원문 미저장 — DB 침해 시 토큰 원문 복구 불가 |
 
 **비적용 항목**
@@ -176,6 +185,15 @@ Rotation은 Refresh Token 자체가 탈취된 경우에 유효하다. 탈취된 
 | `inventory_lots` | 재고 입고·수량·소비기한 변경 이력 | 로트별 변경 추적 |
 | `pipeline_jobs` | 배치 실행 이력 (시작/종료, 성공/실패) | `triggered_by`, `status`, `created_at` |
 
+**보관·조회·무결성 정책**
+
+| 항목 | 정책 |
+|------|------|
+| 보관 기간 | 1년 (개인정보보호법 일반 권장 + 디스크 부담 적정) |
+| 보관 초과 처리 | 매월 1회 배치로 1년 초과 행 archive(cold storage 이전 또는 삭제) |
+| 조회 권한 | `ops_readonly` 계정만 (`schema.md` §5) — VPN 경유 필수 |
+| 무결성 | DB append-only(INSERT only) + 정기 백업. 해시 체인 등 추가 무결성 메커니즘은 운영 부담 대비 가치 작아 MVP 미적용 |
+
 ## 6. 결제 및 외부 거래
 
 - 카드 원본 정보는 자체 서버를 거치지 않는다.
@@ -200,13 +218,7 @@ Rotation은 Refresh Token 자체가 탈취된 경우에 유효하다. 탈취된 
 - 회원 탈퇴 시 30일 유예 기간 후 백업 포함 완전 파기한다.
 - 파기 완료 시 이메일로 증빙을 발송한다.
 
-## 추가 작업 필요 항목
+---
 
-- 실제 개인정보 수집 항목 목록 정의 필요
-- RBAC 역할과 권한 매트릭스 정의 필요
-- 감사 로그 필드 정의 필요
-- OrderApprovalLog 스키마 정의 필요
-- AES-256 적용 대상 컬럼 정의 필요
-- 토큰 저장/만료/폐기 정책 정의 필요
-- 외부 API별 scope 및 rate limit 정의 필요
+> 미확정 항목(RBAC 매트릭스, 감사 로그 보관 정책, AES-256 적용 대상 확장, 외부 API scope·rate limit)은 `docs/research/backend/14_security_open_items.md` 참조.
 

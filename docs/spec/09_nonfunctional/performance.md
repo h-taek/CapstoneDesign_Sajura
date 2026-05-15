@@ -30,6 +30,27 @@
 
 규모가 커질수록 배치 파이프라인의 병렬 처리 전략이 핵심 변수가 된다.
 
+### 1.3 운영 환경 메모리 권장 (MVP)
+
+운영 환경 가정: **Mac mini M2 Pro · 16 GB unified memory**. Docker Desktop은 기본 8 GB만 컨테이너에 할당하므로 사주라 6 서비스 stack에 부족.
+
+| 항목 | 권장값 |
+|------|------|
+| Docker Desktop 메모리 할당 | **10~12 GB** (Settings → Resources → Memory) |
+| MySQL `innodb_buffer_pool_size` | 2 GB (기본 128 MB는 50매장 데이터에 부족·swap 유발) |
+
+| 컨테이너 | 예상 RSS |
+|---------|-------|
+| BE (Gunicorn 워커 4개) | 정상 1.2~2 GB / Playwright 동시 호출 peak 시 3~3.6 GB |
+| ARQ 워커 | ~500 MB |
+| MySQL | 1.5~2 GB |
+| Redis | 0.3~0.5 GB |
+| n8n | 0.5~1 GB |
+| Caddy | < 50 MB |
+| **소계** | **~4~7.5 GB** (peak 시) |
+
+> 워커 수·옵션 상세는 `service_design.md` §1 Gunicorn 행 + `docs/research/backend/02_app_server.md` §4.1 참조. 운영 토폴로지는 `service_design.md` §11 참조.
+
 ---
 
 ## 2. 핵심 성능 전략
@@ -89,13 +110,15 @@
 
 - MySQL은 복잡한 쿼리와 JSON 필드를 지원한다.
 - DB 인덱싱, 파티셔닝, 슬레이브 복제를 통한 확장 대응이 가능하다.
-- 구체적 인덱스 및 파티셔닝 기준은 정보 부족.
+- 운영 인덱스는 `schema.md` §4에서 정의한다. 파티셔닝은 MVP 50매장 규모에서 필요 없으며 매장 수·데이터량 증가 시 적용 검토한다.
 
 ## 5. 모니터링
 
 - n8n 실행 결과 모니터링 대시보드를 제공한다.
-- 응답 시간, 에러율, DB 쿼리 시간 등 핵심 지표 대시보드 구축이 필요하다.
-- Sentry 등 에러 모니터링 도구 연동이 개선 방향으로 제시되어 있다.
+- BE 운영 시 응답 시간·에러율·DB 쿼리 시간을 모니터링한다.
+- 구조화 로깅(stdout JSON)은 **structlog + asgi-correlation-id**로 처리한다. 필수 필드: `ts`(UTC ISO), `level`, `event`, `request_id`, `user_id`, `store_id`, `path`, `method`, `status`, `duration_ms` (`07_cache_observability.md` §3.2).
+- 에러·성능 추적은 **Sentry SDK (sentry-sdk[fastapi])**를 사용한다. PII scrubbing 활성, `traces_sample_rate=0.1`(prod), `environment` 분리, Release tagging은 Git commit SHA 환경변수 주입 (`07_cache_observability.md` §3.3).
+- 메트릭 수집(Prometheus)·분산 트레이싱(OpenTelemetry)은 MVP 미채택이며 매장 300+·BE 노드 2+·Sentry 이벤트 한도 초과 등 트리거 충족 시 도입한다 (`07_cache_observability.md` §2.5).
 
 ### 2.5 Playwright 자동화 타임아웃
 

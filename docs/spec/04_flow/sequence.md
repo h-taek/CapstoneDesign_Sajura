@@ -197,6 +197,8 @@ sequenceDiagram
     participant DB
     participant ExternalAPI
     participant AIServer
+    participant BE as 사주라서버
+    participant Push as Web Push
 
     Note over n8n: 매일 02:00 트리거
     n8n->>DB: pipeline_jobs INSERT (type=FORECAST, status=RUNNING, triggered_by=N8N)
@@ -212,12 +214,17 @@ sequenceDiagram
 
     alt 전체 성공
         n8n->>DB: pipeline_jobs UPDATE (status=DONE)
-        n8n->>n8n: 점주 앱 내 알림 발송 (예측 완료 + 추천발주안 생성)
+        n8n->>BE: 알림 발송 API 호출 (예측 완료 + 추천발주안 생성, store_id 목록 전달)
+        BE->>DB: NotificationService.create_and_push — notifications INSERT
+        BE->>Push: pywebpush로 push_subscriptions 대상에 Web Push 전송
+        BE-->>n8n: 발송 결과 반환
     else 단계 실패 (3회 재시도 후 지속)
         n8n->>DB: pipeline_jobs UPDATE (status=FAILED)
-        n8n->>n8n: 개발팀 Slack 알림 발송
+        n8n->>n8n: slack_sdk Webhook — 개발팀 채널에 직접 전송 (BE 경유 안 함, 도메인 무관)
     end
 ```
+
+> 점주 알림은 BE `NotificationService.create_and_push`가 일관 처리(인앱 INSERT + Web Push). n8n은 BE API를 트리거할 뿐 직접 알림을 만들지 않는다. 개발팀 Slack 알림만 n8n에서 직접 발송.
 
 ---
 
@@ -262,28 +269,36 @@ sequenceDiagram
 
 ## 7. 소비기한 배치 및 알림 시퀀스
 
-> 매일 02:00 야간 배치에서 실행. 자동 폐기 없음 — 점주 수동 처리 원칙.
+> 매일 02:00 BE ARQ `cron_jobs`에서 실행. 자동 폐기 없음 — 점주 수동 처리 원칙.
+> 소비기한 체크는 **재고 도메인 비즈니스 로직**이므로 BE가 책임 (n8n은 AI 파이프라인 도구라 책임 영역 아님).
 
 ```mermaid
 sequenceDiagram
-    participant n8n
-    participant 사주라서버
+    participant ARQ as ARQ cron
+    participant BE as 사주라서버
     participant DB
+    participant Push as Web Push
 
-    Note over n8n: 매일 02:00 트리거
-    n8n->>사주라서버: 소비기한 체크 배치 실행 요청
-    사주라서버->>DB: 전체 재고 로트 소비기한 조회
+    Note over ARQ: 매일 02:00 트리거
+    ARQ->>BE: InventoryService.check_expiry_batch 호출
+    BE->>DB: inventory_lots에서 expiry_date 기준 D-3·D-1·초과 매칭 로트 조회
 
-    loop 로트별 체크
+    loop 매칭된 로트별
         alt D-3일 임박
-            사주라서버->>DB: 해당 로트 경고 상태 표시
-            사주라서버->>사주라서버: 점주 앱 내 알림 발송 (경고 — 소비기한 D-3일)
+            BE->>DB: 해당 로트 경고 상태 표시
+            BE->>BE: NotificationService.create_and_push (경고 — 소비기한 D-3일)
+            BE->>DB: notifications INSERT
+            BE->>Push: pywebpush로 점주 Web Push 발송
         else D-1일 임박
-            사주라서버->>DB: 해당 로트 긴급 상태 표시
-            사주라서버->>사주라서버: 점주 앱 내 알림 발송 (긴급 — 소비기한 D-1일)
+            BE->>DB: 해당 로트 긴급 상태 표시
+            BE->>BE: NotificationService.create_and_push (긴급 — 소비기한 D-1일)
+            BE->>DB: notifications INSERT
+            BE->>Push: pywebpush로 점주 Web Push 발송
         else 소비기한 초과
-            사주라서버->>사주라서버: 점주 앱 내 알림 발송 (긴급 — 폐기 요청)
-            Note over 사주라서버: 자동 폐기 없음. 점주가 직접 처리.
+            BE->>BE: NotificationService.create_and_push (긴급 — 폐기 요청)
+            BE->>DB: notifications INSERT
+            BE->>Push: pywebpush로 점주 Web Push 발송
+            Note over BE: 자동 폐기 없음. 점주가 직접 처리.
         end
     end
 ```

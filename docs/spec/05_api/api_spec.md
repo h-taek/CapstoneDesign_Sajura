@@ -95,7 +95,8 @@ Authorization: Bearer <access_token>
 | `GET` | `/api/auth/callback/kakao` | 카카오 인가 코드 수신 → 자체 JWT 발급 | X |
 | `GET` | `/api/auth/login/google` | 구글 OAuth 인가 URL 리다이렉트 | X |
 | `GET` | `/api/auth/callback/google` | 구글 인가 코드 수신 → 자체 JWT 발급 | X |
-| `POST` | `/api/auth/logout` | 로그아웃 | O |
+| `POST` | `/api/auth/logout` | 로그아웃 (현 디바이스) | O |
+| `POST` | `/api/auth/logout-all` | 강제 로그아웃 — 모든 디바이스 일괄 폐기 | O |
 | `POST` | `/api/auth/refresh` | Access Token 재발급 | X (Cookie) |
 | `GET` | `/api/auth/me` | 내 정보 조회 | O |
 | `PATCH` | `/api/auth/me` | 일반 정보 수정 | O |
@@ -171,6 +172,15 @@ Authorization: Bearer <access_token>
 ```
 
 ### POST /api/auth/logout
+
+```
+// Request: Header만 (Authorization: Bearer <token>)
+// Response: 204 No Content
+```
+
+### POST /api/auth/logout-all
+
+> 강제 로그아웃 — 모든 디바이스의 활성 Refresh Token 일괄 폐기. 분실·도난·계정 도용 의심 시 사용. Access Token은 서명 stateless이므로 자체 무효화 불가, 최대 1시간(Access 유효기간) 이내 모든 디바이스가 재로그인으로 이동. 정책 상세: `security.md` §2.3 "강제 로그아웃 (모든 디바이스)".
 
 ```
 // Request: Header만 (Authorization: Bearer <token>)
@@ -1590,7 +1600,7 @@ Authorization: Bearer <access_token>
 
 ### GET /api/data/export
 
-> **MVP 제외 — 2단계 구현 예정** (mvp_scope.md 섹션 4 참조)
+> **MVP 범위 외** (`mvp_scope.md` §4 참조)
 
 ```
 // Query: ?type=sales&start_date=2026-01-01&end_date=2026-01-31
@@ -1602,7 +1612,7 @@ Authorization: Bearer <access_token>
 
 ### DELETE /api/data
 
-> **MVP 제외 — 2단계 구현 예정** (mvp_scope.md 섹션 4 참조)
+> **MVP 범위 외** (`mvp_scope.md` §4 참조)
 
 ```json
 // Request
@@ -1615,7 +1625,88 @@ Authorization: Bearer <access_token>
 
 ---
 
-## 10. 인터페이스 표준
+## 10. 알림 API
+
+> 알림 정책 기준: `feature_spec.md` §11 / 저장 스키마: `schema.md` §3.22 `notifications`·§3.23 `push_subscriptions`
+> 알림 채널·라이브러리: `docs/research/backend/06_external_integration.md` §3
+
+### Endpoints
+
+| Method | Path | 용도 |
+|--------|------|------|
+| `POST` | `/api/notifications/subscribe` | Web Push 구독 등록 |
+| `DELETE` | `/api/notifications/subscribe/{subscription_id}` | Web Push 구독 해제 |
+| `GET` | `/api/notifications` | 인앱 알림 목록 조회 (페이지네이션·읽음 필터) |
+| `PATCH` | `/api/notifications/{notification_id}/read` | 알림 읽음 처리 |
+| `PATCH` | `/api/notifications/read-all` | 전체 읽음 처리 |
+
+### POST /api/notifications/subscribe
+
+```json
+// Request
+{
+  "endpoint": "https://fcm.googleapis.com/fcm/send/...",
+  "keys": {
+    "p256dh": "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_...",
+    "auth": "tBHItJI5svbpez7KI4CCXg"
+  },
+  "user_agent": "Mozilla/5.0 ..."
+}
+// Response 201
+{
+  "subscription_id": "uuid"
+}
+```
+
+### DELETE /api/notifications/subscribe/{subscription_id}
+
+```
+// Response: 204 No Content
+```
+
+### GET /api/notifications
+
+```
+// Query: ?is_read=false&page=1&limit=20
+```
+
+```json
+// Response 200
+{
+  "items": [
+    {
+      "notification_id": "uuid",
+      "type": "EXPIRY_D1",
+      "priority": "URGENT",
+      "title": "소비기한 D-1 임박",
+      "body": "양상추 2 lot이 내일 만료됩니다.",
+      "related_resource_type": "inventory_item",
+      "related_resource_id": "uuid",
+      "is_read": false,
+      "created_at": "2026-05-15T09:00:00Z"
+    }
+  ],
+  "total": 12,
+  "page": 1,
+  "limit": 20
+}
+```
+
+### PATCH /api/notifications/{notification_id}/read
+
+```
+// Response: 204 No Content
+```
+
+### PATCH /api/notifications/read-all
+
+```
+// Response: 204 No Content
+```
+
+---
+
+## 11. 인터페이스 표준
 
 | 항목 | 내용 |
 |------|------|
