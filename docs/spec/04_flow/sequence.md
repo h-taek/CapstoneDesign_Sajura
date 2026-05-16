@@ -47,13 +47,21 @@ sequenceDiagram
     DB-->>사주라서버: 조회 결과
 
     alt 기존 사용자
-        사주라서버->>사주라서버: JWT 발급
-        사주라서버-->>사주라UI: Access Token + onboarding_completed: true
+        사주라서버->>사주라서버: JWT 발급 (Refresh는 HttpOnly Cookie)
+        사주라서버-->>사주라UI: Set-Cookie refresh_token + 302 Redirect → /
+        사주라UI->>사주라서버: POST /api/auth/refresh (Cookie 자동 전송)
+        사주라서버-->>사주라UI: Access Token 응답
+        사주라UI->>사주라서버: GET /api/auth/me
+        사주라서버-->>사주라UI: user 정보 + onboarding_completed: true
         사주라UI-->>사용자: 메인 홈 이동
     else 신규 사용자
         사주라서버->>DB: 회원 정보 저장
-        사주라서버->>사주라서버: JWT 발급
-        사주라서버-->>사주라UI: Access Token + onboarding_completed: false
+        사주라서버->>사주라서버: JWT 발급 (Refresh는 HttpOnly Cookie)
+        사주라서버-->>사주라UI: Set-Cookie refresh_token + 302 Redirect → /
+        사주라UI->>사주라서버: POST /api/auth/refresh (Cookie 자동 전송)
+        사주라서버-->>사주라UI: Access Token 응답
+        사주라UI->>사주라서버: GET /api/auth/me
+        사주라서버-->>사주라UI: user 정보 + onboarding_completed: false
         사주라UI-->>사용자: 온보딩 Step 1 진입
 
         사용자->>사주라UI: 사업자등록번호 + 매장 정보 입력 (매장명·업종·연락처·주소·규모·운영형태)
@@ -65,15 +73,22 @@ sequenceDiagram
         else 계속사업자
             사주라서버->>DB: 매장 정보 저장
 
-            사용자->>사주라UI: POS 연동 정보 입력
-            사주라UI->>사주라서버: POST /api/store/pos
-            사주라서버->>DB: POS 정보 저장
-            alt POS 연동 성공
-                사주라서버-->>사주라UI: 연동 성공 (pos_mode: CONNECTED)
-            else POS 연동 실패
-                사주라서버-->>사주라UI: 연동 실패 (pos_mode: CSV_MODE)
-                Note over 사주라UI: 수요예측·자동발주 비활성화<br>"POS 연동 미완료" 배지 표시
+            사용자->>사주라UI: POS 연동 모드 선택 (CSV[MVP] / POS API[2단계])
+            alt CSV 모드 (MVP 기본 경로)
+                사용자->>사주라UI: CSV 파일 업로드
+                사주라UI->>사주라서버: POST /api/sales/upload
+                사주라서버->>DB: pos_mode=CSV_MODE 저장 + 판매 데이터 적재
+            else POS API 연동 [2단계]
+                사용자->>사주라UI: POS 종류·자격증명 입력
+                사주라UI->>사주라서버: POST /api/store/pos
+                사주라서버->>DB: POS 정보 저장
+                alt POS 연동 성공
+                    사주라서버-->>사주라UI: 연동 성공 (pos_mode: CONNECTED)
+                else POS 연동 실패
+                    사주라서버-->>사주라UI: 연동 실패 → CSV 모드로 전환 (pos_mode: CSV_MODE)
+                end
             end
+            Note over 사주라UI: CSV·POS API 양쪽 모두 수요예측·자동발주 활성화
 
             사용자->>사주라UI: 초기 재고 / 초기 메뉴 입력
             사주라UI->>사주라서버: POST /api/inventory/items, POST /api/menus (각각)

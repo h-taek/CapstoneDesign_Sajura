@@ -78,10 +78,10 @@
 
 > 배치 실행 시각 기준: feature_spec.md 섹션 10
 
-| 배치 종류 | 시작 | 완료 목표 | 허용 시간 |
-|----------|------|----------|----------|
-| 야간 예측 배치 (매일) | 02:00 | 05:00 이전 | 3시간 |
-| 주간 재학습 배치 (일요일) | 02:00 | 06:00 이전 | 4시간 |
+| 배치 종류 | 시작 | 완료 목표 | 허용 시간 | 단계 |
+|----------|------|----------|----------|------|
+| 야간 예측 배치 (매일) | 02:00 | 05:00 이전 | 3시간 | [MVP] |
+| 주간 재학습 배치 (일요일) | 02:00 | 06:00 이전 | 4시간 | [2단계] (`mvp_scope.md` §4) |
 
 완료 목표 시간 기준: 점주 출근 전 예측 결과가 준비되어야 한다.
 재학습 배치는 예측 배치보다 연산량이 많으므로 여유 시간을 추가 확보한다.
@@ -118,6 +118,7 @@
 - BE 운영 시 응답 시간·에러율·DB 쿼리 시간을 모니터링한다.
 - 구조화 로깅(stdout JSON)은 **structlog + asgi-correlation-id**로 처리한다. 필수 필드: `ts`(UTC ISO), `level`, `event`, `request_id`, `user_id`, `store_id`, `path`, `method`, `status`, `duration_ms` (`07_cache_observability.md` §3.2).
 - 에러·성능 추적은 **Sentry SDK (sentry-sdk[fastapi])**를 사용한다. PII scrubbing 활성, `traces_sample_rate=0.1`(prod), `environment` 분리, Release tagging은 Git commit SHA 환경변수 주입 (`07_cache_observability.md` §3.3).
+- **FE 에러·성능 추적은 `@sentry/react` + `@sentry/vite-plugin`을 사용한다.** BE와 동일 Sentry 플랫폼·동일 release(`git-<sha-short>`, `VITE_APP_VERSION` 주입)로 BE↔FE 에러 상관관계 추적. `sendDefaultPii: false` + `beforeSend` 마스킹(Authorization·Cookie·이메일·전화·사업자번호) 필수. 소스맵은 `@sentry/vite-plugin`이 빌드 시 Sentry 업로드 후 `deleteFilesAfterUpload: true`로 dist에서 제거(public 노출 차단). `sampleRate=1.0`(에러 100%) + `tracesSampleRate=0.05`(트랜잭션 5%). 결정 근거: `docs/research/frontend/11_observability.md`.
 - 메트릭 수집(Prometheus)·분산 트레이싱(OpenTelemetry)은 MVP 미채택이며 매장 300+·BE 노드 2+·Sentry 이벤트 한도 초과 등 트리거 충족 시 도입한다 (`07_cache_observability.md` §2.5).
 
 ### 2.5 Playwright 자동화 타임아웃

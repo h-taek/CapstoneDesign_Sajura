@@ -56,6 +56,7 @@ plan/       → 확정된 내용을 구현 단위로 분해
 | `docs/spec/06_database/schema.md` | DB 구조 원본 | 컬럼명, 타입, FK, 인덱스 |
 | `docs/spec/06_database/erd.md` | schema.md 시각화 | schema와 항상 동기화 필요 |
 | `docs/spec/07_backend/service_design.md` | 백엔드 구현 설계 | 기술스택, 서비스 클래스·메서드 시그니처 |
+| `docs/spec/07_frontend/frontend_design.md` | 프론트엔드 구현 설계 | 라우팅·상태·인증 통합·PWA·CI |
 | `docs/spec/08_ai/model_spec.md` | ML 모델 설계 원본 | 베이스라인 순서, 입력피처, 출력, XAI 설계 |
 | `docs/spec/08_ai/ml_pipeline.md` | AI 파이프라인 원본 | 파이프라인 단계·입출력·전처리·배치 실행 시각 |
 | `docs/spec/09_nonfunctional/security.md` | 보안 정책 원본 | 토큰 정책, 암호화, 접근통제, 감사로그 항목 |
@@ -89,9 +90,19 @@ plan/       → 확정된 내용을 구현 단위로 분해
 
 ### frontend/
 
-| 파일 | 다루는 내용 |
-|------|------------|
-| (예정) | React/PWA 스택·상태 관리·UI 라이브러리 조사 |
+| 파일 | 다루는 카테고리 |
+|------|----------------|
+| `01_framework_build.md` | React + 빌드 도구(Vite·Next.js·Remix·Astro) + TypeScript |
+| `02_routing_state.md` | 라우팅(React Router·TanStack Router) + 클라이언트 상태 |
+| `03_data_http.md` | TanStack Query + HTTP 클라이언트(fetch·axios·ky) + OpenAPI Codegen |
+| `04_ui_styling.md` | Tailwind + 컴포넌트(shadcn/ui·MUI·Mantine·Chakra·AntD) |
+| `05_form_validation.md` | React Hook Form + zod |
+| `06_pwa_push.md` | PWA(vite-plugin-pwa·Workbox) + Web Push(VAPID) + 인앱 polling |
+| `07_charts.md` | Recharts·ECharts·Chart.js·Visx·Nivo |
+| `08_auth_security.md` | OAuth 흐름·Token 정책·CSP |
+| `09_testing_quality.md` | Vitest·Playwright·MSW·ESLint·Biome·Storybook |
+| `10_deployment.md` | pnpm·빌드·배포·CI |
+| `11_observability.md` | Sentry·PII scrubbing·소스맵·sampleRate |
 
 ### ai/
 
@@ -161,7 +172,8 @@ plan/       → 확정된 내용을 구현 단위로 분해
 | `api_spec.md` | `feature_spec.md`, `service_design.md`, `sequence.md`, `spec/prompts/08_ai_handoff.md` |
 | `schema.md` | `erd.md`, `service_design.md`, `ml_pipeline.md`, `spec/prompts/08_ai_handoff.md` |
 | `erd.md` | `schema.md` |
-| `service_design.md` | `api_spec.md`, `sequence.md` |
+| `service_design.md` | `api_spec.md`, `sequence.md`, `frontend_design.md` |
+| `frontend_design.md` | `api_spec.md`, `security.md`, `feature_spec.md`, `service_design.md` §11 |
 | `model_spec.md` | `ml_pipeline.md`, `feature_list.md`, `spec/prompts/08_ai_handoff.md` |
 | `ml_pipeline.md` | `model_spec.md`, `performance.md`, `spec/prompts/08_ai_handoff.md` |
 | `security.md` | `feature_spec.md`, `api_spec.md` |

@@ -181,16 +181,17 @@
         protocols tls1.3
     }
 
-    # 보안 헤더 (`05_auth_security.md` §3.5)
+    # 보안 헤더 (`05_auth_security.md` §3.5 + CSP 상세는 `docs/research/frontend/08_auth_security.md` §3.4)
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         X-Frame-Options "DENY"
         X-Content-Type-Options "nosniff"
         Referrer-Policy "strict-origin-when-cross-origin"
-        Permissions-Policy "camera=(), microphone=(), geolocation=()"
-        # CSP — PWA가 같은 도메인 자산 서빙 + BE 단일 origin 호출. 'self' 기반.
-        # style-src 'unsafe-inline'은 React/PWA 통상 패턴. nonce 도입 시 제거 가능.
-        Content-Security-Policy "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()"
+        # CSP — PWA(SW·manifest) + Tailwind + shadcn/ui(Radix) + Recharts 정합.
+        # script-src 'self' (Vite 빌드 inline 없음) / style-src 'self' 'unsafe-inline' (Radix·Recharts inline style 호환).
+        # blob:은 카메라 미리보기 등 PWA 정합. 외부 이미지 차단(`https:` 제외).
+        Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.ingest.sentry.io; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
     }
 
     encode zstd gzip

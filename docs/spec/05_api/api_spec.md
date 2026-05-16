@@ -92,9 +92,9 @@ Authorization: Bearer <access_token>
 | `POST` | `/api/auth/register` | 회원가입 (사업자번호 검증 포함) | X |
 | `POST` | `/api/auth/login` | 이메일/비밀번호 로그인 | X |
 | `GET` | `/api/auth/login/kakao` | 카카오 OAuth 인가 URL 리다이렉트 | X |
-| `GET` | `/api/auth/callback/kakao` | 카카오 인가 코드 수신 → 자체 JWT 발급 | X |
+| `GET` | `/api/auth/callback/kakao` | 카카오 인가 코드 수신 → Refresh Set-Cookie + FE 진입 URL로 302 redirect | X |
 | `GET` | `/api/auth/login/google` | 구글 OAuth 인가 URL 리다이렉트 | X |
-| `GET` | `/api/auth/callback/google` | 구글 인가 코드 수신 → 자체 JWT 발급 | X |
+| `GET` | `/api/auth/callback/google` | 구글 인가 코드 수신 → Refresh Set-Cookie + FE 진입 URL로 302 redirect | X |
 | `POST` | `/api/auth/logout` | 로그아웃 (현 디바이스) | O |
 | `POST` | `/api/auth/logout-all` | 강제 로그아웃 — 모든 디바이스 일괄 폐기 | O |
 | `POST` | `/api/auth/refresh` | Access Token 재발급 | X (Cookie) |
@@ -153,9 +153,12 @@ Authorization: Bearer <access_token>
 
 ```
 // Query: ?code=인가코드&state=csrf_state
-// Response 200: POST /api/auth/login 과 동일 구조
-// + Refresh Token Set-Cookie
+// Response: 302 Redirect → FE 진입 URL (예: https://<sub>.iptime.org/)
+// + Set-Cookie: refresh_token=...; HttpOnly; Secure; SameSite=Lax
+// (Access Token은 응답 본문·URL에 노출 안 함 — FE가 첫 진입 시 POST /api/auth/refresh로 동기)
 ```
+
+> **흐름**: BE가 OAuth 콜백 수신 → Authlib으로 인가 코드 교환 → 사용자 정보 조회·JWT 발급 → Refresh를 HttpOnly Cookie로 설정 후 FE root("/")로 302 redirect. FE는 첫 진입 시 메모리 Access Token 부재를 감지하여 `POST /api/auth/refresh` 1회 호출로 Access Token 동기 (`docs/research/frontend/08_auth_security.md` §1.2 정합). Access Token을 URL·body에 노출하지 않아 브라우저 히스토리·Referer 헤더 누출 차단.
 
 ### GET /api/auth/login/google
 
@@ -167,8 +170,9 @@ Authorization: Bearer <access_token>
 
 ```
 // Query: ?code=인가코드&state=csrf_state
-// Response 200: POST /api/auth/login 과 동일 구조
-// + Refresh Token Set-Cookie
+// Response: 302 Redirect → FE 진입 URL (예: https://<sub>.iptime.org/)
+// + Set-Cookie: refresh_token=...; HttpOnly; Secure; SameSite=Lax
+// (동작 상세는 GET /api/auth/callback/kakao 동일)
 ```
 
 ### POST /api/auth/logout
@@ -253,19 +257,21 @@ Authorization: Bearer <access_token>
 
 ## 3. 매장/POS API
 
+> `/api/store/pos/*` 계열(등록·수정·해제·sync)은 [2단계] POS API 연동 범위. MVP는 CSV 업로드(`POST /api/sales/upload`)와 `/api/store/pos/status` 조회만 사용한다.
+
 ### Endpoints
 
-| Method | Path | 설명 |
-|--------|------|------|
-| `GET` | `/api/store` | 내 매장 정보 조회 |
-| `PATCH` | `/api/store` | 매장 정보 수정 |
-| `POST` | `/api/store/onboarding/complete` | 온보딩 완료 처리 |
-| `GET` | `/api/store/pos` | POS 연동 정보 조회 |
-| `POST` | `/api/store/pos` | POS 연동 등록 |
-| `PATCH` | `/api/store/pos` | POS 연동 정보 수정 |
-| `DELETE` | `/api/store/pos` | POS 연동 해제 |
-| `POST` | `/api/store/pos/sync` | POS 데이터 수동 동기화 요청 |
-| `GET` | `/api/store/pos/status` | POS 연동 상태 조회 |
+| Method | Path | 설명 | 단계 |
+|--------|------|------|------|
+| `GET` | `/api/store` | 내 매장 정보 조회 | [MVP] |
+| `PATCH` | `/api/store` | 매장 정보 수정 | [MVP] |
+| `POST` | `/api/store/onboarding/complete` | 온보딩 완료 처리 | [MVP] |
+| `GET` | `/api/store/pos` | POS 연동 정보 조회 | [2단계] |
+| `POST` | `/api/store/pos` | POS 연동 등록 | [2단계] |
+| `PATCH` | `/api/store/pos` | POS 연동 정보 수정 | [2단계] |
+| `DELETE` | `/api/store/pos` | POS 연동 해제 | [2단계] |
+| `POST` | `/api/store/pos/sync` | POS 데이터 수동 동기화 요청 | [2단계] |
+| `GET` | `/api/store/pos/status` | POS 연동 상태 조회 (`CSV_MODE`·`CONNECTED`·`ERROR`·`DISCONNECTED`) | [MVP] |
 
 > 1계정 1매장 구조이므로 `/api/store/{id}` 대신 `/api/store`로 단순화.
 
@@ -1182,14 +1188,14 @@ Authorization: Bearer <access_token>
 
 ### Endpoints
 
-| Method | Path | 설명 |
-|--------|------|------|
-| `POST` | `/ai/forecast/predict` | 수요예측 실행 요청 |
-| `POST` | `/ai/orders/recommend` | 추천발주 생성 요청 |
-| `POST` | `/ai/forecast/train` | 모델 재학습 요청 |
-| `GET` | `/ai/forecast/status` | 예측/학습 작업 상태 조회 |
-| `POST` | `/ai/xai/shap` | SHAP 설명 생성 요청 |
-| `GET` | `/ai/health` | AI Server 헬스체크 |
+| Method | Path | 설명 | 단계 |
+|--------|------|------|------|
+| `POST` | `/ai/forecast/predict` | 수요예측 실행 요청 | [MVP] |
+| `POST` | `/ai/orders/recommend` | 추천발주 생성 요청 | [MVP] |
+| `POST` | `/ai/forecast/train` | 모델 재학습 요청 | [2단계] |
+| `GET` | `/ai/forecast/status` | 예측/학습 작업 상태 조회 | [MVP] (predict), [2단계] (train) |
+| `POST` | `/ai/xai/shap` | SHAP 설명 생성 요청 | [MVP] |
+| `GET` | `/ai/health` | AI Server 헬스체크 | [MVP] |
 
 ### POST /ai/forecast/predict
 
@@ -1433,16 +1439,16 @@ Authorization: Bearer <access_token>
 
 ### Endpoints
 
-| Method | Path | 설명 |
-|--------|------|------|
-| `GET` | `/api/dashboard` | 대시보드 전체 요약 데이터 조회 |
-| `GET` | `/api/dashboard/roi` | ROI 지표 조회 (폐기 비용·폐기율·재고 회전율·MAPE) |
-| `GET` | `/api/dashboard/waste` | 폐기 현황 조회 |
-| `GET` | `/api/pipeline/status` | 파이프라인 최근 실행 상태 조회 |
-| `POST` | `/api/pipeline/run` | 사용자 수동 실행 요청 |
-| `GET` | `/api/pipeline/history` | 파이프라인 실행 이력 목록 |
-| `GET` | `/api/data/export` | 데이터 CSV 다운로드 |
-| `DELETE` | `/api/data` | 전체 데이터 삭제 요청 |
+| Method | Path | 설명 | 단계 |
+|--------|------|------|------|
+| `GET` | `/api/dashboard` | 대시보드 전체 요약 데이터 조회 | [MVP] |
+| `GET` | `/api/dashboard/roi` | ROI 지표 조회 (폐기 비용·폐기율·재고 회전율·MAPE) | [2단계] |
+| `GET` | `/api/dashboard/waste` | 폐기 현황 조회 | [MVP] |
+| `GET` | `/api/pipeline/status` | 파이프라인 최근 실행 상태 조회 | [MVP] |
+| `POST` | `/api/pipeline/run` | 사용자 수동 실행 요청 | [MVP] |
+| `GET` | `/api/pipeline/history` | 파이프라인 실행 이력 목록 | [MVP] |
+| `GET` | `/api/data/export` | 데이터 CSV 다운로드 | [2단계] |
+| `DELETE` | `/api/data` | 전체 데이터 삭제 요청 | [2단계] |
 
 ### GET /api/dashboard
 

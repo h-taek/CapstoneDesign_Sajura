@@ -17,7 +17,9 @@ Frontend → GET /api/auth/login/google
          → Google 인증 완료
          → GET /api/auth/callback/google?code=...
          → Backend: 구글 사용자 정보 조회 → 자체 JWT 발급
-         → Frontend: Access Token 수신 + Refresh Token Cookie 저장
+         → Backend: Set-Cookie refresh_token + 302 Redirect → FE root("/")
+         → Frontend 첫 진입: POST /api/auth/refresh (Cookie 자동 전송) → Access Token 수신 → 메모리 저장
+         → Frontend: GET /api/auth/me → onboarding_completed 분기
 ```
 
 **카카오 로그인 흐름:**
@@ -27,13 +29,17 @@ Frontend → GET /api/auth/login/kakao
          → 카카오 인증 완료
          → GET /api/auth/callback/kakao?code=...
          → Backend: 카카오 사용자 정보 조회 → 자체 JWT 발급
-         → Frontend: Access Token 수신 + Refresh Token Cookie 저장
+         → Backend: Set-Cookie refresh_token + 302 Redirect → FE root("/")
+         → Frontend 첫 진입: POST /api/auth/refresh (Cookie 자동 전송) → Access Token 수신 → 메모리 저장
+         → Frontend: GET /api/auth/me → onboarding_completed 분기
 ```
+
+> Access Token을 콜백 응답 본문·URL에 노출하지 않는 이유: 브라우저 히스토리·Referer 헤더·서버 access log 누출 차단. 자세한 설계 근거는 `docs/research/frontend/08_auth_security.md` §1, API 명세는 `api_spec.md` §2 `GET /api/auth/callback/{provider}`.
 
 | 구분 | 항목 |
 |---|---|
 | 입력 | OAuth 인가 코드 (Backend 콜백으로 수신) |
-| 출력 | JWT Access Token, JWT Refresh Token, user_id, email, onboarding_completed |
+| 출력 | Set-Cookie refresh_token (HttpOnly) + 302 Redirect to FE root. Access Token은 FE 첫 진입 후 `POST /api/auth/refresh` 응답으로 수신, user_id·email·onboarding_completed는 `GET /api/auth/me`로 조회 |
 
 ### 1.2 이메일/비밀번호 로그인
 
@@ -64,13 +70,13 @@ Frontend → GET /api/auth/login/kakao
      ├─ 계속사업자 확인 → 다음 단계 진행 허용
      └─ 휴업 / 폐업 / 미등록 → 진행 불가, 오류 메시지 표시
 3. 매장 정보 입력 (매장명, 업종, 연락처, 주소)
-4. POS 연동 시도
-     ├─ 성공 → 전체 기능 활성화
-     └─ 실패 → CSV 임시 모드 진행
-               ├─ 사용 가능: 메뉴/재고 등록, 기본 판매 데이터 조회
-               └─ 비활성화: 수요예측, 자동발주 추천
-               + "POS 연동 미완료" 배지 상시 표시
-               + 설정 화면에서 언제든 POS 연동 재시도 가능
+4. POS 연동 방식 선택
+     ├─ CSV 모드 (MVP 기본 경로) → CSV 템플릿 다운로드 → 보유 POS 데이터 업로드
+     └─ POS API 연동 [2단계] → POS 종류·자격증명 입력 → 연동 시도
+                              ├─ 성공: pos_mode=api
+                              └─ 실패: CSV 모드로 진행 (pos_mode=csv)
+     · 양쪽 모두 수요예측·자동발주 추천 활성화
+     · 설정 화면에서 모드 전환 가능
 5. 초기 재고 / 초기 메뉴 입력
 6. 메인 화면 진입
 ```
@@ -86,7 +92,7 @@ Frontend → GET /api/auth/login/kakao
 | | 주소 | 필수 (AI 예측 지역 변수 활용) |
 | | 매장 규모 구간 | 필수, 선택지 제공 (소형 ~10석 / 중형 11~30석 / 대형 31석~) |
 | | 운영 형태 | 필수, 선택지 제공 (홀 운영 / 배달 전용 / 홀+배달 병행) |
-| | POS 종류 및 자격증명 | 필수 시도, 실패 시 CSV 임시 모드 허용 |
+| | POS 종류 및 자격증명 | [2단계] POS API 선택 시 필수. MVP는 CSV 모드 선택이 기본 |
 | 출력 | store_id | |
 | | onboarding_completed | boolean |
 
@@ -250,24 +256,26 @@ Frontend → GET /api/auth/login/kakao
 
 ### 4.1 지원 방식
 
-- CSV 업로드 (POS API 연동 실패 시 임시 대안)
-- POS API 연동
+- CSV 업로드 (MVP 기본 경로)
+- POS API 연동 [2단계]
 
 ### 4.2 어댑터 구조
 
-| POS 소스 | 어댑터 | 공통 스키마 |
-|---|---|---|
-| 토스플레이스 | TossPlaceAdapter | `{ "sold_at": ..., "external_sale_id": ..., "menu_name": ..., "quantity": ..., "unit_price": ..., "total_price": ... }` |
-| 키움페이 | KiwoomAdapter | 동일 공통 스키마 |
-| OKPOS | OKPOSAdapter | 동일 공통 스키마 |
-| CSV / Excel 업로드 | CSVAdapter | 동일 공통 스키마 |
+| POS 소스 | 어댑터 | 단계 | 공통 스키마 |
+|---|---|---|---|
+| CSV 업로드 | CSVAdapter | [MVP] | `{ "sold_at": ..., "external_sale_id": ..., "menu_name": ..., "quantity": ..., "unit_price": ..., "total_price": ... }` |
+| 토스플레이스 | TossPlaceAdapter | [2단계] | 동일 공통 스키마 |
+| 키움페이 | KiwoomAdapter | [2단계] | 동일 공통 스키마 |
+| OKPOS | OKPOSAdapter | [2단계] | 동일 공통 스키마 |
 
 - POS 어댑터의 공통 스키마는 판매 메뉴 단위의 표준 판매 데이터이다.
 - Backend는 공통 스키마의 `menu_name`을 매장 메뉴와 매핑하여 내부 `menu_id`를 결정한다.
 - `external_sale_id`는 POS/CSV 원본 판매 식별자이며, 제공되지 않는 CSV 데이터에서는 NULL을 허용한다.
 - 매핑 실패 시 해당 행은 저장하지 않고 업로드/동기화 결과의 `skipped` 항목으로 반환한다.
 
-### 4.3 POS API 연동
+### 4.3 POS API 연동 [2단계]
+
+> MVP 범위 외 — `mvp_scope.md` §4 참조. 아래 시그니처는 2단계 설계 기준.
 
 | 구분 | 항목 | 비고 |
 |---|---|---|
@@ -279,14 +287,15 @@ Frontend → GET /api/auth/login/kakao
 
 > POS사별 API 자격증명 형식·수집 방식은 조사 중. `docs/research/backend/13_pos_adapter.md` 참조.
 
-### 4.4 CSV 업로드
+### 4.4 CSV 업로드 [MVP]
 
 - 사주라가 제공하는 고정 템플릿 형식만 허용한다.
 - 템플릿 다운로드 링크를 업로드 화면에서 제공한다.
+- 지원 포맷: CSV(UTF-8) 단일. Excel(.xlsx) 미지원 (MVP는 의존성 최소화).
 
 | 구분 | 항목 | 비고 |
 |---|---|---|
-| 입력 | CSV / Excel 파일 (고정 템플릿 형식) | |
+| 입력 | CSV 파일 (고정 템플릿 형식, UTF-8) | |
 | | store_id | |
 | 출력 | 파싱 성공 건수 | |
 | | 이상치 탐지 건수 및 비율 | |
@@ -378,16 +387,19 @@ Frontend → GET /api/auth/login/kakao
 | 학습 데이터 기간 | 30일 미만 |
 | 최근 30일 결측값 비율 | 30% 초과 |
 
-### 5.4 Cold-start 처리
+### 5.4 Cold-start 처리 [2단계]
+
+> MVP 범위 외 — `mvp_scope.md` §4 참조. MVP는 보유 주점 POS 데이터(30일+) 기반으로 시작하므로 cold-start 분기가 발생하지 않는다.
 
 - 신규 매장은 자체 데이터 30일 축적 전까지 유사 매장 기반 예측 결과를 제공한다.
 - 유사 매장 기준은 동일 업종, 유사 상권, 매장 규모 구간 및 운영 형태를 모두 적용한다.
 - 유사 매장 기반 예측 결과에는 "신뢰도 낮음" 경고 배지를 필수 표시한다.
 - 자체 데이터 30일 축적 후 자체 예측으로 자동 전환한다.
 
-### 5.5 예외
+### 5.5 데이터 소스별 동작
 
-- POS 미연동(CSV 임시 모드) 상태에서는 수요예측 기능을 비활성화한다.
+- 수요예측은 데이터 소스(CSV 업로드 / POS API)와 무관하게 동일하게 동작한다.
+- 학습 데이터 30일 미만이면 신뢰도 낮음 배지를 표시한다 (§5.3 기준).
 
 ## 6. 추천발주
 
@@ -514,7 +526,10 @@ Frontend → GET /api/auth/login/kakao
 | | 메뉴별 판매 비중 | |
 | | 수요예측 결과 시각화 | |
 
-### 8.2 ROI 대시보드
+### 8.2 ROI 대시보드 [2단계]
+
+> MVP 범위 외 — `mvp_scope.md` §4 참조. 누적 데이터 부족으로 MVP 기간에는 의미 있는 지표 산출 불가. 아래 시그니처는 2단계 설계 기준.
+
 
 - 기본 조회 단위는 월별이며 점주가 시작월·종료월을 선택할 수 있다.
 
@@ -561,8 +576,8 @@ Frontend → GET /api/auth/login/kakao
 
 ### 10.1 야간 배치 파이프라인
 
-- 예측 배치는 매일 02:00에 실행한다.
-- 모델 재학습은 매주 일요일 02:00에 실행한다 (예측 배치와 별도).
+- 예측 배치는 매일 02:00에 실행한다. [MVP]
+- 모델 재학습은 매주 일요일 02:00에 실행한다 (예측 배치와 별도). [2단계 — MVP 기간 데이터 축적 부족, `mvp_scope.md` §4]
 - n8n은 정해진 시각에 배치 워크플로우를 트리거한다.
 - n8n은 DB 직접 조회/저장, 외부 API 수집, 데이터 전처리/정규화, AI Server 호출, 실행 이력 갱신을 담당한다.
 - AI Server는 n8n으로부터 예측, 추천발주, 학습 요청을 받아 모델 연산을 수행한다.
@@ -581,7 +596,10 @@ Frontend → GET /api/auth/login/kakao
 | 8. 추천발주 저장 | n8n이 `order_recommendations`, `order_recommendation_items`에 추천발주 결과를 INSERT | 3회 재시도 → Slack 알림 |
 | 9. 작업 종료/알림 | n8n이 `pipeline_jobs`를 `DONE` 또는 `FAILED`로 UPDATE하고 Slack 또는 앱 알림 발송 | 로깅만 수행 |
 
-### 10.2 주간 재학습 파이프라인 (매주 일요일 02:00)
+### 10.2 주간 재학습 파이프라인 (매주 일요일 02:00) [2단계]
+
+> MVP 범위 외 — `mvp_scope.md` §4 참조. 아래 시그니처는 2단계 설계 기준.
+
 
 | 단계 | 작업 | 실패 처리 |
 |---|---|---|
@@ -628,7 +646,7 @@ Frontend → GET /api/auth/login/kakao
 |---|---|
 | Step 1. 사업자 인증 | 사업자등록번호 입력 필드, 인증 요청 버튼, 인증 결과 메시지 |
 | Step 2. 매장 정보 입력 | 매장명 / 업종 / 연락처 / 주소 입력 필드, 매장 규모 구간 선택, 운영 형태 선택 |
-| Step 3. POS 연동 | POS 종류 선택, 자격증명 입력 필드 (API 선택 시), CSV 템플릿 다운로드 링크 및 업로드 영역 (CSV 선택 시), 연동 결과 메시지 |
+| Step 3. POS 연동 | 모드 선택 (CSV[MVP] / POS API[2단계]), CSV 템플릿 다운로드 링크 및 업로드 영역, POS API 자격증명 입력 필드(2단계), 연동 결과 메시지 |
 | Step 4. 초기 재고/메뉴 입력 | 재고 추가 폼 (재료명/수량/단위/소비기한/단가), 메뉴 추가 폼 (메뉴명/가격/재고 차감 여부/레시피), 완료 버튼 |
 
 ### 12.3 홈
@@ -724,7 +742,7 @@ Frontend → GET /api/auth/login/kakao
 
 | 구성 요소 | 설명 |
 |---|---|
-| **POS 연동 관리** | 현재 연동 상태, POS 재연동 버튼, CSV 업로드 버튼 (CSV 임시 모드 시) |
+| **POS 연동 관리** | 현재 모드 표시 (CSV / POS API), CSV 업로드 버튼, POS API 재연동 버튼[2단계] |
 | **단가 관리** | 재료별 단가 목록, 최종 업데이트 일시, 단가 수동 수정 버튼 |
 | **알림 설정** | 알림 유형별 on/off (소비기한 임박 / 재고 부족 / 예측 완료 / 이상치 감지) |
 | **계정 정보** | 매장 정보 수정, 로그아웃, 회원 탈퇴 (탈퇴 후 30일 뒤 데이터 영구 삭제) |

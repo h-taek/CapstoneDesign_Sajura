@@ -100,7 +100,7 @@
 |--------|------------|
 | `AuthService` | 로그인, 회원가입, JWT 발급, OAuth 처리 |
 | `StoreService` | 매장 정보 CRUD, 온보딩 완료 처리 |
-| `PosService` | POS 연동, 동기화, 상태 관리 |
+| `PosService` | POS API 연동·동기화·상태 관리 [`get_pos_status` MVP·나머지 2단계, `mvp_scope.md` §4] |
 | `MenuService` | 메뉴 CRUD, 레시피 관리 |
 | `InventoryService` | 재고 품목, 로트, 폐기, 경고, FIFO 차감 |
 | `SaleService` | 판매 데이터 조회, CSV 업로드, POS 판매 저장 |
@@ -108,7 +108,7 @@
 | `OrderService` | 저장된 추천발주 조회, 점주 수정안 저장, 발주 확정, 승인 이력 |
 | `AutomationService` | Playwright 쿠팡 장바구니 자동화 |
 | `SiteScrapingService` | Playwright 쿠팡 단가 조회 |
-| `DashboardService` | 대시보드 집계, ROI, 폐기 현황 |
+| `DashboardService` | 대시보드 집계, 폐기 현황 [MVP] / ROI 집계 [2단계, `mvp_scope.md` §4] |
 | `PipelineService` | 파이프라인 실행 이력 조회 및 상태 표시 |
 | `DataService` | 데이터 CSV 내보내기, 전체 데이터 삭제 |
 | `NotificationService` | 인앱 알림 CRUD, Web Push 발송, 구독 관리 |
@@ -145,14 +145,16 @@
 
 ### PosService
 
-| 메서드 | 파라미터 | 반환 | 설명 |
-|--------|----------|------|------|
-| `get_pos` | store_id | `PosDTO` | POS 연동 정보 조회 |
-| `connect_pos` | store_id, pos_type, api_key, store_code | `PosDTO` | POS 연동 등록 |
-| `update_pos` | store_id, data | `PosDTO` | POS 연동 정보 수정 |
-| `disconnect_pos` | store_id | `None` | POS 연동 해제 |
-| `sync_pos` | store_id | `SyncResultDTO` | POS 원본 데이터를 공통 판매 스키마로 변환하고 SaleService.save_pos_sales 호출 |
-| `get_pos_status` | store_id | `PosStatusDTO` | 연동 상태 조회 |
+> 단계 구분: `get_pos_status`만 [MVP] (CSV 모드 표시용). 나머지 메서드는 [2단계] POS API 연동 범위 — `mvp_scope.md` §4 참조.
+
+| 메서드 | 파라미터 | 반환 | 단계 | 설명 |
+|--------|----------|------|------|------|
+| `get_pos` | store_id | `PosDTO` | [2단계] | POS 연동 정보 조회 |
+| `connect_pos` | store_id, pos_type, api_key, store_code | `PosDTO` | [2단계] | POS 연동 등록 |
+| `update_pos` | store_id, data | `PosDTO` | [2단계] | POS 연동 정보 수정 |
+| `disconnect_pos` | store_id | `None` | [2단계] | POS 연동 해제 |
+| `sync_pos` | store_id | `SyncResultDTO` | [2단계] | POS 원본 데이터를 공통 판매 스키마로 변환하고 SaleService.save_pos_sales 호출 |
+| `get_pos_status` | store_id | `PosStatusDTO` | [MVP] | 연동 상태 조회 (CSV_MODE / CONNECTED / ERROR / DISCONNECTED) |
 
 ### MenuService
 
@@ -233,11 +235,11 @@
 
 ### DashboardService
 
-| 메서드 | 파라미터 | 반환 | 설명 |
-|--------|----------|------|------|
-| `get_dashboard` | store_id | `DashboardDTO` | 전체 요약 집계 |
-| `get_roi` | store_id, start_month, end_month | `RoiDTO` | 기간별 ROI 집계 (폐기 비용·폐기율·재고 회전율·MAPE) 및 월별 추세 반환. 재고 회전율 = 기간 내 총 소모량 / 평균 재고 수량. 총 소모량은 `sale_records × recipe_ingredients`로 파생, 평균 재고 수량은 (기간 시작 재고 + 기간 종료 재고) / 2로 근사 (시작 재고 = 종료 재고 + 소모량 + 폐기량 - 입고량으로 역산) |
-| `get_waste` | store_id, start_date, end_date | `WasteDTO` | 기간별 폐기 현황 |
+| 메서드 | 파라미터 | 반환 | 단계 | 설명 |
+|--------|----------|------|------|------|
+| `get_dashboard` | store_id | `DashboardDTO` | [MVP] | 전체 요약 집계 |
+| `get_roi` | store_id, start_month, end_month | `RoiDTO` | [2단계] | 기간별 ROI 집계 (폐기 비용·폐기율·재고 회전율·MAPE) 및 월별 추세 반환. 재고 회전율 = 기간 내 총 소모량 / 평균 재고 수량. 총 소모량은 `sale_records × recipe_ingredients`로 파생, 평균 재고 수량은 (기간 시작 재고 + 기간 종료 재고) / 2로 근사 (시작 재고 = 종료 재고 + 소모량 + 폐기량 - 입고량으로 역산). 누적 데이터 부족으로 MVP 기간 동안 의미 없음 (`mvp_scope.md` §4) |
+| `get_waste` | store_id, start_date, end_date | `WasteDTO` | [MVP] | 기간별 폐기 현황 |
 
 ### PipelineService
 
@@ -261,7 +263,7 @@
 | `create_and_push` | user_id, store_id, type, priority, title, body, related_resource | `NotificationDTO` | 인앱 알림 INSERT 후 사용자의 모든 활성 구독에 Web Push 발송. Push Service 410 응답 시 해당 `push_subscriptions` 행 삭제 |
 | `send_slack_failure` | job_id, store_id, step, error | `None` | slack_sdk Webhook으로 개발팀 채널 단방향 알림 발송 (n8n에서 직접 호출 가능) |
 
-> 인앱 알림 INSERT는 다른 Service(`SaleService`·`InventoryService` 등)에서 `NotificationService.create_and_push`를 호출하는 방식으로 일관 처리한다. n8n 배치도 동일 메서드를 호출하거나 DB에 직접 INSERT(권한: `n8n_user` notifications INSERT 권한, `schema.md` §5).
+> 인앱 알림 INSERT는 다른 Service(`SaleService`·`InventoryService` 등)에서 `NotificationService.create_and_push`를 호출하는 방식으로 일관 처리한다. n8n 배치도 BE 내부 API를 호출하여 동일 메서드를 트리거할 뿐, `notifications` 테이블에 직접 INSERT하지 않는다 (`schema.md` §5 `n8n_user`에 notifications INSERT 권한 미부여). 개발팀 Slack 알림만 n8n에서 직접 발송한다 (`send_slack_failure`).
 
 ### DataService
 
@@ -278,12 +280,12 @@
 
 | 메서드 | 파라미터 | 반환 | 설명 |
 |--------|----------|------|------|
-| `predict` | store_id, target_date, input_data | `PredictionResultDTO` | 수요예측 실행 요청 |
-| `recommend_order` | store_id, target_date, forecast_results, recipes, inventory | `RecommendationResultDTO` | 추천발주 생성 요청 |
-| `train` | store_id, training_data | `TrainJobDTO` | 모델 재학습 요청 |
-| `get_job_status` | job_id | `JobStatusDTO` | 작업 상태 조회 |
-| `get_shap` | store_id, menu_id, target_date | `ShapDTO` | SHAP 설명 생성 요청 |
-| `health_check` | - | `HealthDTO` | AI Server 상태 확인 |
+| `predict` | store_id, target_date, input_data | `PredictionResultDTO` | [MVP] 수요예측 실행 요청 |
+| `recommend_order` | store_id, target_date, forecast_results, recipes, inventory | `RecommendationResultDTO` | [MVP] 추천발주 생성 요청 |
+| `train` | store_id, training_data | `TrainJobDTO` | [2단계] 모델 재학습 요청 (`mvp_scope.md` §4) |
+| `get_job_status` | job_id | `JobStatusDTO` | [MVP] 작업 상태 조회 |
+| `get_shap` | store_id, menu_id, target_date | `ShapDTO` | [MVP] SHAP 설명 생성 요청 |
+| `health_check` | - | `HealthDTO` | [MVP] AI Server 상태 확인 |
 
 ---
 
@@ -307,10 +309,11 @@
 
 | 흐름 | 호출 구조 | 설명 |
 |------|-----------|------|
-| POS 동기화 | `PosService.sync_pos` → POS Adapter → 공통 판매 스키마 → `SaleService.save_pos_sales` | POS 원본 데이터를 표준 판매 데이터로 변환하고 menu_name을 menu_id로 매핑해 저장 |
+| POS 동기화 [2단계] | `PosService.sync_pos` → POS Adapter → 공통 판매 스키마 → `SaleService.save_pos_sales` | POS 원본 데이터를 표준 판매 데이터로 변환하고 menu_name을 menu_id로 매핑해 저장. MVP는 `SaleService.upload_csv` 경로 사용 |
+| CSV 업로드 [MVP] | Frontend `POST /api/sales/upload` → `SaleService.upload_csv` → 파싱·매핑 → `sale_records` 저장 → `InventoryService.deduct_stock` | MVP 기본 판매 데이터 적재 경로 |
 | 판매 저장 후 재고 차감 | `SaleService.save_pos_sales` → `InventoryService.deduct_stock` | 판매 메뉴의 레시피를 기준으로 재고 로트를 FIFO 차감 |
-| n8n 예측/추천발주 워크플로우 | n8n → DB 조회 → 외부 API 수집 → 전처리/정규화 → AI Server `/ai/forecast/predict` → AI Server `/ai/orders/recommend` → DB 저장 | n8n이 배치 실행, DB 직접 조회/저장, 외부 API 수집, 데이터 전처리/정규화, 재시도, 알림을 담당 |
-| n8n 재학습 워크플로우 | n8n → DB 조회 → AI Server `/ai/forecast/train` → AI Server `/ai/forecast/status` polling → DB 상태 갱신 | n8n이 주간 재학습 흐름과 재시도를 오케스트레이션 |
+| n8n 예측/추천발주 워크플로우 [MVP] | n8n → DB 조회 → 외부 API 수집 → 전처리/정규화 → AI Server `/ai/forecast/predict` → AI Server `/ai/orders/recommend` → DB 저장 → BE `NotificationService.create_and_push` 호출 | n8n이 배치 실행, DB 직접 조회/저장, 외부 API 수집, 데이터 전처리/정규화, 재시도, 점주 알림은 BE API 호출로 일관 처리 (Slack 알림만 n8n 직접 발송) |
+| n8n 재학습 워크플로우 [2단계] | n8n → DB 조회 → AI Server `/ai/forecast/train` → AI Server `/ai/forecast/status` polling → DB 상태 갱신 | n8n이 주간 재학습 흐름과 재시도를 오케스트레이션. MVP 기간 데이터 축적 부족으로 비활성 (`mvp_scope.md` §4) |
 | 발주 확정 후 단가 갱신 | `OrderService.approve_order` → `SiteScrapingService.scrape_prices_bulk` | 발주 확정 시 쿠팡 등 연결 사이트의 최신 단가를 일괄 갱신 |
 | 초기 단가 자동 조회 | `InventoryService.update_item`(coupang_url 설정 시) → `inventory_item_sites` UPSERT → `SiteScrapingService.scrape_price` | 재고 품목에 coupang_url이 처음 등록될 때 즉시 단가를 조회하여 `inventory_item_sites.last_price`에 저장. 온보딩 초기 재고 등록 시에도 동일하게 적용 |
 | 쿠팡 자동 담기 | Frontend `POST /api/orders/{order_id}/automate` → `AutomationService.automate_coupang` → Playwright → `AutomationService.update_order_status` | 발주 확정(`approve_order`)과 독립적인 별도 요청. 점주가 확정 후 명시적으로 자동화 버튼을 눌러야 실행됨. 성공 시 `AUTOMATED`, 실패 시 `MANUAL_REQUIRED` + 수동 URL 안내 |
@@ -549,7 +552,7 @@ n8n은 운영 데이터 원본을 삭제하지 않는다. n8n의 쓰기 대상�
 | `mysql` | `mysql:8` | DB (`schema.md` §1) |
 | `redis` | `redis:7-alpine` | 캐시 + 잡 큐 브로커 + Rate Limit |
 | `n8n` | `n8nio/n8n` | AI 파이프라인 오케스트레이션 |
-| `caddy` | `caddy:alpine` | 리버스 프록시 + 자동 HTTPS + 정적 파일 서빙 |
+| `caddy` | 자체 빌드 (`Dockerfile.caddy` — `caddy:2-alpine` 베이스 + FE `dist/` COPY) | 리버스 프록시 + 자동 HTTPS + PWA 정적 파일 서빙. FE Vite 빌드 산출을 이미지에 포함하여 atomic 배포·롤백. 상세: `docs/research/frontend/10_deployment.md` §3.4 |
 
 > AI Server는 `performance.md` §2.4 분리 배포 원칙에 따라 본 Compose 외부에 별도 배포.
 

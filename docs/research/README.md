@@ -8,9 +8,10 @@
 
 ```
 research/
-├── backend/      Backend 구현 후보 조사
-├── frontend/     Frontend 구현 후보 조사 (예정)
-└── ai/           AI 모델·파이프라인 미확정 항목 조사
+├── backend/      Backend 구현 후보 조사 (완료, 13 카테고리)
+├── frontend/     Frontend 구현 후보 조사 (완료, 11 카테고리)
+├── ai/           AI 모델·파이프라인 미확정 항목 조사
+└── SUMMARY.md    확정된 기술 스택 일람
 ```
 
 ---
@@ -35,9 +36,19 @@ research/
 
 ## frontend/
 
-| 파일 | 내용 |
-|------|------|
-| `README.md` | 조사 예정 카테고리 목록 |
+| 파일 | 다루는 카테고리 | 연결 spec |
+|------|----------------|-----------|
+| `01_framework_build.md` | UI 프레임워크·빌드·언어 (React + Vite·Next.js·Remix·Astro + TypeScript) | `07_frontend/frontend_design.md` |
+| `02_routing_state.md` | 라우팅·클라이언트 상태 (React Router·TanStack Router + Zustand·Redux Toolkit 등) | `07_frontend/frontend_design.md` |
+| `03_data_http.md` | 서버 상태·HTTP·OpenAPI (TanStack Query + fetch·axios·ky + Codegen) | `07_frontend/frontend_design.md` §6, `05_api/api_spec.md` |
+| `04_ui_styling.md` | 스타일·컴포넌트 (Tailwind + shadcn/ui·MUI·Mantine·Chakra·AntD) | `07_frontend/frontend_design.md` §1, `03_feature_design/feature_spec.md` §12 |
+| `05_form_validation.md` | 폼·검증 (React Hook Form + zod, Pydantic v2 호환) | `07_frontend/frontend_design.md` §7 |
+| `06_pwa_push.md` | PWA·Web Push·인앱 알림 (vite-plugin-pwa·Workbox + VAPID + polling) | `07_frontend/frontend_design.md` §5 |
+| `07_charts.md` | 차트·시각화 (Recharts·ECharts·Chart.js·Visx·Nivo) | `07_frontend/frontend_design.md` §1, `03_feature_design/feature_spec.md` §8 |
+| `08_auth_security.md` | OAuth 흐름·토큰 정책·CSP (BE 리다이렉트 + 메모리·HttpOnly Cookie) | `07_frontend/frontend_design.md` §2, `09_nonfunctional/security.md` §2.3 |
+| `09_testing_quality.md` | 테스트·코드 품질·문서화 (Vitest·Playwright·MSW·ESLint·Biome·Storybook) | `07_frontend/frontend_design.md` §9, `09_nonfunctional/performance.md` |
+| `10_deployment.md` | 패키지 매니저·빌드·배포·CI (pnpm·Vite 산출 + Caddy + GitHub Actions) | `07_frontend/frontend_design.md` §9, `07_backend/service_design.md` §11 |
+| `11_observability.md` | 에러 모니터링·관측가능성 (Sentry + PII scrubbing + 소스맵 정책) | `07_frontend/frontend_design.md` §8, `09_nonfunctional/performance.md` §5 |
 
 ## ai/
 

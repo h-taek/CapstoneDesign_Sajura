@@ -18,6 +18,7 @@ docs/spec/05_api/api_spec.md
 docs/spec/06_database/schema.md
 docs/spec/06_database/erd.md
 docs/spec/07_backend/service_design.md
+docs/spec/07_frontend/frontend_design.md
 docs/spec/08_ai/ml_pipeline.md              # 작성 예정: AI 담당자 인수인계 후 확정 검증
 docs/spec/08_ai/model_spec.md               # 작성 예정: AI 담당자 인수인계 후 확정 검증
 docs/spec/04_flow/sequence.md
@@ -170,10 +171,37 @@ docs/spec/02_mvp/mvp_scope.md
 ### 15. MVP 범위 일관성
 
 - [ ] `mvp_scope.md`의 포함 기능이 `requirements.md`, `feature_list.md`, `feature_spec.md`, `api_spec.md`, `service_design.md`에 모두 구현 대상으로 남아 있는지 확인
-- [ ] `mvp_scope.md`의 제외 기능이 API, DB, 서비스, AI, 사용자 흐름 문서에서 필수 기능처럼 설명되지 않는지 확인
+- [ ] `mvp_scope.md`의 제외 기능이 API, DB, 서비스, AI, 사용자 흐름 문서에서 필수 기능처럼 설명되지 않는지 확인 — **모든 2단계 항목에 `[2단계]` 배지 또는 `> MVP 범위 외` 안내문이 부착되어 있어야 함**
 - [ ] `mvp_scope.md`의 단계별 범위가 `user_flow.md`, `sequence.md`의 사용자 흐름 범위와 일치하는지 확인
 - [ ] MVP에 포함된 AI/예측 기능 수준이 `ml_pipeline.md`, `model_spec.md`의 구현 난이도와 일정상 충돌하지 않는지 확인
 - [ ] MVP 범위 변경 시 영향을 받는 API, DB, 서비스, 화면 흐름, 비기능 문서가 함께 갱신되었는지 확인
+
+#### 15-1. MVP 정책 전환 시 동시 점검 파일 (체크리스트 게이트)
+
+> `mvp_scope.md` 변경 또는 데이터 소스 정책(POS API ↔ CSV) 전환 시, 아래 7개 파일을 동일 PR에서 일괄 갱신해야 한다. 한 파일이라도 누락되면 16차 audit 이후 발생했던 "MVP 데모가 spec상 불가능" 유형의 표류가 재발한다.
+
+- [ ] `01_requirements/requirements.md` §5 — POS/CSV 정책 반영
+- [ ] `01_requirements/usecase_spec.md` UC-01 — 기본 흐름·대안 흐름 일치
+- [ ] `03_feature_design/feature_spec.md` §1.4 (온보딩) / §4 (POS 연동) / §5 (수요예측 데이터 소스별 동작) / §12 (화면)
+- [ ] `04_flow/user_flow.md` §2 텍스트 다이어그램 + §3 온보딩 단계
+- [ ] `04_flow/sequence.md` 온보딩·예측 시퀀스
+- [ ] `05_api/api_spec.md` 영향받는 endpoint의 [MVP]/[2단계] 라벨
+- [ ] `07_backend/service_design.md` 영향받는 Service의 단계 라벨 + §6 호출 흐름
+
+#### 15-2. 단계 라벨링 규칙
+
+- 모든 spec 문서의 기능·메서드·endpoint·화면 구성요소는 `[MVP]` 또는 `[2단계]` 배지 중 하나를 받는다. 라벨 없는 항목은 기본 [MVP]로 간주한다.
+- 2단계 섹션 헤더에는 `### X.Y 기능명 [2단계]` 형식 + 바로 아래 `> MVP 범위 외 — mvp_scope.md §4 참조` 안내문을 부착한다.
+- 표 내 항목 라벨링은 별도 "단계" 컬럼을 추가한다 (api_spec endpoints 표·service_design 메서드 표 패턴 따름).
+
+### 16. Frontend spec 일관성
+
+- [ ] `frontend_design.md` §1 기술 스택이 `docs/research/SUMMARY.md` §11~18과 일치하는지 확인 (중복 정의 없이 참조 관계 유지)
+- [ ] `frontend_design.md` §2 인증 정책이 `security.md` §2·`api_spec.md` §2와 일치하는지 확인 (메모리 Access Token / HttpOnly Refresh Cookie / 302 redirect)
+- [ ] `frontend_design.md` §3 라우팅 가드가 `user_flow.md`·`feature_spec.md` §12 화면 IA와 일치하는지 확인
+- [ ] `frontend_design.md` §5 PWA·Web Push가 `feature_spec.md` §11 알림 정책과 일치하는지 확인 (5분 폴링·VAPID inline)
+- [ ] `frontend_design.md` §9 Caddy 자체 빌드가 `service_design.md` §11.1과 일치하는지 확인
+- [ ] `frontend_design.md` §11 MVP/2단계 매핑이 `mvp_scope.md` §3·§4와 일치하는지 확인
 
 ### 16. 통합 번호/용어/상태값 일관성
 

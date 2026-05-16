@@ -8,7 +8,7 @@
 |------|------|------|
 | 1. 요구사항 정의 | requirements.md, usecase_spec.md | ✅ 완료 |
 | 2. 기능·API·DB·백엔드·AI 설계 | docs/spec/ 전체 | ⬜ 진행 중 (backend 완료, AI 진행 중) |
-| 3. 리서치 | 기술 조사·레퍼런스 분석 (docs/research/) | ⬜ 진행 중 (backend ✅, frontend·ai 예정) |
+| 3. 리서치 | 기술 조사·레퍼런스 분석 (docs/research/) | ⬜ 진행 중 (backend ✅, frontend ✅, ai 예정) |
 | 4. 구현 계획 | 단계별 작업·순서·역할 분담 (docs/plan/) | ⬜ 예정 |
 | 5. 구현 | spec/ 기준으로 개발 진행 | ⬜ 예정 |
 | 6. 테스트 & 배포 | | ⬜ 예정 |
@@ -55,12 +55,138 @@ docs/plan/       → 구현 계획 (단계별 작업, 순서, 역할 분담)
 | 2026-05-16 | DI·유틸·결제·개발 편의 확정: DI(FastAPI Depends) · DTO(Pydantic) · PK(UUIDv4) · 시간(datetime+zoneinfo) · 결제(쿠팡 Playwright) 모두 다른 research 결정 ratify. 신규 — 운영 **phonenumbers**(stores.phone NATIONAL 형식 `010-1234-5678` 정규화), 개발 **ipython** + **rich**(dev 콘솔). 보존 — ULID(대량 INSERT 페이지 분할 트리거), PG사 SDK·Stripe(자체 결제 도입 시), Dependency Injector(BE 외 도메인 모듈 분리 시). 도구(httpie·DBeaver·n8n Desktop)는 개발자 개인 선택으로 spec 미명시. 근거: `docs/research/backend/11_misc.md` |
 | 2026-05-16 | 보안 정책 미확정 항목 정리: **RBAC** MVP 단일 역할 점주 종결(2단계 매트릭스는 그때 설계). **감사 로그** 보관 1년 / 조회 `ops_readonly` / DB append-only + 백업. **다중 디바이스** 각 디바이스 자체 토큰 자연 동작 명시. **강제 로그아웃** 채택 — 모든 디바이스 일괄 폐기 `POST /api/auth/logout-all` 신규. AES-256 적용 대상 현 상태 유지. **쿠팡 자격증명** 검증 보류 — (E) 점주 브라우저 게스트 장바구니 → (C) 세션 쿠키 → 재논의 단계적 fallback. 외부 API scope·rate limit은 13(2단계)·AI 영역 의존으로 보류. 근거: `docs/research/backend/14_security_open_items.md` |
 | 2026-05-16 | **스케줄러 책임 분리 정정** (08 §1.4 정정): `n8n` = **AI 파이프라인 자동화만** (외부 API 수집·AI Server 호출 등 ML 흐름). `ARQ cron_jobs` = **BE 도메인 정기 작업** (소비기한 일일 점검·단가 갱신·이메일 예약 등). 점주 알림은 BE `NotificationService.create_and_push` 일관 처리 — n8n은 BE API 트리거만, DB `notifications` 직접 INSERT 안 함. `n8n_user`의 `notifications` SELECT/INSERT 권한 회수. 사유: n8n은 AI 워크플로우 도구로 BE 재고 도메인 cron에 책임 부적합. 근거: 본 검증 audit (16차) |
+| 2026-05-16 | **Frontend 후속 정합 5건 일괄 반영** (18차 audit): (A-1) 인앱 알림 폴링 **5분 고정·코드 상수** + 사용자 설정 제거 + 수동 새로고침 버튼 권장 — BE rate limit 60/min 보호. (A-2) **FE Sentry 도입 확정** — `@sentry/react` ^8 + `@sentry/vite-plugin` ^2. BE와 동일 SaaS·동일 release(`git-<sha-short>`)로 상관관계. `sendDefaultPii: false` + `beforeSend` 마스킹(Authorization·Cookie·이메일·전화·사업자번호) + 소스맵 Sentry 업로드 후 `deleteFilesAfterUpload: true`로 public 차단 + `sampleRate=1.0`/`tracesSampleRate=0.05`(1개월 관찰 후 조정). 세션 리플레이 미사용(PII 위험). (A-3) CSP `connect-src` Sentry SaaS 허용 — frontend 08 §3.4 + backend 03·05 Caddyfile `connect-src 'self' https://*.ingest.sentry.io`로 정합. (A-4) **OAuth callback 응답 방식 정정** — api_spec.md §2 `GET /api/auth/callback/{kakao,google}` 응답을 "200 JSON" → "**302 Redirect to FE root + Set-Cookie refresh_token**"으로 정정. Access Token은 FE 첫 진입 시 `POST /api/auth/refresh`로 동기 (URL·body·history 노출 차단). sequence.md §2 alt 블록 + feature_spec.md §1.1 OAuth 흐름 정합 갱신. (A-5) FE Sentry release tagging — performance.md §5에 FE Sentry 1행 추가(release `git-<sha-short>`·`VITE_APP_VERSION`). 근거: `docs/research/frontend/11_observability.md`(신규) + 02·06·08 갱신 |
+| 2026-05-16 | **MVP 데이터 소스 정책 확정 (CSV-only)** + **MVP/2단계 라벨링 도입** (19차 audit): mvp_scope.md가 "보유 주점 POS 데이터 → CSV 업로드"를 MVP 유일 데이터 경로로 정의한 사실과, 다른 spec(`requirements`·`usecase_spec`·`feature_spec`·`user_flow`·`sequence`)이 "CSV 임시 모드에서는 예측·발주 비활성화"로 남아 있던 정책 충돌을 mvp_scope.md 기준으로 일괄 정합. CSV 모드도 수요예측·자동발주 추천 활성화로 통일. 동시에 모든 spec(`feature_spec`·`api_spec`·`service_design`·`performance`)의 POS API·ROI 대시보드·주간 재학습·데이터 export/delete·Cold-start 항목에 **`[MVP]`/`[2단계]` 배지 표기 도입**(헤더 또는 표 컬럼). consistency_check.md §15-1 "MVP 정책 전환 시 동시 점검 파일" 게이트 신설. 사유: 16차 이후 mvp_scope.md만 갱신되고 나머지가 옛 정책에 머물러 "MVP 데모가 spec상 불가능"한 표류 발생. 근거: 본 19차 audit |
+| 2026-05-16 | **FE spec 폴더 신설** (19차 audit): `docs/spec/07_frontend/frontend_design.md` 신규 — Frontend 구현 SSOT. 라우팅·상태·인증 통합·PWA·OpenAPI 코드젠·CI 설계 포함. 기술 스택 상세는 `research/SUMMARY.md` §11~18 참조 패턴(중복 정의 없음). docs/README.md·research/README.md frontend 표 연결 spec 일괄 갱신. 사유: FE 확정값이 research/SUMMARY에만 머물러 "spec=확정 사실" 원칙 위반. 근거: 본 19차 audit |
+| 2026-05-16 | **n8n 알림 책임·결제 보안 문구 정합** (19차 audit): `service_design.md` §250 NotificationService 안내문에서 "n8n 배치도 DB에 직접 INSERT" 옵션 삭제 → BE API 호출로 단일 경로 단언(16차 결정과 schema.md §511 정합). `security.md` §6 결제 — "PG사 토큰화·자체 서버에 토큰값 저장" 문구 삭제 → "결제는 쿠팡에서 수행, 사주라 미경유·미저장" 단언(쿠팡 직접결제 모델과 정합). 근거: 본 19차 audit |
+| 2026-05-16 | **Frontend 스택 일괄 확정** (research/frontend 01~10): 프레임워크·빌드 **React 19 + Vite 6 + TypeScript 5.x (strict)**. 라우팅 **React Router v7**, 클라이언트 상태 **Zustand 5**(auth 메모리·preferences persist 물리적 분리). 서버 상태 **TanStack Query v5** + HTTP **ky 1.x**(fetch wrapper·`credentials: include`·401 단일 refresh 인터셉터) + 코드젠 **openapi-typescript 7.x**(타입만). UI **Tailwind CSS v4 + shadcn/ui(Radix) + lucide-react**. 폼·검증 **React Hook Form 7 + zod 3 + @hookform/resolvers/zod**(BE Pydantic v2 1:1 매핑). PWA **vite-plugin-pwa + injectManifest 모드**(SW push·notificationclick 커스텀 핸들러), VAPID 공개 키 **환경변수 inline**, 인앱 알림 **TanStack Query `refetchInterval` 30s + 백그라운드 비활성**. 차트 **Recharts 2.x**(shadcn chart 통합). OAuth **BE 인가 URL 리다이렉트 + 첫 진입 refresh + `/api/auth/me`**, Access Token **Zustand 메모리(persist 금지)**, Refresh **HttpOnly Cookie 자동 송수신**. CSP **`script-src 'self'` + `style-src 'self' 'unsafe-inline'` + `worker-src 'self'` + `manifest-src 'self'`** (PWA·Radix·Recharts 정합) — backend 03·05 Caddyfile에 정합 갱신. 테스트 **Vitest 2 + @testing-library/react 16 + MSW 2 + Playwright(Node) Chromium 단일**, 린터 **Biome 1.x**(+Tailwind 정렬은 prettier-plugin-tailwindcss 보조), 타입 **tsc + vite-plugin-checker**, Storybook 보존. 배포 **pnpm 9 + Node 22 LTS + Caddy 이미지 자체 빌드(FE dist COPY) + GitHub Actions 8단계**. 보존 후보: Next.js(SEO 트리거)·TanStack Router(라우트 50+)·Jotai(상태 20+)·axios(업로드 진행률)·openapi-fetch(path 오타)·valibot(스키마 30+)·Mantine(컴포넌트 추가 비용)·Chart.js(데이터 1000+)·ESLint+Prettier(Biome 미지원 규칙)·Storybook(컴포넌트 30+)·npm(pnpm 호환 문제). 근거: `docs/research/frontend/01_*.md` ~ `10_*.md` |
 
 ---
 
 ## 4. 문서 수정 이력
 
 spec/ 문서 작성·수정 내용을 날짜 역순으로 기록한다.
+
+### 2026-05-16 (19차)
+
+codex 1회차 spec 교차 검증(8건) 결과를 기준으로 정책·라벨·구조 일괄 정합. CSV-only MVP 정책 확정 + MVP/2단계 배지 도입 + FE spec 폴더 신설 + 부수 불일치 정정.
+
+**A. CSV-only MVP 정책 정합 (5건)**
+
+- `spec/01_requirements/requirements.md` §5.1 — "CSV 임시 모드에서 예측·발주 비활성화" 문장 삭제, "CSV 모드에서도 동일하게 동작" + POS API [2단계] 라벨 추가
+- `spec/01_requirements/usecase_spec.md` UC-01 §11~13 기본 흐름 + 대안 흐름 — CSV가 MVP 기본 경로, POS API [2단계]임을 명시. 비활성화 문구 삭제
+- `spec/03_feature_design/feature_spec.md` §1.4 온보딩 흐름·필수 입력 표·§4.1 지원 방식·§4.2 어댑터 표·§4.3 POS API·§4.4 CSV 업로드·§5.5(구 "예외", 신 "데이터 소스별 동작")·§12.2 Step 3·§12.10 설정 — CSV 기본 경로 + POS API [2단계] + "CSV/Excel" → "CSV(UTF-8)" 단일화 정합
+- `spec/04_flow/user_flow.md` §2 텍스트 다이어그램 + §3 온보딩 5단계 — 모드 선택 흐름·양쪽 모두 예측·자동발주 활성화
+- `spec/04_flow/sequence.md` §2 alt 블록 — CSV 모드와 POS API 모드 분기로 재구성
+
+**B. MVP/2단계 라벨 도입 (4건)**
+
+- `spec/05_api/api_spec.md` §3 매장/POS API + §9 대시보드/파이프라인/데이터 API + §10 AI Server API — endpoint 표에 "단계" 컬럼 추가, ROI·POS API·data export/delete·forecast/train에 [2단계] 부여
+- `spec/07_backend/service_design.md` §3 서비스 클래스 목록 + §4 PosService·DashboardService·AIServerClient + §6 호출 흐름 — 메서드 표 "단계" 컬럼 추가, POS 동기화·ROI·재학습 [2단계] 부여. CSV 업로드 흐름 1행 신규(MVP 기본 경로 명시)
+- `spec/09_nonfunctional/performance.md` §2.4 배치 SLA — 주간 재학습 [2단계] 라벨
+- `spec/03_feature_design/feature_spec.md` §5.4 Cold-start·§8.2 ROI·§10.2 주간 재학습 — 헤더 [2단계] + `> MVP 범위 외` 안내문
+
+**C. 즉시 정정 (3건)**
+
+- `spec/07_backend/service_design.md` §250 NotificationService 안내문 — "DB 직접 INSERT" 옵션 삭제, BE API 호출로 단일 경로 단언(`schema.md` §511 n8n_user 권한 회수 정합)
+- `spec/09_nonfunctional/security.md` §6 결제 — PG 토큰화·자체 서버 토큰값 저장 문구 삭제, "쿠팡 직접 수행·미경유·미저장" 단언
+- `docs/research/README.md` 구조 블록·frontend 표 연결 spec + `docs/research/SUMMARY.md` 상단 메타 — backend "01~14" → "01~11, 13~14" / frontend "예정" → "완료, 11 카테고리" / "01~10" → "01~11" 정정
+
+**D. FE spec 폴더 신설**
+
+- `docs/spec/07_frontend/frontend_design.md` 신규 — 11개 섹션(기술 스택 / 인증 통합 / 라우팅 / 상태 관리 / PWA·Web Push / API 통합 / 폼 / 에러 모니터링 / CI / 디렉토리 구조 / MVP·2단계 매핑). SUMMARY 참조 패턴으로 중복 정의 회피
+- `docs/README.md` §2 spec 목록 + §5-3 연동 파일 맵 — frontend_design.md 행 신규
+- `docs/research/README.md` frontend 표 연결 spec — 모두 `07_frontend/frontend_design.md` 섹션별 매핑
+
+**E. 프로세스 보강**
+
+- `spec/prompts/consistency_check.md` §15-1 "MVP 정책 전환 시 동시 점검 파일" 게이트 신설(7개 파일 체크리스트) + §15-2 단계 라벨링 규칙 명문화 + §16 Frontend spec 일관성 신설. 검증 대상에 `frontend_design.md` 추가
+
+### 2026-05-16 (18차)
+
+17차 audit 직후 spec 누락 검사로 발견된 5건(A-1~A-5) 일괄 반영. frontend research 11번째 카테고리(`11_observability.md`) 신규 추가.
+
+**A-1. 인앱 알림 폴링 정책 변경**
+
+- `research/frontend/02_routing_state.md` §2.6 — `usePreferencesStore`에서 `notificationPollingMs` 필드 제거. 알림 폴링 주기 사용자 설정 노출 금지 사유 명시(BE rate limit 보호 + Web Push가 즉시성 담당)
+- `research/frontend/06_pwa_push.md` §3.5·§3.6 — hook을 `usePreferencesStore` 의존에서 **코드 상수 `NOTIFICATION_POLLING_MS = 5 * 60_000`** 으로 변경. 수동 "새로고침" 버튼 권장 추가. §4.1 결정 표·§6 비교 요약도 정합 갱신
+
+**A-2. FE Sentry 정식 결정 (`11_observability.md` 신규)**
+
+- §1 SaaS 후보 5개 — Sentry 채택 / LogRocket(세션 리플레이 PII)·Bugsnag·Rollbar(BE 분리)·자체 구축(운영 부담) 탈락
+- §2 라이브러리 `@sentry/react` ^8 + `@sentry/vite-plugin` ^2 + 초기화 코드 예시
+- §3 PII scrubbing 정책 — `sendDefaultPii: false` + `beforeSend`(Authorization·Cookie·이메일·전화·사업자번호 마스킹) + `beforeBreadcrumb`(token 패턴 차단·fetch 헤더 마스킹)
+- §4 소스맵 업로드 정책 — `@sentry/vite-plugin` `sourcemaps.deleteFilesAfterUpload: true`로 dist 노출 차단. CI secret 4개(`SENTRY_AUTH_TOKEN`·`SENTRY_ORG`·`SENTRY_PROJECT`·`VITE_APP_VERSION`)
+- §5 sampleRate — error 100% + traces 5%, Sentry 무료 5k events/월 시뮬레이션·한도 초과 시 단계적 대응(traces 0.02·노이즈 ignore·Team 결제)
+
+**A-3. CSP `connect-src` Sentry SaaS 허용 — 3건 정합**
+
+- `research/frontend/08_auth_security.md` §3.4 Caddy CSP 블록 + §3.4 디렉티브 표 모두 `connect-src 'self' https://*.ingest.sentry.io`로 갱신
+- `research/backend/03_reverse_proxy.md` §4.1 Caddyfile + `research/backend/05_auth_security.md` §3.5 Caddy 헤더 권장값 동일 갱신
+
+**A-4. OAuth callback 응답 방식 정정 — 3건 정합**
+
+- `spec/05_api/api_spec.md` §2 Endpoints 표 2행 + `GET /api/auth/callback/kakao`·`GET /api/auth/callback/google` 상세 — "Response 200 JSON" → "Response 302 Redirect to FE root + Set-Cookie refresh_token (Access Token URL·body 미노출, FE 첫 진입에서 `POST /api/auth/refresh`로 동기)". 보안 사유·frontend 08 참조 명시
+- `spec/04_flow/sequence.md` §2 alt 블록(기존/신규 사용자) — "Access Token 직접 응답" → "Set-Cookie + 302 Redirect → FE root → POST refresh → GET /auth/me" 흐름 추가. 단계 7개 증가
+- `spec/03_feature_design/feature_spec.md` §1.1 Google·카카오 로그인 흐름 블록 + 입출력 표 — 동일 정합
+
+**A-5. FE Sentry release tagging spec 반영**
+
+- `spec/09_nonfunctional/performance.md` §5 모니터링 — BE Sentry 다음 줄에 FE Sentry(`@sentry/react` + `@sentry/vite-plugin`) 1행 추가. BE↔FE 동일 release(`VITE_APP_VERSION` = `git-<sha-short>`)·PII scrubbing·소스맵 정책·sampleRate 명시. 결정 근거 `frontend/11_observability.md` 참조
+
+**상위 인덱스 갱신 (3건)**
+
+- `docs/README.md` §3 frontend 표 + `docs/research/README.md` frontend 표 + `docs/research/frontend/README.md` — 11번째 카테고리 행 추가
+- `docs/research/SUMMARY.md` — §16-1 "Frontend 에러 모니터링·관측가능성" 신규 섹션 + §19.1 BE↔FE 짝맞춤에 Sentry 행·폴링 5분 정정·인앱 폴링 정책 행 추가
+
+### 2026-05-16 (17차)
+
+frontend research 10개 카테고리 작성 + 결정 사항 spec·연관 backend research 반영.
+
+**research/frontend (10개 신규 + README 재편)**
+
+- `README.md` — 10개 카테고리 인덱스 + 결정 흐름 원칙(probe 의존 외 모두 확정·보존 후보는 정량 트리거)
+- `01_framework_build.md` — React 19 ratify + Vite 6 채택(Next.js 보존) + TypeScript 5.x (strict) + tsconfig 권장값
+- `02_routing_state.md` — React Router v7 + Zustand 5 (auth 메모리·preferences persist 분리)
+- `03_data_http.md` — TanStack Query v5 + ky 1.x(401 단일 refresh 인터셉터) + openapi-typescript 7.x(타입만)
+- `04_ui_styling.md` — Tailwind CSS v4 + shadcn/ui(Radix) + lucide-react
+- `05_form_validation.md` — React Hook Form 7 + zod 3 + @hookform/resolvers/zod (BE Pydantic v2 1:1 매핑)
+- `06_pwa_push.md` — vite-plugin-pwa + injectManifest(SW push/notificationclick 커스텀) + VAPID 환경변수 inline + 인앱 TanStack Query refetchInterval 30s
+- `07_charts.md` — Recharts 2.x + shadcn chart 통합
+- `08_auth_security.md` — OAuth BE 리다이렉트·메모리·HttpOnly Cookie + CSP 디렉티브 8개 확정 (PWA·Radix·Recharts 정합)
+- `09_testing_quality.md` — Vitest 2 + @testing-library/react + MSW 2 + Playwright(Node) + Biome + tsc + Storybook 보존
+- `10_deployment.md` — pnpm 9 + Node 22 LTS + Caddy 이미지 자체 빌드(FE dist COPY) + GitHub Actions 8단계 (fe workflow)
+
+**spec 정정 (1건)**
+
+- `spec/07_backend/service_design.md` §11.1 caddy 행 — `caddy:alpine` → **자체 빌드 (`Dockerfile.caddy` — `caddy:2-alpine` 베이스 + FE `dist/` COPY)**. 사유: FE 빌드 산출이 Caddy 이미지에 포함되어야 atomic 배포·롤백 가능. 호스트 volume·별도 컨테이너 대안 탈락 (`10_deployment.md` §3.3).
+
+**backend research 정합 갱신 (2건)**
+
+- `research/backend/03_reverse_proxy.md` §4.1 Caddyfile CSP 블록 — frontend 08 §3.4 결정값으로 정합 (`worker-src 'self'`·`manifest-src 'self'`·`upgrade-insecure-requests` 추가, `img-src https:` 제거 후 `blob:` 추가, Permissions-Policy 순서 정정)
+- `research/backend/05_auth_security.md` §3.5 Caddy 보안 헤더 권장값 — 동일 CSP로 정합 + 디렉티브 상세 근거 frontend 08로 위임 명시
+
+**상위 인덱스 갱신 (2건)**
+
+- `docs/README.md` §3 frontend/ 표 — 10개 파일 목록으로 재편
+- `docs/research/README.md` frontend/ 표 — 10개 파일 + 연결 spec 명시
+
+**보존 후보 정량 트리거 11개**
+
+| 보존 | 트리거 (요약) |
+|------|---|
+| Next.js | SEO/마케팅 페이지·번들 1MB+·매장 1000+ |
+| TanStack Router | 라우트 50+·params 타입 버그 분기 3건+·search params 스키마 5개+ |
+| Jotai | 전역 상태 20+·Zustand selector 한계 화면 5개+ |
+| axios | 업로드 진행률 화면 3개+·ky 표현 불가 시나리오 2건+·ky 유지보수 정체 |
+| openapi-fetch | path 입력 오타 분기 3건+ |
+| valibot | 스키마 30+·zod 번들 상위 5위 |
+| Mantine | shadcn 컴포넌트 직접 스타일링 비용 20개+ |
+| Chart.js | 단일 차트 데이터 1000+·SVG 60fps 미만·인터랙션 화면 2개+ |
+| ESLint+Prettier | Biome 미지원 규칙 3건+·핵심 플러그인 미지원·유지보수 정체 |
+| Storybook | 사주라 도메인 컴포넌트 30+·디자이너 정기 리뷰·시각 회귀 5개+ |
+| npm | pnpm 호환 문제 1건+ |
+| CSP nonce | inline script 라이브러리 도입·3rd-party 분석 도입·보안 감사 권고 |
 
 ### 2026-05-16 (16차)
 

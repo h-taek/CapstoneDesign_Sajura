@@ -256,15 +256,15 @@ header {
     # Referrer 정보 최소화
     Referrer-Policy "strict-origin-when-cross-origin"
     # 권한 정책
-    Permissions-Policy "camera=(), microphone=(), geolocation=()"
-    # CSP — PWA가 같은 도메인 자산 서빙 + BE 단일 origin 호출 (OAuth redirect도 BE 경유, Frontend 직접 외부 호출 없음). 'self' 기반.
-    Content-Security-Policy "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()"
+    # CSP — PWA(SW·manifest) + Tailwind + shadcn/ui(Radix) + Recharts 정합. 상세 결정: docs/research/frontend/08_auth_security.md §3.4
+    Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.ingest.sentry.io; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
 }
 ```
 
-> `style-src 'unsafe-inline'`은 React/PWA 통상 패턴이며 Frontend 빌드 단계에서 nonce 도입 시 제거 가능 (Frontend research 항목).
+> CSP 디렉티브 상세 근거(왜 `style-src 'unsafe-inline'`을 유지하고 `script-src`는 nonce 미도입인지)는 `docs/research/frontend/08_auth_security.md` §3 참조. nonce 도입 트리거는 동 문서 §3.5에 정량 임계치로 기록.
 
-→ 본 블록은 `03_reverse_proxy.md` §4.1 Caddyfile 예시에 이미 통합됨.
+→ 본 블록은 `03_reverse_proxy.md` §4.1 Caddyfile 예시에 통합되어 있음.
 
 ---
 
