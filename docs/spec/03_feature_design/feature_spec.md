@@ -311,20 +311,14 @@ Frontend → GET /api/auth/login/kakao
 ### 4.6 데이터 품질 처리
 
 - JSON Schema 또는 Pydantic으로 공통 판매 스키마를 검증한다.
-- IQR 및 Z-score 기반으로 이상치를 탐지한다.
-- 이상치 비율에 따라 처리 방식을 분기한다.
-
-| 이상치 비율 | 처리 방식 |
-|---|---|
-| 5% 미만 | 이상 데이터를 학습 데이터에서 자동 분리 후 진행 (알림 없음) |
-| 5% 이상 | 점주에게 알림 발송 → 복구 또는 폐기 선택 요청 |
+- 이상치 탐지를 수행한다.
+- 탐지 방법(IQR/Z-score 적용 조건)·임계값·이상 데이터 처리 정책(분리/수정·알림 트리거 조건)은 `docs/research/ai/02_ml_pipeline_open_items.md` §3에서 확정한다.
 
 | 구분 | 항목 | 비고 |
 |---|---|---|
 | 입력 | 공통 스키마 변환된 데이터 | |
 | 출력 | 정상 데이터 | 학습 데이터셋 편입 |
-| | 이상치 데이터 | 분리 저장 |
-| | 이상치 비율 | 5% 이상 시 점주 알림 트리거 |
+| | 이상치 탐지 결과 | 후속 처리(분리/수정·알림)는 research 확정 후 정의 |
 
 ## 4-1. 판매 데이터 조회
 
@@ -354,7 +348,7 @@ Frontend → GET /api/auth/login/kakao
 
 - n8n이 매일 02:00에 야간 예측 워크플로우를 트리거한다.
 - n8n은 DB에서 판매 데이터, 메뉴, 레시피, 재고 등 예측 입력 데이터를 직접 조회한다.
-- n8n은 날씨, 유동인구, 검색량, 행사 정보 등 외부 데이터를 API로 수집한다.
+- n8n은 날씨, 유동인구, 검색량[조사 중], 행사 정보[조사 중] 등 외부 데이터를 API로 수집한다.
 - n8n은 수집한 데이터를 전처리 및 정규화한 뒤 AI Server의 예측 API에 전달하고, 반환된 예측 결과를 DB에 직접 저장한다.
 - n8n 전처리에는 결측값 처리, 이상치 필터링, 단위 통일, 날짜/시간 기준 정렬, 메뉴/재료 매핑, 외부 변수 병합이 포함된다.
 - 예측 대상은 재고 차감 여부와 무관하게 전체 메뉴이다.
@@ -362,8 +356,8 @@ Frontend → GET /api/auth/login/kakao
 
 | 구분 | 항목 |
 |---|---|
-| 입력 | 과거 판매 데이터, 날씨, 요일/공휴일, 유동인구, 검색량, SNS 노출도, 주변 행사 정보, 레시피 |
-| 출력 | 메뉴별 1~3일 예상 수요, SHAP 기반 예측 근거, 예측 신뢰도 점수 |
+| 입력 | 과거 판매 데이터, 날씨, 요일/공휴일, 유동인구, 검색량[조사 중], SNS 노출도[조사 중], 주변 행사 정보[조사 중], 레시피 |
+| 출력 | 메뉴별 1~3일 예상 수요, 예측 근거(산출 방법·형태는 research §3), 예측 신뢰도 점수 |
 
 ### 5.2 예측 결과 조회 (점주 요청)
 
@@ -374,18 +368,14 @@ Frontend → GET /api/auth/login/kakao
 |---|---|---|
 | 입력 | store_id, menu_id (선택) | |
 | 출력 | 메뉴별 1~3일 예상 수요 | |
-| | Top-3 영향 변수 자연어 설명 | |
+| | 예측 근거 | 산출 방법·출력 형태는 `docs/research/ai/01_model_selection.md` §3 확정 |
 | | 신뢰도 낮음 경고 배지 | 아래 조건 중 하나라도 해당 시 표시 |
 
 ### 5.3 신뢰도 경고 기준
 
-아래 조건 중 하나라도 해당하면 "신뢰도 낮음" 경고 배지를 표시한다.
-
-| 조건 | 기준값 |
-|---|---|
-| MAPE | 20% 초과 |
-| 학습 데이터 기간 | 30일 미만 |
-| 최근 30일 결측값 비율 | 30% 초과 |
+- 예측 결과가 정량 기준에 못 미치면 "신뢰도 낮음" 경고 배지를 표시한다.
+- 정량 기준(임계값)은 AI probe(초기 모델 학습·평가) 후 확정한다. 현재 잠정 기준은 `docs/research/ai/01_model_selection.md` §4 참조.
+- 판정 결과는 `forecast_results.is_low_confidence` / `low_confidence_reason` 컬럼에 저장한다(`schema.md` §3.15).
 
 ### 5.4 Cold-start 처리 [2단계]
 
@@ -395,11 +385,12 @@ Frontend → GET /api/auth/login/kakao
 - 유사 매장 기준은 동일 업종, 유사 상권, 매장 규모 구간 및 운영 형태를 모두 적용한다.
 - 유사 매장 기반 예측 결과에는 "신뢰도 낮음" 경고 배지를 필수 표시한다.
 - 자체 데이터 30일 축적 후 자체 예측으로 자동 전환한다.
+- 파이프라인 분기 로직(분기 판정 위치·유사 매장 매칭 알고리즘·매칭 결과 0개 대응·전환 트리거)은 `docs/research/ai/01_model_selection.md` §3에서 확정한다.
 
 ### 5.5 데이터 소스별 동작
 
 - 수요예측은 데이터 소스(CSV 업로드 / POS API)와 무관하게 동일하게 동작한다.
-- 학습 데이터 30일 미만이면 신뢰도 낮음 배지를 표시한다 (§5.3 기준).
+- 학습 데이터가 부족하면 신뢰도 낮음 배지를 표시한다(§5.3, 정량 기준은 probe 후 확정).
 
 ## 6. 추천발주
 
@@ -537,40 +528,24 @@ Frontend → GET /api/auth/login/kakao
 |---|---|---|
 | 폐기율 | 폐기 수량 / (입고 수량 + 초기 재고) × 100 | 재고 폐기 처리 기록 |
 | 재고 회전율 | 기간 내 총 소모량 / 평균 재고 수량 | 재고 차감 + 수정 기록 |
-| MAPE | Σ(\|실제 - 예측\| / 실제) / N × 100 | 예측 결과 DB vs 실제 판매량 |
+| 예측 정확도 지표 | 지표 선정·산식은 `docs/research/ai/01_model_selection.md` §3 확정 | 예측 결과 DB vs 실제 판매량 |
 | 월별 폐기 비용 | 해당 월 폐기량 × 단가 | 폐기 기록 + 재료별 단가 |
 | 전월 대비 폐기 비용 변화율 | (전월 폐기 비용 - 당월 폐기 비용) / 전월 폐기 비용 × 100 | 동일 |
 
 | 구분 | 항목 | 비고 |
 |---|---|---|
 | 입력 | store_id, start_month, end_month | start_month 생략 시 최근 6개월 |
-| 출력 (summary) | waste_reduction_rate (폐기율 변화), inventory_turnover_change (재고 회전율 변화), forecast_mape, total_waste_cost, waste_cost_change_rate | 기간 전체 집계 |
-| 출력 (monthly) | 월별 waste_cost, mom_change_rate, waste_reduction_rate, forecast_mape | 월별 추세 |
+| 출력 (summary) | waste_reduction_rate (폐기율 변화), inventory_turnover_change (재고 회전율 변화), forecast_accuracy_metric, total_waste_cost, waste_cost_change_rate | 기간 전체 집계 |
+| 출력 (monthly) | 월별 waste_cost, mom_change_rate, waste_reduction_rate, forecast_accuracy_metric | 월별 추세 |
 
-## 9. XAI
+## 9. 예측 근거
 
 ### 9.1 예측 근거 생성
 
-- SHAP 기반 Top-3 영향 변수를 템플릿 기반 자연어로 변환한다.
-- 예측 결과와 함께 DB에 저장한다.
+- 예측 결과와 함께 점주가 이해할 수 있는 근거를 생성한다.
+- 산출 방법·출력 형태는 `docs/research/ai/01_model_selection.md` §3 확정.
+- 출력 형태가 확정되면 (a) DB 저장 컬럼, (b) AI Server API 응답 필드, (c) 별도 상세 조회 API 필요 여부가 함께 정의된다.
 - 예측 결과 화면에서 메뉴별로 펼쳐서 확인할 수 있다.
-- 예측 결과 화면에 표시되는 자연어 설명과 Top-3 영향 변수는 `forecast_results.explanation_text`, `forecast_results.top_factors`에 저장한다.
-- `POST /ai/forecast/predict`는 예측값과 함께 저장용 XAI 요약을 반환한다.
-- `POST /ai/xai/shap`은 상세 SHAP 조회/생성용으로 사용한다.
-
-| 구분 | 항목 | 비고 |
-|---|---|---|
-| 입력 | 예측 결과, SHAP 값, Feature Importance | AI Server에서 생성 |
-| 출력 | Top-3 영향 변수 자연어 설명 | 템플릿 기반 변환 |
-| | 신뢰도 경고 배지 여부 | |
-
-**자연어 템플릿 예시**
-```
-"{메뉴명} 예상 판매량이 높은 주요 이유는
-1. {변수1}: {설명}
-2. {변수2}: {설명}
-3. {변수3}: {설명}"
-```
 
 ## 10. 데이터 파이프라인
 
@@ -588,11 +563,11 @@ Frontend → GET /api/auth/login/kakao
 |---|---|---|
 | 1. 작업 시작 기록 | n8n이 매장별로 `pipeline_jobs`에 `store_id`, `type=FORECAST`, `triggered_by=N8N`, `status=RUNNING`으로 INSERT | 3회 재시도 → Slack 알림 |
 | 2. DB 데이터 조회 | n8n이 DB에서 판매 데이터, 메뉴, 레시피, 재고, 리드타임, 안전재고, 기존 예측/발주 이력을 조회 | 3회 재시도 → Slack 알림 |
-| 3. 외부 데이터 수집 | n8n이 날씨, 유동인구, 검색량, 행사 정보 API를 호출 | 3회 재시도 → Slack 알림 |
+| 3. 외부 데이터 수집 | n8n이 날씨, 유동인구, 검색량[조사 중], 행사 정보[조사 중] API를 호출 | 3회 재시도 → Slack 알림 |
 | 4. 입력 데이터 전처리/정규화 | n8n Function/Code Node에서 결측값 처리, 이상치 필터링, 단위 통일, 날짜/시간 기준 정렬, 메뉴/재료 매핑, 외부 변수 병합 후 AI Server 입력 스키마로 변환 | 3회 재시도 → Slack 알림 |
 | 5. 수요예측 실행 | n8n이 AI Server `/ai/forecast/predict`를 호출 | 3회 재시도 → Slack 알림 |
 | 6. 추천발주 생성 | n8n이 AI Server `/ai/orders/recommend`를 호출 | 3회 재시도 → Slack 알림 |
-| 7. 예측 결과 저장 | n8n이 `forecast_results`에 예측 결과와 XAI 요약을 INSERT/UPSERT | 3회 재시도 → Slack 알림 |
+| 7. 예측 결과 저장 | n8n이 `forecast_results`에 예측 결과를 INSERT/UPSERT (예측 근거 저장 컬럼은 research §3 확정 후 추가) | 3회 재시도 → Slack 알림 |
 | 8. 추천발주 저장 | n8n이 `order_recommendations`, `order_recommendation_items`에 추천발주 결과를 INSERT | 3회 재시도 → Slack 알림 |
 | 9. 작업 종료/알림 | n8n이 `pipeline_jobs`를 `DONE` 또는 `FAILED`로 UPDATE하고 Slack 또는 앱 알림 발송 | 로깅만 수행 |
 
@@ -617,7 +592,7 @@ Frontend → GET /api/auth/login/kakao
 
 | 알림 상황 | 채널 | 긴급도 |
 |---|---|---|
-| 이상치 5% 이상 감지 | 앱 내 알림 | 경고 |
+| 이상치 감지(임계 조건은 research 확정) | 앱 내 알림 | 경고 |
 | 재고 부족 ("재고 확인 필요") | 앱 내 알림 | 경고 |
 | 소비기한 D-3일 임박 | 앱 내 알림 | 경고 |
 | 소비기한 D-1일 임박 | 앱 내 알림 | 긴급 |
@@ -672,7 +647,7 @@ Frontend → GET /api/auth/login/kakao
 | 메뉴별 판매 비중 | 도넛 차트 |
 | 수요예측 vs 실제 판매량 비교 | 선 그래프 |
 | 폐기율 추세 | 선 그래프 |
-| MAPE 추세 | 선 그래프 |
+| 예측 정확도 지표 추세 | 선 그래프 |
 | 월별 폐기 비용 | 막대 그래프 |
 | 전월 대비 폐기 비용 변화율 | 수치 + 증감 화살표 |
 
@@ -720,8 +695,8 @@ Frontend → GET /api/auth/login/kakao
 |---|---|
 | 일자 탭 | 1일 후 / 2일 후 / 3일 후 |
 | 메뉴별 예측 카드 | 메뉴명, 예상 판매량, 신뢰도 낮음 경고 배지 |
-| XAI 상세 (펼치기) | Top-3 영향 변수 자연어 설명 |
-| 신뢰도 경고 상세 | 배지 탭 시 경고 사유 표시 (MAPE 초과 / 데이터 부족 / 결측값 과다) |
+| 예측 근거 (펼치기) | 산출 방법·출력 형태는 research §3 확정 |
+| 신뢰도 경고 상세 | 배지 탭 시 경고 사유 표시 (예측 정확도 부족 / 데이터 부족 / 결측값 과다) |
 
 ### 12.9 추천발주
 

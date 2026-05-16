@@ -959,28 +959,8 @@ Authorization: Bearer <access_token>
       "menu_id": "uuid",
       "menu_name": "아메리카노",
       "predicted_quantity": 52,
-      "confidence_score": 0.87,
-      "explanation_text": "아메리카노 예상 판매량이 높은 주요 이유는 전주 동요일 판매량, 기온, 요일 효과입니다.",
-      "top_factors": [
-        {
-          "feature": "전주 동요일 판매량",
-          "value": 48,
-          "contribution": 0.41,
-          "direction": "positive"
-        },
-        {
-          "feature": "기온",
-          "value": 27.5,
-          "contribution": 0.23,
-          "direction": "positive"
-        },
-        {
-          "feature": "요일",
-          "value": "화요일",
-          "contribution": 0.17,
-          "direction": "positive"
-        }
-      ]
+      "confidence_score": 0.87
+      // 예측 근거 필드는 산출 방법·출력 형태 확정 후 추가 (`docs/research/ai/01_model_selection.md` §3)
     }
   ]
 }
@@ -1194,7 +1174,6 @@ Authorization: Bearer <access_token>
 | `POST` | `/ai/orders/recommend` | 추천발주 생성 요청 | [MVP] |
 | `POST` | `/ai/forecast/train` | 모델 재학습 요청 | [2단계] |
 | `GET` | `/ai/forecast/status` | 예측/학습 작업 상태 조회 | [MVP] (predict), [2단계] (train) |
-| `POST` | `/ai/xai/shap` | SHAP 설명 생성 요청 | [MVP] |
 | `GET` | `/ai/health` | AI Server 헬스체크 | [MVP] |
 
 ### POST /ai/forecast/predict
@@ -1237,14 +1216,14 @@ Authorization: Bearer <access_token>
       "estimated_count": 12000
     }
   ],
-  "search_trend_data": [
+  "search_trend_data": [  // [조사 중]
     {
       "date": "2026-05-07",
       "keyword": "아메리카노",
       "score": 78.2
     }
   ],
-  "event_data": [
+  "event_data": [  // [조사 중]
     {
       "date": "2026-05-07",
       "event_name": "지역 축제",
@@ -1262,28 +1241,8 @@ Authorization: Bearer <access_token>
     {
       "menu_id": "uuid",
       "predicted_quantity": 52,
-      "confidence_score": 0.87,
-      "explanation_text": "아메리카노 예상 판매량이 높은 주요 이유는 전주 동요일 판매량, 기온, 요일 효과입니다.",
-      "top_factors": [
-        {
-          "feature": "전주 동요일 판매량",
-          "value": 48,
-          "contribution": 0.41,
-          "direction": "positive"
-        },
-        {
-          "feature": "기온",
-          "value": 27.5,
-          "contribution": 0.23,
-          "direction": "positive"
-        },
-        {
-          "feature": "요일",
-          "value": "화요일",
-          "contribution": 0.17,
-          "direction": "positive"
-        }
-      ]
+      "confidence_score": 0.87
+      // 예측 근거 필드는 산출 방법·출력 형태 확정 후 추가 (`docs/research/ai/01_model_selection.md` §3)
     }
   ]
 }
@@ -1336,17 +1295,8 @@ Authorization: Bearer <access_token>
       "safety_stock": 1000.0,
       "config_status": "USER_CONFIGURED",
       "defaults_used": null,
-      "recommendation_reason": "예측 판매량과 현재 재고 기준으로 2일 내 재고 부족이 예상됩니다.",
-      "top_factors": [
-        {
-          "factor": "predicted_demand",
-          "impact": "HIGH"
-        },
-        {
-          "factor": "current_inventory",
-          "impact": "MEDIUM"
-        }
-      ]
+      "recommendation_reason": "예측 판매량과 현재 재고 기준으로 2일 내 재고 부족이 예상됩니다."
+      // 추가 근거 필드(영향 변수 등)는 산출 방법·출력 형태 확정 후 추가 (`docs/research/ai/01_model_selection.md` §3)
     }
   ]
 }
@@ -1390,37 +1340,6 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### POST /ai/xai/shap
-
-```json
-// Request
-{
-  "store_id": "uuid",
-  "menu_id": "uuid",
-  "target_date": "2026-05-07"
-}
-
-// Response 200
-{
-  "menu_id": "uuid",
-  "target_date": "2026-05-07",
-  "shap_values": [
-    {
-      "feature": "요일",
-      "value": "화요일",
-      "contribution": 0.32
-    },
-    {
-      "feature": "전주 동요일 판매량",
-      "value": 48,
-      "contribution": 0.41
-    }
-  ]
-}
-```
-
-> `POST /ai/forecast/predict`는 예측 결과와 함께 저장용 XAI 요약(`explanation_text`, `top_factors`)을 반환한다. `POST /ai/xai/shap`은 상세 SHAP 값 조회/생성용 보조 API로 사용한다.
-
 ### GET /ai/health
 
 ```json
@@ -1442,7 +1361,7 @@ Authorization: Bearer <access_token>
 | Method | Path | 설명 | 단계 |
 |--------|------|------|------|
 | `GET` | `/api/dashboard` | 대시보드 전체 요약 데이터 조회 | [MVP] |
-| `GET` | `/api/dashboard/roi` | ROI 지표 조회 (폐기 비용·폐기율·재고 회전율·MAPE) | [2단계] |
+| `GET` | `/api/dashboard/roi` | ROI 지표 조회 (폐기 비용·폐기율·재고 회전율·예측 정확도 지표 — 지표 선정은 research §3) | [2단계] |
 | `GET` | `/api/dashboard/waste` | 폐기 현황 조회 | [MVP] |
 | `GET` | `/api/pipeline/status` | 파이프라인 최근 실행 상태 조회 | [MVP] |
 | `POST` | `/api/pipeline/run` | 사용자 수동 실행 요청 | [MVP] |
@@ -1493,7 +1412,7 @@ Authorization: Bearer <access_token>
     "waste_cost_change_rate": -0.18,
     "waste_reduction_rate": 0.18,
     "inventory_turnover_change": 0.12,
-    "forecast_mape": 0.16
+    "forecast_accuracy_metric": 0.16
   },
   "monthly": [
     {
@@ -1501,20 +1420,20 @@ Authorization: Bearer <access_token>
       "waste_cost": 52000,
       "mom_change_rate": null,
       "waste_reduction_rate": null,
-      "forecast_mape": 0.22
+      "forecast_accuracy_metric": 0.22
     },
     {
       "month": "2026-02",
       "waste_cost": 48000,
       "mom_change_rate": -0.08,
       "waste_reduction_rate": 0.08,
-      "forecast_mape": 0.19
+      "forecast_accuracy_metric": 0.19
     }
   ],
   "calculation_notes": [
     "waste_reduction_rate는 기준월(start_month) 대비 각 월의 폐기 비용 감소율입니다.",
     "inventory_turnover_change는 기준월 대비 기간 평균 재고 회전율 변화입니다.",
-    "forecast_mape는 해당 기간 예측 결과와 실제 판매량을 비교해 계산합니다."
+    "forecast_accuracy_metric은 해당 기간 예측 결과와 실제 판매량을 비교해 계산합니다. 산정 방식(어떤 지표를 쓸지)은 `docs/research/ai/01_model_selection.md` §3 확정."
   ]
 }
 ```

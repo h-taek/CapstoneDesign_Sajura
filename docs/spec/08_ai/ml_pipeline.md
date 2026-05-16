@@ -9,14 +9,14 @@
 - n8n 기반 야간 배치 자동화 파이프라인을 사용한다.
 - 매일 02:00 자동 실행한다.
 - 주간 단위 정기 재학습을 수행한다.
-- 학습 데이터는 최근 N개월만 사용하는 슬라이딩 윈도우 방식을 적용한다.
+- 학습 데이터 사용 방식(슬라이딩 윈도우 적용 여부·창 크기 등)은 `docs/research/ai/02_ml_pipeline_open_items.md` §2에서 확정한다.
 
 ## 3. 파이프라인 단계
 
 ```text
 수집(POS API)
 → 전처리(결측·이상치 검증·표준화)
-→ 학습(LightGBM, 주간 재학습)
+→ 학습(주간 재학습, 모델은 research §2 확정)
 → 예측(내일 발주량 계산)
 → 캐싱(DB 저장, 즉시 응답 대비)
 → 알림(점주에게 푸시 발송)
@@ -57,13 +57,11 @@
 - Canonical Schema로 변환한다.
 - JSON Schema 또는 Pydantic으로 형식을 검증한다.
 - 결측, 이상치, 표준화를 처리한다.
-- IQR 및 Z-score 기반으로 이상치를 탐지한다.
-- 이상 데이터는 학습 데이터에서 분리한다.
+- 이상치 탐지 방법·임계값·이상 데이터 처리 정책(분리/수정 여부 포함)은 `docs/research/ai/02_ml_pipeline_open_items.md` §3에서 확정한다.
 
 ## 7. 학습
 
-- LightGBM을 초기 AI 모델로 사용한다.
-- XGBoost/LightGBM은 baseline 3단계에 해당한다.
+- 초기 AI 모델은 미확정 (`docs/research/ai/01_model_selection.md` §2 확정 — 베이스라인 비교 후보 중 선정).
 - 주간 단위 정기 재학습을 수행한다.
 - 판매 결과와 폐기 데이터를 반영한다.
 - 점주 수정 이력을 재학습에 반영한다.
@@ -76,11 +74,10 @@
 - 저장된 결과가 있으면 사용자 요청 시 DB에서 즉시 반환한다.
 - 저장된 결과가 없으면 AI Server를 직접 호출하고 결과를 저장한다.
 
-## 9. XAI 생성
+## 9. 예측 근거 생성
 
-- LightGBM Feature Importance로 전역 영향도를 생성한다.
-- SHAP으로 개별 예측 결과의 피처 기여도를 산출한다.
-- 주요 영향 변수 Top-3를 자연어로 변환한다.
+- 예측 결과와 함께 점주가 이해할 수 있는 근거를 생성한다.
+- 산출 방법·출력 형태는 `docs/research/ai/01_model_selection.md` §3 확정.
 - 예측 신뢰도가 낮으면 경고 배지를 함께 표시한다.
 
 ## 10. 운영 및 모니터링
@@ -91,5 +88,6 @@
 
 ---
 
-> 미확정 항목(슬라이딩 윈도우 N, 결측·이상치 처리 기준, 알림·모니터링 정정, 배포 승인 기준)은 `docs/research/ai/02_ml_pipeline_open_items.md` 참조.
+> 미확정 항목(학습 데이터 사용 방식·슬라이딩 윈도우 적용 여부 포함, 이상치 처리 기준, 알림·모니터링 정정, 배포 승인 기준)은 `docs/research/ai/02_ml_pipeline_open_items.md` 참조.
+> 결측값 보간 방법 및 적용 기준은 research(`docs/research/ai/02_ml_pipeline_open_items.md` §3)에서 결정한다.
 > POS API 수집 주기·인증 방식은 `docs/research/backend/13_pos_adapter.md` 참조.

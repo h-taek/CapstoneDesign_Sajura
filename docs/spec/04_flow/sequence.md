@@ -119,10 +119,10 @@ sequenceDiagram
 
     par 사전 예측 배치 (매일 02:00)
         n8n->>DB: 판매 데이터·메뉴·레시피·재고 조회
-        n8n->>n8n: 외부 데이터 수집 (날씨·유동인구·행사 등)
+        n8n->>n8n: 외부 데이터 수집 (날씨·유동인구·행사[조사 중] 등)
         n8n->>n8n: 전처리·정규화
         n8n->>AIServer: POST /ai/forecast/predict (예측 요청)
-        AIServer-->>n8n: 예측 결과 + XAI 요약 반환
+        AIServer-->>n8n: 예측 결과 + 예측 근거(형태는 research §3) 반환
         n8n->>DB: forecast_results 저장 (UPSERT)
         n8n->>AIServer: POST /ai/orders/recommend (추천발주 요청)
         AIServer-->>n8n: 추천발주안 반환
@@ -218,13 +218,13 @@ sequenceDiagram
     Note over n8n: 매일 02:00 트리거
     n8n->>DB: pipeline_jobs INSERT (type=FORECAST, status=RUNNING, triggered_by=N8N)
     n8n->>DB: 판매 데이터·메뉴·레시피·재고·리드타임·안전재고 조회
-    n8n->>ExternalAPI: 날씨·유동인구·검색량·행사 정보 수집
+    n8n->>ExternalAPI: 날씨·유동인구·검색량[조사 중]·행사 정보[조사 중] 수집
     n8n->>n8n: 전처리·정규화 (결측값 처리, 이상치 필터링, 단위 통일, 외부 변수 병합)
     n8n->>AIServer: POST /ai/forecast/predict
-    AIServer-->>n8n: 예측 결과 + XAI 요약 반환
+    AIServer-->>n8n: 예측 결과 + 예측 근거(형태는 research §3) 반환
     n8n->>AIServer: POST /ai/orders/recommend
     AIServer-->>n8n: 추천발주안 반환
-    n8n->>DB: forecast_results UPSERT (예측 결과 + explanation_text + top_factors)
+    n8n->>DB: forecast_results UPSERT (예측 결과; 근거 저장 컬럼은 research §3 확정 후 정의)
     n8n->>DB: order_recommendations INSERT (추천발주안)
 
     alt 전체 성공
@@ -254,11 +254,8 @@ sequenceDiagram
     participant DB
 
     POS->>사주라서버: 판매 데이터 동기화 (어댑터 공통 스키마)
-    사주라서버->>사주라서버: 이상치 감지 (IQR / Z-score)
-    alt 이상치 비율 5% 이상
-        사주라서버->>DB: 이상치 데이터 분리 저장
-        사주라서버->>사주라서버: 점주 앱 내 알림 발송 (이상치 감지 경고)
-    end
+    사주라서버->>사주라서버: 이상치 감지
+    Note over 사주라서버: 탐지 방법·임계값·이상 데이터 처리·알림 트리거는 research §3 확정 후 정의
     사주라서버->>DB: 정상 판매 데이터 저장 (sale_records)
 
     loop 판매된 메뉴별

@@ -60,12 +60,78 @@ docs/plan/       → 구현 계획 (단계별 작업, 순서, 역할 분담)
 | 2026-05-16 | **FE spec 폴더 신설** (19차 audit): `docs/spec/07_frontend/frontend_design.md` 신규 — Frontend 구현 SSOT. 라우팅·상태·인증 통합·PWA·OpenAPI 코드젠·CI 설계 포함. 기술 스택 상세는 `research/SUMMARY.md` §11~18 참조 패턴(중복 정의 없음). docs/README.md·research/README.md frontend 표 연결 spec 일괄 갱신. 사유: FE 확정값이 research/SUMMARY에만 머물러 "spec=확정 사실" 원칙 위반. 근거: 본 19차 audit |
 | 2026-05-16 | **n8n 알림 책임·결제 보안 문구 정합** (19차 audit): `service_design.md` §250 NotificationService 안내문에서 "n8n 배치도 DB에 직접 INSERT" 옵션 삭제 → BE API 호출로 단일 경로 단언(16차 결정과 schema.md §511 정합). `security.md` §6 결제 — "PG사 토큰화·자체 서버에 토큰값 저장" 문구 삭제 → "결제는 쿠팡에서 수행, 사주라 미경유·미저장" 단언(쿠팡 직접결제 모델과 정합). 근거: 본 19차 audit |
 | 2026-05-16 | **Frontend 스택 일괄 확정** (research/frontend 01~10): 프레임워크·빌드 **React 19 + Vite 6 + TypeScript 5.x (strict)**. 라우팅 **React Router v7**, 클라이언트 상태 **Zustand 5**(auth 메모리·preferences persist 물리적 분리). 서버 상태 **TanStack Query v5** + HTTP **ky 1.x**(fetch wrapper·`credentials: include`·401 단일 refresh 인터셉터) + 코드젠 **openapi-typescript 7.x**(타입만). UI **Tailwind CSS v4 + shadcn/ui(Radix) + lucide-react**. 폼·검증 **React Hook Form 7 + zod 3 + @hookform/resolvers/zod**(BE Pydantic v2 1:1 매핑). PWA **vite-plugin-pwa + injectManifest 모드**(SW push·notificationclick 커스텀 핸들러), VAPID 공개 키 **환경변수 inline**, 인앱 알림 **TanStack Query `refetchInterval` 30s + 백그라운드 비활성**. 차트 **Recharts 2.x**(shadcn chart 통합). OAuth **BE 인가 URL 리다이렉트 + 첫 진입 refresh + `/api/auth/me`**, Access Token **Zustand 메모리(persist 금지)**, Refresh **HttpOnly Cookie 자동 송수신**. CSP **`script-src 'self'` + `style-src 'self' 'unsafe-inline'` + `worker-src 'self'` + `manifest-src 'self'`** (PWA·Radix·Recharts 정합) — backend 03·05 Caddyfile에 정합 갱신. 테스트 **Vitest 2 + @testing-library/react 16 + MSW 2 + Playwright(Node) Chromium 단일**, 린터 **Biome 1.x**(+Tailwind 정렬은 prettier-plugin-tailwindcss 보조), 타입 **tsc + vite-plugin-checker**, Storybook 보존. 배포 **pnpm 9 + Node 22 LTS + Caddy 이미지 자체 빌드(FE dist COPY) + GitHub Actions 8단계**. 보존 후보: Next.js(SEO 트리거)·TanStack Router(라우트 50+)·Jotai(상태 20+)·axios(업로드 진행률)·openapi-fetch(path 오타)·valibot(스키마 30+)·Mantine(컴포넌트 추가 비용)·Chart.js(데이터 1000+)·ESLint+Prettier(Biome 미지원 규칙)·Storybook(컴포넌트 30+)·npm(pnpm 호환 문제). 근거: `docs/research/frontend/01_*.md` ~ `10_*.md` |
+| 2026-05-16 | **AI 외부 데이터 미확정 항목의 분류 기준 확정** — 미확정으로 분류된 외부 데이터(경제지표·검색량·SNS 노출도·프로모션 등)는 (1) **활용 의도는 확정**(예측 모델 입력 피처로 사용할 의도 명확), (2) **기술 가능성(수집 출처·수단)만 조사 중** 상태로 정의. spec에서 해당 단어를 삭제하지 않고 유지하되, 등장하는 모든 위치에 "조사 중" 표기를 통일 부착하여 미확정성을 가시화. 사유: 단순 미확정으로 처리하면 모두 삭제 대상이 되어 활용 의도 정보가 손실됨. 근거: 본 미확정 AI 항목 검토(20차 진행 중) |
+| 2026-05-16 | **결측값 보간 방법·적용 기준 — research 분리 확정** — spec에는 "n8n 전처리에서 결측값을 처리한다"는 사실만 유지. 구체적 보간 방법(전일 평균·이동평균·0 채움 등)·적용 대상별 규칙은 `docs/research/ai/02_ml_pipeline_open_items.md` §3에서 결정. `ml_pipeline.md` §10 미확정 안내에서 "결측" 부분 분리·재명시, `prompts/08_ai_handoff.md` 작업 체크박스에서 "결측값 처리 규칙 상세" 항목 제거. 사유: 실데이터 확보 전에는 어떤 보간 방법이 적합한지 결정 불가, research에서 후보 비교 후 spec에 역반영하는 흐름이 정합. 근거: 본 미확정 AI 항목 검토(20차 진행 중) |
+| 2026-05-17 | **`docs/spec/prompts/consistency_check.md` 폐기** — 점검 항목 표가 spec 변경 속도를 따라가지 못해 오히려 정합성 점검을 가로막음. 폐기 후 spec/research 일관성은 (1) PROGRESS.md §3 정책 결정 이력, (2) 각 spec 본문의 명시적 안내문, (3) 변경 시 grep 기반 잔존 검증으로 대체. `docs/spec/prompts/` 폴더는 빈 상태(이전 결정으로 `08_ai_handoff.md`도 폐기). 참조 정리: `docs/README.md` SSOT 표 1건, `docs/사주라_기술문서.md` 2건, `docs/research/ai/01_model_selection.md` 1건. 사유: 점검 항목 유지 비용이 효익을 초과, 작업 모델 단순화. 근거: 본 미확정 AI 항목 검토(20차) |
+| 2026-05-17 | **예측 근거 — 산출 방법(SHAP/FI)·출력 형태(자연어·Top-3)·초기 모델(LightGBM) 모두 research로 위임** — 사용자 결정: "어떤 AI를 쓸지 모르고, 자연어 답변 여부도 미지수". spec 다수 위치에서 (1) "초기 AI 모델 = LightGBM" 단정 제거(`model_spec.md` §2 표·§3·§9, `ml_pipeline.md` §3·§7), (2) "예측 근거 = SHAP + Feature Importance" 단정 제거(`feature_list.md` §2.6·기능표, `feature_spec.md` §5·§9·§12, `requirements.md`, `usecase_spec.md`, `ml_pipeline.md` §9, `sequence.md`), (3) "출력 형태 = Top-3 자연어" 단정 제거(`feature_spec.md` §9.1 자연어 템플릿 코드블록 삭제, `model_spec.md` §6·§9), (4) **DB 컬럼 삭제** `forecast_results.explanation_text`·`top_factors`(`schema.md` §3.15), (5) **AI Server API 삭제** `POST /ai/xai/shap`(`api_spec.md` §8), (6) **AIServerClient 메서드 삭제** `get_shap`(`service_design.md`), (7) `mvp_scope.md` §3·§5·§9의 "XAI" 표현 4건 추상화. 모든 위치에 "산출 방법(SHAP·Feature Importance·기타 후보)·출력 형태(자연어·표·수치 등)는 `docs/research/ai/01_model_selection.md` §3 확정"으로 통일. research §2 헤더 격상 + §3 표에 통합 행 추가. `consistency_check.md` §6 점검 항목도 추상화. 베이스라인 비교 후보 목록·기존 신뢰도 낮음 컬럼(`is_low_confidence`)·예측 결과 핵심 컬럼은 유지. 사유: 모델·산출 방법·출력 형태 각 결정이 서로 종속(예: 자연어 출력이면 explanation_text 컬럼 필요), 어느 하나라도 사실로 박아두면 다른 결정을 묶어버림. 근거: 본 미확정 AI 항목 검토(20차 진행 중) |
+| 2026-05-17 | **DNN 도입 여부 — 기술 스택 가정 자체를 research §2.1로 위임** — `model_spec.md` §3에 "PyTorch 기반 DNN도 기술 스택에 포함된다"가 사실처럼 적혀 있었으나, DNN 도입 자체가 미확정. spec을 "DNN 계열(PyTorch 등) 도입 여부는 미확정 (research §2.1 확정)"로 추상화. research `01_model_selection.md` §2.1 헤더를 "**DNN 도입 여부 및 LightGBM ↔ DNN 전환 기준**"으로 격상하고 조사 항목에 "도입 여부 자체"를 명시. 사유: 기술 스택을 사실로 박아두면 후보 검토 없이 도입이 기정사실화될 위험. 근거: 본 미확정 AI 항목 검토(20차 진행 중) |
+| 2026-05-17 | **평가 지표 선정 — MAPE 사용 여부 자체를 research §3로 위임** — spec 12곳(`requirements.md` §5, `feature_list.md` ROI·신뢰도 행, `user_flow.md` 대시보드 차트, `api_spec.md` `/api/dashboard/roi`, `service_design.md` `get_roi`, `mvp_scope.md` ROI 행·예측 품질 기준, `feature_spec.md` ROI 산식 표·대시보드 차트·신뢰도 경고 사유, `consistency_check.md` §6)에서 "MAPE" 단어 모두 제거하고 "**예측 정확도 지표**(지표 선정은 research §3)" 추상 표현으로 통일. research `01_model_selection.md` §3 표 "평가 지표 선정(MAPE 사용 여부 포함) 및 목표 성능" 행으로 보강, §4 헤더에 "§4.1 잠정 임계값은 지표=MAPE 가정 placeholder, §3 결정 후 §4 재검토" 안내 추가. spec 잔존 MAPE 0건 검증. 사유: MAPE는 단순 후보 중 하나이며 실데이터로 RMSE/MAE/bias 등과 함께 비교 후 결정해야 함, spec에 MAPE를 사실로 박아두면 다른 지표 검토를 차단. 근거: 본 미확정 AI 항목 검토(20차 진행 중) |
+| 2026-05-17 | **재학습 후 모델 교체 기준·배포 승인 기준 — research §6에서 통합 결정** — 두 항목이 같은 결정 사슬(새 모델 검증→교체 임계값→자동/수동·롤백)에 속함을 명시하고 `02_ml_pipeline_open_items.md` §6 헤더를 "재학습 후 모델 교체·배포 승인 기준"으로 통합. `01_model_selection.md` §3 표의 중복 행("재학습 후 배포 승인 기준")은 §6 참조로 압축. spec 변경 없음(spec에는 처음부터 정책 본문이 없고 `ml_pipeline.md` §10 미확정 안내만 존재). 사유: 두 결정을 분리해서 다루면 임계값과 배포 절차가 따로 결정될 위험. 근거: 본 미확정 AI 항목 검토(20차 진행 중) |
+| 2026-05-17 | **Cold-start — 전략 자체는 [2단계] spec 유지, 파이프라인 분기 로직만 research 이동** — spec(`feature_spec.md` §5.4 [2단계], `feature_list.md` 수요예측, `mvp_scope.md` §3·§5)에 적힌 Cold-start 전략(유사 매장 기반 예측·`stores.business_type`+`store_size`+`operation_type` 동일 매칭·신뢰도 낮음 배지 필수·자체 데이터 30일 후 자동 전환)은 spec 유지. 파이프라인 분기 로직(분기 판정 위치 n8n/AI Server·유사 매장 매칭 알고리즘·매칭 결과 0개 대응·전환 트리거)은 `docs/research/ai/01_model_selection.md` §3 표 "Cold-start 파이프라인 분기 로직" 행으로 이동. `feature_spec.md` §5.4 말미에 research 안내 1행 추가. 사유: 전략 자체는 도메인 결정이 끝났으나 구현 단계 흐름은 매장 풀이 충분히 쌓이고 매칭 알고리즘 후보 비교 가능해진 시점에 확정. 근거: 본 미확정 AI 항목 검토(20차 진행 중) |
+| 2026-05-17 | **`docs/spec/prompts/08_ai_handoff.md` 폐기** — research 완료 후 곧바로 `docs/spec/08_ai/*.md`에 확정 사실을 역반영하는 흐름으로 작업 모델 단일화. 별도 인수인계 문서 불필요. 동시에 spec/research 8건 참조(`docs/README.md` SSOT 테이블·파일 맵 5건, `consistency_check.md` 2건, `research/ai/01_model_selection.md` 2건) 모두 정리. 사유: handoff가 spec 사이의 중계 노드처럼 작동해 SSOT 위반(같은 임계값이 3곳에 중복 정의 등) 발생 위험. 근거: 본 미확정 AI 항목 검토(20차 진행 중) |
+| 2026-05-17 | **학습 데이터 사용 방식 — 슬라이딩 윈도우 가정 자체를 research 이동** — spec(`ml_pipeline.md` §2, `model_spec.md` §7)이 "최근 N개월 슬라이딩 윈도우"를 사실처럼 적고 있었으나 방식 자체가 미확정. spec에서 슬라이딩 윈도우 문장·"N개월" placeholder를 모두 제거하고 `docs/research/ai/02_ml_pipeline_open_items.md` §2(슬라이딩 윈도우 / 전체 누적 / 시간 가중치 / 시즌별 분할 후보 비교)로 이동. `prompts/08_ai_handoff.md` 작업 체크박스·참고 미확정 표·`ml_pipeline.md` §10 미확정 안내 문구도 "학습 데이터 사용 방식(슬라이딩 윈도우 적용 여부 포함)"으로 일괄 통일. spec에는 "주간 단위 정기 재학습"·"배치 학습" 같은 합의된 사실만 유지. 사유: 어떤 학습 데이터 사용 방식이 적합한지(고정 윈도우 vs 가중치 vs 누적)는 데이터 확보·probe 없이 결정 불가, 슬라이딩 윈도우 단정이 다른 방식 검토를 차단. 근거: 본 미확정 AI 항목 검토(20차 진행 중) |
+| 2026-05-17 | **이상치 탐지 — 사실만 spec 유지, 방법론·정책 전부 research 이동** — spec(`requirements.md` §3, `ml_pipeline.md` §6, `feature_spec.md` §4.6·알림 표, `feature_list.md` POS 연동, `sequence.md` §판매 동기화, `user_flow.md` 알림 표, `service_design.md` 라이브러리 표)에서 IQR/Z-score 방법론 명시·5% 임계값·5% 미만 자동 분리/이상 알림 트리거·"이상 데이터 분리" 정책을 모두 제거하고 `docs/research/ai/02_ml_pipeline_open_items.md` §3로 이동. spec에는 "이상치 탐지를 수행한다"는 사실만 남기고 모든 위치에 "탐지 방법·임계값·처리 정책은 research §3 확정"으로 통일 안내. research §3에 §3.1 결측 보간·§3.2 이상치 탐지 방법·§3.3 처리 정책·§3.4 probe 후 spec 역반영 대상을 소항 분리. 동시에 `mvp_scope.md` 데이터 확보 방식 §8 각주의 "30일 미만·MAPE 20% 초과" 잠정 임계값(직전 결정에서 누락분)도 함께 정리. 사유: 두 탐지 방법 중 컬럼별 적용 조건·임계 계수·분리 vs 수정 선택지가 모두 실데이터 없이는 결정 불가, 잠정값이 spec에 박혀 있으면 probe 단계 누락 위험. 근거: 본 미확정 AI 항목 검토(20차 진행 중) |
+| 2026-05-16 | **신뢰도 낮음 임계값·MVP MAPE 목표 — AI probe 후 확정으로 분리** — spec에 잠정값으로 적혀 있던 정량 기준(MAPE 20% 초과 / 학습 30일 미만 / 결측 30% 초과 / MVP MAPE 목표 30% 이하)을 모두 spec에서 제거하고 `docs/research/ai/01_model_selection.md` §4로 이동. spec(`feature_spec.md` §5.3, `feature_list.md` 수요예측 섹션, `mvp_scope.md` 예측 품질 기준, `prompts/08_ai_handoff.md` §8)에는 "정량 임계값은 AI probe 후 확정, research §4 참조"로 일괄 대체. `consistency_check.md` §6에 임시 숫자 재유입 방지 점검 행 추가. 신뢰도 낮음 개념·배지·DB 컬럼(`forecast_results.is_low_confidence`, `low_confidence_reason`)은 구조로 유지. 사유: 실제 모델 학습·평가 없이 임계값 확정 불가, 잠정값이 spec에 "확정"으로 박혀 있으면 검증 단계가 누락될 위험. 근거: 본 미확정 AI 항목 검토(20차 진행 중) |
 
 ---
 
 ## 4. 문서 수정 이력
 
 spec/ 문서 작성·수정 내용을 날짜 역순으로 기록한다.
+
+### 2026-05-16~17 (20차)
+
+14개 미확정 AI 항목을 일괄 검토하여 spec 전반의 가정·잠정값을 research로 위임. 작업 모델 단순화 위해 `docs/spec/prompts/` 폴더 두 파일(`08_ai_handoff.md`·`consistency_check.md`) 모두 폐기. 검토 항목 본 단위로 사용자가 직접 결정(AI 판단 금지·미확정+확정 사실 동시 나열·일반어 설명·단계별 진행 원칙).
+
+**A. 외부 데이터 미확정 항목 — `[조사 중]` 인라인 표기 부착 (정책: 활용 의도 확정 / 기술 가능성 미정)**
+
+- 경제지표·검색량·SNS 노출도·프로모션·주변 행사 정보가 등장하는 모든 위치에 `[조사 중]` 표기. 단어 삭제 대신 미확정성 가시화
+- 영향: `requirements.md` §3·§5, `feature_list.md` §2.1·§수요예측, `feature_spec.md` §5.1·§5.2·§10.2 표, `sequence.md` §1·§2 mermaid, `api_spec.md` §8 JSON(`// [조사 중]` 코멘트), `model_spec.md` §5 입력 피처 표, `ml_pipeline.md` §4 외부 안내문(기존 유지)
+
+**B. AI probe 후 확정 항목 — 잠정값 research 분리**
+
+- 결측값 보간 방법 → `02_ml_pipeline_open_items.md` §3.1 (spec에는 "처리한다" 사실만)
+- 신뢰도 낮음 임계값(MAPE 20% / 학습 30일 / 결측 30%) → `01_model_selection.md` §4.1
+- MVP MAPE 30% 목표 → `01_model_selection.md` §4.2
+- 이상치 탐지 방법(IQR/Z-score)·5% 임계값·"분리" 정책 → `02_ml_pipeline_open_items.md` §3.2·§3.3·§3.4
+- 학습 데이터 사용 방식(슬라이딩 윈도우 적용 여부·N개월) → `02_ml_pipeline_open_items.md` §2.1·§2.2·§2.3
+- spec 영향: `feature_spec.md` §5.3 임계값 표 삭제·§4.6 이상치 표 단순화·§5.5 정량 표현 추상화, `feature_list.md` 수요예측·POS 연동 항목, `mvp_scope.md` 예측 품질 기준 표 삭제·§8 각주 추상화, `requirements.md` §3 이상치 줄 추상화, `ml_pipeline.md` §6 IQR/Z-score 명시 삭제·§10 미확정 안내 분리
+
+**C. Cold-start·재학습 후 정책 — 전략 spec 유지 / 분기·승인 research 통합**
+
+- Cold-start 파이프라인 분기 로직 → `01_model_selection.md` §3 표 (전략·DB 매칭 필드는 `feature_spec.md` §5.4 [2단계] spec 유지)
+- 재학습 후 모델 교체·배포 승인 기준 → `02_ml_pipeline_open_items.md` §6 헤더 통합 (항목 7+14 묶음)
+- DNN 도입 여부 → `01_model_selection.md` §2.1 (spec "PyTorch DNN 기술 스택 포함" 단정 제거)
+
+**D. 평가 지표 — MAPE 사용 여부 자체 research 위임**
+
+- spec 12곳에서 "MAPE" 단어 → "예측 정확도 지표(research §3 확정)" 추상화
+- 영향: `requirements.md` §5, `feature_list.md` ROI·신뢰도 행, `user_flow.md` 대시보드 차트, `api_spec.md` `/api/dashboard/roi`, `service_design.md` `get_roi`, `mvp_scope.md` ROI·예측 품질 기준, `feature_spec.md` ROI 산식 표·대시보드 차트·신뢰도 경고 사유, `feature_spec.md` §5.3 신뢰도 축 3종 추상화
+- DB·API 필드명: `forecast_mape` → `forecast_accuracy_metric` (6곳, `feature_spec.md` §8.2 출력 표·`api_spec.md` `/api/dashboard/roi` 응답 4건·설명 안내문)
+
+**E. 예측 근거 — 모델·산출 방법·출력 형태 모두 research 위임 (DB 컬럼·API 엔드포인트 삭제 포함)**
+
+- "초기 AI 모델 = LightGBM/XGBoost" 단정 제거: `model_spec.md` §2 표·§3·§9, `ml_pipeline.md` §3·§7. 베이스라인 비교 후보 목록은 유지
+- "예측 근거 = SHAP + Feature Importance" 단정 제거: `feature_list.md` §2.6·기능표, `feature_spec.md` §5·§9·§12, `requirements.md`, `usecase_spec.md`, `ml_pipeline.md` §9, `sequence.md` 2곳, `service_design.md` 라이브러리 표
+- "출력 형태 = Top-3 자연어" 단정 제거: `feature_spec.md` §9.1 자연어 템플릿 코드블록 삭제, `model_spec.md` §6·§9
+- **DB 컬럼 삭제**: `schema.md` `forecast_results.explanation_text`·`top_factors`
+- **AI Server API 삭제**: `api_spec.md` `POST /ai/xai/shap` 엔드포인트 + 응답 예시 3곳에서 `explanation_text`·`top_factors` 필드 제거
+- **AIServerClient/ForecastService 메서드 삭제**: `service_design.md` `get_shap`
+- `mvp_scope.md` "XAI" 표현 4건 추상화
+- 유지: 베이스라인 비교 후보 목록, `is_low_confidence`/`low_confidence_reason` 컬럼, AI Server 4개 핵심 API(`/ai/forecast/predict`·`/ai/orders/recommend`·`/ai/forecast/train`·`/ai/forecast/status`·`/ai/health`)
+
+**F. prompts/ 폴더 두 파일 폐기 + 참조 정리**
+
+- `08_ai_handoff.md` 폐기 (작업 모델 단순화 — research 완료 후 곧바로 08_ai spec 역반영). 참조 8건 정리(README SSOT·파일 맵 5건, consistency_check 2건, research 2건)
+- `consistency_check.md` 폐기 (사용자 직접 — 점검 항목 표 유지 비용 초과). 참조 4건 정리(README SSOT 표, `사주라_기술문서.md` 2건, research 1건)
+- `prompts/` 폴더 빈 상태
+
+**G. research 파일 보강 (2개 파일)**
+
+- `01_model_selection.md` §2 헤더 "초기 모델 선정"으로 격상 / §2.1 "DNN 도입 여부 및 LightGBM ↔ DNN 전환 기준"으로 격상 / §3 표 행 보강(평가 지표 선정·예측 근거 산출 방법 및 출력 형태·Cold-start 파이프라인 분기 로직·재학습 후 배포 승인) / §4 신뢰도 낮음 판단 기준 헤더·§4.1 잠정 임계값·§4.2 MVP MAPE 잠정 목표·§4.3 probe 후 확정 절차 신설
+- `02_ml_pipeline_open_items.md` §2 "학습 데이터 사용 방식" 격상(§2.1 후보·§2.2 N 값·§2.3 spec 역반영 대상) / §3 결측·이상치 처리 기준 보강(§3.1~§3.4) / §6 "재학습 후 모델 교체·배포 승인 기준" 통합 헤더
+
+**H. PROGRESS.md §3 정책 결정 12건 추가** (외부 데이터 분류 / 결측 보간 / 신뢰도 임계값 / 이상치 정책 / 학습 데이터 사용 방식 / Cold-start / handoff 폐기 / 재학습 교체+배포 승인 통합 / 평가 지표 / DNN 도입 / 예측 근거 / consistency_check 폐기)
 
 ### 2026-05-16 (19차)
 

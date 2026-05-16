@@ -306,9 +306,9 @@ CREATE TABLE forecast_results (
     confidence_score        DECIMAL(4,3)    NOT NULL,
     is_low_confidence       TINYINT(1)      NOT NULL DEFAULT 0,
     low_confidence_reason   VARCHAR(255)    NULL,
-    explanation_text        TEXT            NULL COMMENT 'Top-3 영향 변수 기반 자연어 설명',
-    top_factors             JSON            NULL COMMENT 'Top-3 영향 변수 목록 및 기여도',
     generated_at            DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- 예측 근거 저장 컬럼은 산출 방법·출력 형태 확정 후 추가
+    -- (`docs/research/ai/01_model_selection.md` §3 참조)
     PRIMARY KEY (forecast_id),
     UNIQUE KEY uq_forecast_store_menu_date (store_id, menu_id, target_date),
     CONSTRAINT fk_forecast_results_store FOREIGN KEY (store_id) REFERENCES stores (store_id),

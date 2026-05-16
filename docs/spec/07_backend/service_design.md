@@ -15,8 +15,8 @@
 | **pydantic-settings** | `.env`·환경변수·secrets 디렉터리 → 타입 안전 Settings 클래스 |
 | **orjson** | FastAPI 응답 JSON 직렬화 가속. `FastAPI(default_response_class=ORJSONResponse)` |
 | **python-multipart** | `POST /api/sales/upload` CSV 멀티파트 처리 |
-| **pandas** | CSV 파싱, 기간별 매출 집계, IQR/Z-score 이상치 탐지, ROI 계산 |
-| **numpy** | 통계 연산 (pandas/IQR 백엔드) |
+| **pandas** | CSV 파싱, 기간별 매출 집계, 이상치 탐지, ROI 계산 |
+| **numpy** | 통계 연산 (pandas 백엔드) |
 | **python-jose** | JWT Access Token 생성 및 검증 |
 | **passlib (bcrypt)** | 이메일 로그인용 비밀번호 bcrypt 해싱 |
 | **Authlib** | Google/카카오 OAuth 2.0 흐름 처리 (인가 URL 생성, 코드 교환, 사용자 정보 조회) |
@@ -206,7 +206,7 @@
 |--------|----------|------|------|
 | `get_forecast` | store_id, target_date | `ForecastDTO` | 저장된 예측 결과 조회 |
 | `run_forecast` | store_id, target_date | `ForecastDTO` | 점주/관리자 수동 예측 실행 보조 |
-| `get_shap` | store_id, menu_id, target_date | `ShapDTO` | 저장된 XAI 설명 조회 또는 AI Server 상세 SHAP 요청 |
+<!-- 예측 근거 조회 메서드는 산출 방법·출력 형태 확정(`docs/research/ai/01_model_selection.md` §3) 후 추가 -->
 
 ### OrderService
 
@@ -238,7 +238,7 @@
 | 메서드 | 파라미터 | 반환 | 단계 | 설명 |
 |--------|----------|------|------|------|
 | `get_dashboard` | store_id | `DashboardDTO` | [MVP] | 전체 요약 집계 |
-| `get_roi` | store_id, start_month, end_month | `RoiDTO` | [2단계] | 기간별 ROI 집계 (폐기 비용·폐기율·재고 회전율·MAPE) 및 월별 추세 반환. 재고 회전율 = 기간 내 총 소모량 / 평균 재고 수량. 총 소모량은 `sale_records × recipe_ingredients`로 파생, 평균 재고 수량은 (기간 시작 재고 + 기간 종료 재고) / 2로 근사 (시작 재고 = 종료 재고 + 소모량 + 폐기량 - 입고량으로 역산). 누적 데이터 부족으로 MVP 기간 동안 의미 없음 (`mvp_scope.md` §4) |
+| `get_roi` | store_id, start_month, end_month | `RoiDTO` | [2단계] | 기간별 ROI 집계 (폐기 비용·폐기율·재고 회전율·예측 정확도 지표) 및 월별 추세 반환. 예측 정확도 지표 선정·산식은 `docs/research/ai/01_model_selection.md` §3 확정. 재고 회전율 = 기간 내 총 소모량 / 평균 재고 수량. 총 소모량은 `sale_records × recipe_ingredients`로 파생, 평균 재고 수량은 (기간 시작 재고 + 기간 종료 재고) / 2로 근사 (시작 재고 = 종료 재고 + 소모량 + 폐기량 - 입고량으로 역산). 누적 데이터 부족으로 MVP 기간 동안 의미 없음 (`mvp_scope.md` §4) |
 | `get_waste` | store_id, start_date, end_date | `WasteDTO` | [MVP] | 기간별 폐기 현황 |
 
 ### PipelineService
@@ -284,7 +284,7 @@
 | `recommend_order` | store_id, target_date, forecast_results, recipes, inventory | `RecommendationResultDTO` | [MVP] 추천발주 생성 요청 |
 | `train` | store_id, training_data | `TrainJobDTO` | [2단계] 모델 재학습 요청 (`mvp_scope.md` §4) |
 | `get_job_status` | job_id | `JobStatusDTO` | [MVP] 작업 상태 조회 |
-| `get_shap` | store_id, menu_id, target_date | `ShapDTO` | [MVP] SHAP 설명 생성 요청 |
+<!-- 예측 근거 조회 메서드(get_shap 등)는 산출 방법·출력 형태 확정(`docs/research/ai/01_model_selection.md` §3) 후 추가 -->
 | `health_check` | - | `HealthDTO` | [MVP] AI Server 상태 확인 |
 
 ---

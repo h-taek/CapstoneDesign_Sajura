@@ -61,8 +61,6 @@ plan/       → 확정된 내용을 구현 단위로 분해
 | `docs/spec/08_ai/ml_pipeline.md` | AI 파이프라인 원본 | 파이프라인 단계·입출력·전처리·배치 실행 시각 |
 | `docs/spec/09_nonfunctional/security.md` | 보안 정책 원본 | 토큰 정책, 암호화, 접근통제, 감사로그 항목 |
 | `docs/spec/09_nonfunctional/performance.md` | 성능 기준 원본 | API SLA, 배치 SLA, Playwright 타임아웃 기준 |
-| `docs/spec/prompts/consistency_check.md` | 일관성 검증 체크리스트 | 교차 검증 항목 + 수정 기록 |
-| `docs/spec/prompts/08_ai_handoff.md` | 08_ai 작업 인수인계 | 선행 확정 내용 요약 |
 
 ---
 
@@ -169,12 +167,12 @@ plan/       → 확정된 내용을 구현 단위로 분해
 | `feature_spec.md` | `api_spec.md`, `security.md`, `user_flow.md`, `requirements.md` |
 | `user_flow.md` | `feature_spec.md`, `usecase_spec.md` |
 | `sequence.md` | `feature_spec.md`, `api_spec.md`, `service_design.md` |
-| `api_spec.md` | `feature_spec.md`, `service_design.md`, `sequence.md`, `spec/prompts/08_ai_handoff.md` |
-| `schema.md` | `erd.md`, `service_design.md`, `ml_pipeline.md`, `spec/prompts/08_ai_handoff.md` |
+| `api_spec.md` | `feature_spec.md`, `service_design.md`, `sequence.md` |
+| `schema.md` | `erd.md`, `service_design.md`, `ml_pipeline.md` |
 | `erd.md` | `schema.md` |
 | `service_design.md` | `api_spec.md`, `sequence.md`, `frontend_design.md` |
 | `frontend_design.md` | `api_spec.md`, `security.md`, `feature_spec.md`, `service_design.md` §11 |
-| `model_spec.md` | `ml_pipeline.md`, `feature_list.md`, `spec/prompts/08_ai_handoff.md` |
-| `ml_pipeline.md` | `model_spec.md`, `performance.md`, `spec/prompts/08_ai_handoff.md` |
+| `model_spec.md` | `ml_pipeline.md`, `feature_list.md` |
+| `ml_pipeline.md` | `model_spec.md`, `performance.md` |
 | `security.md` | `feature_spec.md`, `api_spec.md` |
 | `performance.md` | `mvp_scope.md`, `ml_pipeline.md` |
