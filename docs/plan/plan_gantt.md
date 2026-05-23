@@ -24,7 +24,7 @@
 
 ---
 
-## 2. 단계 개요 (13 Phase)
+## 2. 단계 개요 (14 Phase)
 
 | Phase | 이름 | 정의 | 주도 파트 |
 |-------|------|------|----------|
@@ -36,11 +36,12 @@
 | 5 | 메뉴·재고·판매 도메인 | MenuService, InventoryService(FIFO·폐기·단가), SaleService 조회, 화면 | BE+FE |
 | 6 | AI 모델 개발 | 데이터 전처리, 모델 비교/선정/평가, XAI 모듈 | AI |
 | 7 | AI Server API | `/ai/forecast/*`, `/ai/orders/recommend`, `/ai/xai/*`, `/ai/health` + Backend AIServerClient | AI+BE |
-| 8 | n8n 배치 파이프라인 | 외부 데이터 수집, 전처리/정규화 워크플로우, 야간 예측·주간 재학습 배치 + Slack 알림 | BE 주도 + AI 연동 |
-| 9 | 예측·발주 UI | ForecastService, OrderService, 수요예측·추천발주·홈 배지 화면 | BE+FE |
+| 8 | n8n 배치 (골격) | 외부 데이터 수집 + **전처리 더미 노드** + 야간 예측·주간 재학습 배치 + Slack 알림 | BE 주도 + AI 연동 |
+| 9 | 예측·발주 UI (골격) | ForecastService 수량·OrderService + 수요예측·추천발주·홈 배지 화면 골격(근거·임계값 placeholder) | BE+FE |
 | 10 | 쿠팡 자동화 | Playwright 자동화 + 결과 화면 | BE+FE |
 | 11 | 대시보드·알림 | DashboardService(매출/예측), 인앱 알림, 대시보드 화면 | BE+FE |
-| 12 | 통합 검증·배포 | 데모 시나리오 end-to-end, 성능·보안 검증, CI/CD 배포 | 전 파트 |
+| 12 | **AI hookup** | AI 팀 확정 결과 반영 — n8n 전처리 실제 로직·예측 근거 응답/UI·신뢰도 임계값 | BE+FE |
+| 13 | 통합 검증·배포 | 데모 시나리오 end-to-end, 성능·보안 검증, CI/CD 배포 | 전 파트 |
 
 > **Research vs Plan 구분**
 > - Research: "어떤 기술을 쓸지" 결정 — 라이브러리·프레임워크·오픈소스 비교, POC, 학습 곡선 평가
@@ -60,27 +61,31 @@ flowchart TD
 
     P --> AIM[Phase 6 AI 모델]
     AIM --> AIA[Phase 7 AI Server API]
-    AIA --> N8N[Phase 8 n8n 배치]
+    AIA --> N8N[Phase 8 n8n 배치 골격]
     DOM --> N8N
 
-    N8N --> ORD[Phase 9 예측·발주 UI]
+    N8N --> ORD[Phase 9 예측·발주 UI 골격]
     ORD --> AUTO[Phase 10 쿠팡 자동화]
     ORD --> DASH[Phase 11 대시보드·알림]
 
-    AUTO --> REL[Phase 12 통합 검증·배포]
+    AIM --> HOOK[Phase 12 AI hookup]
+    N8N --> HOOK
+    ORD --> HOOK
+
+    AUTO --> REL[Phase 13 통합 검증·배포]
     DASH --> REL
-    ORD --> REL
-    N8N --> REL
+    HOOK --> REL
 ```
 
 **핵심 포인트**
 - **AI 트랙(Phase 6~7)** 은 Plan 직후 BE/FE와 **병렬 출발**한다. 팀 보유 POS 데이터로 자체 학습 가능 (`mvp_scope.md` 섹션 8)
-- BE/FE/AI 세 트랙의 **합류 지점은 Phase 8 n8n 배치 한 곳**
-- Phase 12는 모든 트랙 종착 후 진행 (`test_release` 의존에 모든 트랙 끝점 포함)
+- BE/FE/AI 세 트랙의 **1차 합류는 Phase 8 골격**(인터페이스만 있으면 진행), **2차 합류는 Phase 12 hookup**(AI 결정 4가지 확정 후)
+- Phase 12 AI hookup이 다루는 4가지: 예측 근거 응답/UI·신뢰도 임계값·n8n 전처리 실제 로직·예측 정확도 지표 (`HANDOFF.md` "AI 의존성")
+- Phase 13은 모든 트랙 종착 후 진행 (`test_release` 의존에 hookup 끝점 포함)
 
 ---
 
-## 4. 작업 목록 (총 22개)
+## 4. 작업 목록 (총 25개)
 
 | ID | 작업 | Phase | 기간 | 선행(deps) | 담당 |
 |----|------|:-:|:-:|------|:-:|
@@ -99,13 +104,16 @@ flowchart TD
 | `ai_data` | 데이터 전처리 모듈 (결측·이상치·표준화·단위통일) | 6 | 4 | plan | AI |
 | `ai_model` | 모델 후보 비교·선정·평가 + XAI 모듈 + 신뢰도 경고 | 6 | 14 | ai_data | AI |
 | `ai_api` | AI Server API + Backend AIServerClient | 7 | 5 | ai_model | AI |
-| `n8n_data` | 외부 API 수집 노드 + 전처리/정규화 워크플로우 | 8 | 5 | ai_api, dom_be | BE |
-| `n8n_run` | 야간 예측 배치(02:00) + 주간 재학습 배치(일요일) + Slack 알림·재시도 | 8 | 5 | n8n_data | BE |
-| `ord_be` | ForecastService(캐시 조회) + OrderService(추천 조회·수정·승인) | 9 | 6 | n8n_run | BE |
-| `ord_fe` | 수요예측 화면 + 추천발주 화면 + 홈 경고 배지/알림 목록 | 9 | 7 | ord_be | FE |
-| `auto` | AutomationService(Playwright) + 자동화 결과 화면 | 10 | 7 | ord_be | ALL |
-| `dash` | DashboardService(매출/예측 집계) + 인앱 알림 + 대시보드 화면 | 11 | 7 | ord_be | ALL |
-| `test_release` | 데모 시나리오 Step 1~6 + 성능·보안 검증 + CI/CD 배포 | 12 | 9 | auto, dash, ord_fe, n8n_run | ALL |
+| `n8n_data_skeleton` | 외부 API 수집 노드 + **전처리 더미 노드(통과·기본 채움)** | 8 | 3 | ai_api, dom_be | BE |
+| `n8n_run` | 야간 예측 배치(02:00) + 주간 재학습 배치(일요일) + Slack 알림·재시도 | 8 | 5 | n8n_data_skeleton | BE |
+| `ord_be_skeleton` | ForecastService(예측 수량 응답·근거 필드 placeholder·임계값 env 자리) + OrderService(추천 조회·수정·승인) | 9 | 4 | n8n_run | BE |
+| `ord_fe_skeleton` | 수요예측 화면(수량 표시·근거 영역 placeholder) + 추천발주 화면 + 홈 배지 골격 | 9 | 4 | ord_be_skeleton | FE |
+| `auto` | AutomationService(Playwright) + 자동화 결과 화면 | 10 | 7 | ord_be_skeleton | ALL |
+| `dash` | DashboardService(매출/예측 집계) + 인앱 알림 + 대시보드 화면 | 11 | 7 | ord_be_skeleton | ALL |
+| `n8n_data_hookup` | n8n 전처리 노드 실제 로직 반영 (결측 보간·이상치 탐지·AI 팀 확정 규칙) | 12 | 2 | n8n_data_skeleton, ai_model | BE |
+| `ord_be_hookup` | ForecastService 예측 근거 응답 필드 형태 확정 반영 + 신뢰도 임계값 env 값 채움 | 12 | 2 | ord_be_skeleton, ai_model | BE |
+| `ord_fe_hookup` | 예측 근거 UI 디자인·구현 + 신뢰도 낮음 배지 임계값 연결 | 12 | 3 | ord_fe_skeleton, ord_be_hookup | FE |
+| `test_release` | 데모 시나리오 Step 1~6 + 성능·보안 검증 + CI/CD 배포 | 13 | 9 | auto, dash, ord_fe_hookup, n8n_data_hookup | ALL |
 
 ---
 
@@ -123,24 +131,44 @@ flowchart TD
 | 5 | 메뉴·재고·판매 | 21 | 35 | |
 | 6 | AI 모델 | 7 | 25 | **Plan 직후 병렬 출발** |
 | 7 | AI Server API | 25 | 30 | |
-| 8 | n8n 배치 | 30 | 40 | |
-| 9 | 예측·발주 UI | 40 | 53 | |
-| 10 | 쿠팡 자동화 | 46 | 53 | |
-| 11 | 대시보드·알림 | 46 | 53 | |
-| 12 | 통합 검증·배포 | 53 | 62 | 차트 우측 끝 |
+| 8 | n8n 배치 (골격) | 30 | 38 | 더미 전처리 노드 |
+| 9 | 예측·발주 UI (골격) | 38 | 46 | 근거·임계값 placeholder |
+| 10 | 쿠팡 자동화 | 42 | 49 | ord_be_skeleton 후 시작 |
+| 11 | 대시보드·알림 | 42 | 49 | ord_be_skeleton 후 시작 |
+| 12 | AI hookup | 33 | 49 | n8n hookup은 Day 33부터·예측 hookup은 Day 42부터 (deps 차이) |
+| 13 | 통합 검증·배포 | 49 | 58 | 차트 우측 끝 |
 
-**전체 종료 좌표: Day 62**
+**전체 종료 좌표: Day 58** (분할·병렬화로 기존 Day 62 대비 4일 단축)
 
 ---
 
 ## 6. 마일스톤
 
-| 마일스톤 | 도달 조건 | 의의 |
-|---------|----------|------|
-| M1 — Plan 확정 | `plan` 완료 (Day 7) | 모든 트랙 본격 개발 시작 |
-| M2 — 인프라·인증 완료 | `auth_test` 통과 (Day 21) | 데모 시나리오 Step 1 동작 |
-| M3 — 데이터 적재 가능 | `dom_be` 완료 (Day 29) | 데모 Step 2 동작, n8n 통합 가능 |
-| M4 — AI 모델 동작 | `ai_api` 완료 (Day 30) | AI Server 단독 동작 검증 |
-| M5 — 배치 동작 | `n8n_run` 완료 (Day 40) | 데모 Step 3 동작 |
-| M6 — 예측·발주·자동화 통합 | `auto` 완료 (Day 53) | 데모 Step 4~6 동작, end-to-end 골격 완성 |
-| M7 — MVP 릴리스 | `test_release` 완료 (Day 62) | 데모 검증 + 성능·보안 합격 + 배포 |
+각 Phase 안에 다수 마일스톤이 존재. **BE 마일스톤은 [`be/phase_XX_*.md`](be/), FE 마일스톤은 [`fe/phase_XX_*.md`](fe/)** 에서 정의·관리. 본 §6은 Phase별 파일 색인.
+
+| Phase | 이름 | Day | BE 파일 | FE 파일 |
+|:-:|------|:-:|------|------|
+| 0 | Research | 0~4 | [phase_00_research.md](be/phase_00_research.md) | [phase_00_research.md](fe/phase_00_research.md) |
+| 1 | Plan | 4~7 | 본 plan_gantt.md 자체 — 별도 파일 없음 | 본 plan_gantt.md 자체 — 별도 파일 없음 |
+| 2 | 인프라 | 7~12 | [phase_02_infra.md](be/phase_02_infra.md) | [phase_02_infra.md](fe/phase_02_infra.md) |
+| 3 | 인증·온보딩 | 12~21 | [phase_03_auth.md](be/phase_03_auth.md) | [phase_03_auth.md](fe/phase_03_auth.md) |
+| 4 | POS·데이터 | 21~26 | [phase_04_pos.md](be/phase_04_pos.md) | [phase_04_pos.md](fe/phase_04_pos.md) |
+| 5 | 도메인 | 21~35 | [phase_05_domain.md](be/phase_05_domain.md) | [phase_05_domain.md](fe/phase_05_domain.md) |
+| 6 | AI 모델 | 7~25 | — AI 팀 영역, 본인 작업 아님 | — |
+| 7 | AI Server API | 25~30 | — AI 팀 영역, 본인 작업 아님 | — |
+| 8 | n8n 배치 (골격) | 30~38 | [phase_08_n8n.md](be/phase_08_n8n.md) | — BE only |
+| 9 | 예측·발주 UI (골격) | 38~46 | [phase_09_order.md](be/phase_09_order.md) | [phase_09_order.md](fe/phase_09_order.md) |
+| 10 | 쿠팡 자동화 | 42~49 | [phase_10_automation.md](be/phase_10_automation.md) | [phase_10_automation.md](fe/phase_10_automation.md) |
+| 11 | 대시보드·알림 | 42~49 | [phase_11_dashboard.md](be/phase_11_dashboard.md) | [phase_11_dashboard.md](fe/phase_11_dashboard.md) |
+| 12 | AI hookup | 33~49 | [phase_12_hookup.md](be/phase_12_hookup.md) | [phase_12_hookup.md](fe/phase_12_hookup.md) |
+| 13 | 통합 검증·배포 | 49~58 | [phase_13_release.md](be/phase_13_release.md) | [phase_13_release.md](fe/phase_13_release.md) |
+
+> **시계열 흐름** (Phase 번호 ≠ 도달 순서): Day 4 → 7 → 12 → 21 → 25(AI M6) → 26 → 30(AI M7) → 35 → 38 → 46 → 49(M10·M11·M12 동시 도달) → 58
+>
+> AI 트랙이 BE/FE 트랙 사이에 끼어 들어오는 게 정상 — Phase 6은 Plan 직후 병렬 출발.
+
+**마일스톤 ID 규칙**
+
+- BE 마일스톤: `M{Phase}.B{n}` (예: M3.B1 = Phase 3 BE 1번 마일스톤)
+- FE 마일스톤: `M{Phase}.F{n}` (예: M3.F1 = Phase 3 FE 1번 마일스톤)
+- 통합 마일스톤(BE·FE 양쪽 종착): `M{Phase}` (예: M3 = Phase 3 통합 종료)

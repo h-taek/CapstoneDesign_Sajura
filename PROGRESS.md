@@ -79,6 +79,53 @@ docs/plan/       → 구현 계획 (단계별 작업, 순서, 역할 분담)
 
 spec/ 문서 작성·수정 내용을 날짜 역순으로 기록한다.
 
+### 2026-05-20 (21차)
+
+`docs/plan/plan_gantt.md` BE/FE 작업 3개를 AI 의존성 기준으로 골격(skeleton)·hookup으로 분할. 사유: HANDOFF.md "AI 의존성" 4가지(예측 근거·정확도 지표·n8n 전처리·신뢰도 임계값) 결정이 미정이라 AI 팀 결과 받기 전엔 hookup 부분 진행 불가. 골격은 ai_api(인터페이스)만 있으면 진행 가능, hookup은 ai_model 완료 후 진행.
+
+**A. §4 작업 목록 — 3개 작업 6개로 분할 (총 22개 → 25개)**
+
+- `n8n_data`(5일) → `n8n_data_skeleton`(3일, 전처리 더미 노드) + `n8n_data_hookup`(2일, AI 팀 확정 규칙 반영). `n8n_run` deps 갱신
+- `ord_be`(6일) → `ord_be_skeleton`(4일, 예측 수량 응답·근거 placeholder·임계값 env 자리) + `ord_be_hookup`(2일, 근거 응답 필드 형태·임계값 값 반영)
+- `ord_fe`(7일) → `ord_fe_skeleton`(4일, 수량 표시·근거 영역 placeholder) + `ord_fe_hookup`(3일, 근거 UI 구현·신뢰도 배지 연결)
+- `auto`·`dash` deps: `ord_be` → `ord_be_skeleton` (수량만 있으면 자동화·집계 가능)
+- `test_release` deps: `ord_fe`·`n8n_run` → `ord_fe_hookup`·`n8n_data_hookup` (hookup까지 끝난 후 검증)
+
+**B. §2 단계 개요 — Phase 12 "AI hookup" 신설, 기존 Phase 12 → Phase 13 (13 Phase → 14 Phase)**
+
+- Phase 8 정의에 "골격" 명시 + 전처리 더미 노드 표현
+- Phase 9 정의에 "골격" 명시 + 근거·임계값 placeholder 표현
+- Phase 12 신설: AI hookup (n8n 전처리 실제 로직·예측 근거 응답/UI·신뢰도 임계값)
+- Phase 13: 기존 통합 검증·배포
+
+**C. §3 mermaid·핵심 포인트 갱신**
+
+- mermaid에 HOOK 노드 추가, AIM·N8N·ORD에서 HOOK으로 합류
+- 핵심 포인트: 합류 지점을 "1차 골격(인터페이스 only) + 2차 hookup(ai_model 완료 후)"으로 분리
+
+**D. §5 검증 좌표 재계산 (전체 종료 Day 62 → Day 58, 4일 단축)**
+
+- Phase 8 골격: 30 → 38 (n8n_data_skeleton·n8n_run)
+- Phase 9 골격: 38 → 46 (ord_be_skeleton·ord_fe_skeleton)
+- Phase 10·11: 42 → 49 (ord_be_skeleton 후 시작)
+- Phase 12 AI hookup: 33 → 49 (n8n hookup은 Day 33부터·예측 hookup은 Day 42부터)
+- Phase 13: 49 → 58
+
+**E. §6 마일스톤 — Phase ↔ 마일스톤 1:1에서 Phase별 다수 마일스톤으로 재편 + `be/`·`fe/` 폴더 분리**
+
+- 기존 §6 14행 통합 표 → "Phase별 파일 색인" 표로 단순화
+- 마일스톤 정의 위치를 `docs/plan/be/phase_XX_*.md`·`docs/plan/fe/phase_XX_*.md`로 위임
+- 마일스톤 ID 규칙 신설: BE는 `M{Phase}.B{n}`, FE는 `M{Phase}.F{n}`, 통합 종료는 `M{Phase}`
+- Phase별 다수 sub-마일스톤(예: Phase 3 BE는 M3.B1~M3.B5 = AuthService·StoreService·국세청 검증·logout-all·auth_test) — 작업 ID 안의 산출물 단위 가시화
+- AI 영역(Phase 6·7)은 본인 작업 아니라 폴더 파일 없음
+
+**F. `docs/plan/be/`·`docs/plan/fe/` 폴더 신설 + Phase 파일 21개 생성**
+
+- `be/`: phase_00_research·02_infra·03_auth·04_pos·05_domain·08_n8n·09_order·10_automation·11_dashboard·12_hookup·13_release (11개)
+- `fe/`: phase_00_research·02_infra·03_auth·04_pos·05_domain·09_order·10_automation·11_dashboard·12_hookup·13_release (10개, Phase 8은 BE only)
+- Phase 1(plan)은 본 plan_gantt.md 자체가 작업이라 별도 파일 없음
+- 각 파일: 마일스톤 표(ID·산출물·검증) + 외부 의존 + 참조 + Phase 통합 종료 조건
+
 ### 2026-05-16~17 (20차)
 
 14개 미확정 AI 항목을 일괄 검토하여 spec 전반의 가정·잠정값을 research로 위임. 작업 모델 단순화 위해 `docs/spec/prompts/` 폴더 두 파일(`08_ai_handoff.md`·`consistency_check.md`) 모두 폐기. 검토 항목 본 단위로 사용자가 직접 결정(AI 판단 금지·미확정+확정 사실 동시 나열·일반어 설명·단계별 진행 원칙).
