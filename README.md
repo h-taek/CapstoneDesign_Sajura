@@ -42,6 +42,61 @@
 * 캐시 파일(`__pycache__`), OS 임시 파일(`.DS_Store`), IDE 설정 파일(`.vscode/`) 등은 커밋하지 않습니다.
 * 의도치 않은 파일이 `git status`에 뜨면 커밋 전 반드시 `.gitignore`에 먼저 등록합니다.
 
+### 5. 브랜치 전략
+
+```
+main                        배포/릴리즈 (보호됨, 직접 푸시 금지)
+├── ai                      AI 서버 (독립 배포, be+fe와 합쳐지지 않음)
+└── dev                     be+fe 통합 베이스
+    ├── be                  백엔드 통합 스테이지
+    │   └── feat/be-<name>  백엔드 피처
+    └── fe                  프론트엔드 통합 스테이지
+        └── feat/fe-<name>  프론트엔드 피처
+```
+
+**머지 흐름**
+* be+fe: `feat/be-*` → `be` → `dev` → `main` (FE도 동일)
+* AI: `ai` → `main` (별도 서버로 독립 배포되므로 `dev`와 합치지 않음)
+
+**작업 규칙**
+* 모든 be/fe 작업은 `feat/be-<name>` 또는 `feat/fe-<name>` 피처 브랜치에서 진행합니다. `main`, `dev`, `be`, `fe`에 직접 푸시하지 않습니다.
+* 피처 브랜치는 해당 베이스(`be` 또는 `fe`)에서 따고, 완료되면 베이스로 PR을 올립니다.
+* `be` / `fe` → `dev` 머지는 통합 검증이 끝난 시점에 진행합니다.
+* `dev` → `main` 머지는 릴리즈 단위로만 진행합니다.
+* AI 서버는 별도 배포 단위이므로 `ai` 브랜치에서 작업 후 `main`으로 직접 PR합니다. be+fe와는 HTTP API로만 연동됩니다.
+
+**main 브랜치 보호 (GitHub)**
+* 직접 푸시 금지, PR 필수 (승인 의무 없음).
+* force push / 브랜치 삭제 차단.
+
+**피처 브랜치 작업 예시**
+```bash
+git checkout be && git pull
+git checkout -b feat/be-csv-upload
+# 작업 후
+git push -u origin feat/be-csv-upload
+gh pr create --base be
+```
+
+**트랙 간 동기화 (be ↔ fe)**
+
+be와 fe는 서로 진행 사항을 공유해야 하므로 아래 규칙을 따른다.
+
+* **Contract-first**: BE는 `docs/spec/05_api/api_spec.md`(OpenAPI 계약)를 먼저 안정화한다. FE는 BE 완성 전이라도 `pnpm gen:api`로 타입 코드젠 + MSW mock으로 선행 개발한다.
+* **be/fe → dev promote**: 마일스톤(Phase) 끝나면 `be` / `fe`를 즉시 `dev`로 promote PR한다. dev는 항상 양 트랙의 "최신 truth"가 된다.
+* **dev → fe / dev → be back-merge**: 새 피처 브랜치를 따기 전 또는 매주 정기적으로 `git checkout fe && git merge origin/dev && git push`(또는 be)로 base를 최신화한다. 이후 따는 모든 `feat/*`는 자동으로 최신 상태에서 출발.
+* **충돌 최소화**: 이미 진행 중인 `feat/*` 브랜치는 그대로 두고 마무리한 다음, 다음 피처부터 back-merge된 base에서 따는 것이 깔끔하다.
+
+**문서 커밋 위치**
+
+| 문서 종류 | 커밋 위치 | 비고 |
+|---|---|---|
+| `docs/spec/`, `docs/plan/`, `PROGRESS.md`, 루트 `README.md` | **`main` 직접** (admin) 또는 `docs/<주제>` 브랜치 → main PR | 모든 트랙이 즉시 참조 |
+| `Back/README.md`, `Front/README.md`, `AI/README.md` 등 코드 옆 문서 | 해당 트랙(be/fe/ai) 브랜치에 코드와 함께 | 코드 변경과 한 쌍 |
+| `HANDOFF.md` | 커밋 안 함 (`.gitignore`, 개인용) | — |
+
+> 문서 변경을 BE/FE 피처 브랜치에 섞으면 머지 시 노이즈가 된다. 코드 옆 README가 아니라면 분리한다.
+
 ---
 
 ## 문서 관리

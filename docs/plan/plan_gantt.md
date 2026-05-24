@@ -20,7 +20,7 @@
 
 **공유 책임**
 - n8n 파이프라인 설계: BE 주도, AI 연동 협의
-- 데모 시나리오 검증: 전 파트 참여 (Step 1~6 end-to-end)
+- 데모 시나리오 검증: 전 파트 참여 (Step 1~9 end-to-end)
 
 ---
 
@@ -113,7 +113,7 @@ flowchart TD
 | `n8n_data_hookup` | n8n 전처리 노드 실제 로직 반영 (결측 보간·이상치 탐지·AI 팀 확정 규칙) | 12 | 2 | n8n_data_skeleton, ai_model | BE |
 | `ord_be_hookup` | ForecastService 예측 근거 응답 필드 형태 확정 반영 + 신뢰도 임계값 env 값 채움 | 12 | 2 | ord_be_skeleton, ai_model | BE |
 | `ord_fe_hookup` | 예측 근거 UI 디자인·구현 + 신뢰도 낮음 배지 임계값 연결 | 12 | 3 | ord_fe_skeleton, ord_be_hookup | FE |
-| `test_release` | 데모 시나리오 Step 1~6 + 성능·보안 검증 + CI/CD 배포 | 13 | 9 | auto, dash, ord_fe_hookup, n8n_data_hookup | ALL |
+| `test_release` | 데모 시나리오 Step 1~9 + 성능·보안 검증 + CI/CD 배포 | 13 | 9 | auto, dash, ord_fe_hookup, n8n_data_hookup | ALL |
 
 ---
 
