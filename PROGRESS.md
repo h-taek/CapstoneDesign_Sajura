@@ -80,6 +80,48 @@ docs/plan/       → 구현 계획 (단계별 작업, 순서, 역할 분담)
 
 spec/ 문서 작성·수정 내용을 날짜 역순으로 기록한다.
 
+### 2026-05-25 (24차) — Phase 2 인프라 부트스트랩 구현 + main 베이스라인 통합
+
+**구현 시작 — 3트랙 부트스트랩 (M2.B1~B4 / M2.F1~F6 / AI skeleton)**
+
+- BE (`feat/be-infra-bootstrap` → `be`): FastAPI + Alembic + pydantic-settings + structlog/asgi-correlation-id/Sentry 미들웨어 + `GET /health` + schema.md §3 전체 23개 테이블 마이그레이션
+- FE (`feat/fe-infra-bootstrap` → `fe`): Vite 6 + React 19 + TS strict + Tailwind v4 + shadcn + TanStack Query v5 + ky 1.x 401 단일 refresh 인터셉터 + openapi-typescript 코드젠 + vite-plugin-pwa(injectManifest) + @sentry/react + Biome + Vitest + multistage caddy Dockerfile
+- AI (`feat/ai-infra-bootstrap` → `ai`): FastAPI 빈 스켈레톤 + `GET /ai/health` (`api_spec.md` §8 정합, `model_loaded=false`)
+
+**Docker 구조 단일 루트 `/docker/` 통합 + 루트 컨텍스트 전환**
+
+- `Back/Docker/*` → `/docker/{be,arq,mysql,caddy,n8n}/`로 이동, FE 부트스트랩 시 `docker/fe/` 추가, AI 부트스트랩 시 `docker/ai/` 추가
+- compose 모든 서비스 `context: .` + `dockerfile: docker/<svc>/Dockerfile` 통일
+- Back/ARQ Dockerfile COPY 경로 `Back/...` 갱신, caddy `docker/caddy/Caddyfile` 갱신
+- 사유: 3트랙 + 인프라 4개 규모에서 인프라 정의 한 곳 집약이 탐색·일관성 우위
+
+**docker compose 실제 검증 (로컬)**
+
+- 6/6 컨테이너 healthy (be · arq-worker · mysql · redis · n8n · caddy)
+- `alembic upgrade head` → schema.md §3 전체 23개 테이블 + alembic_version 생성
+- `GET /health` 200 (be:8000 직접 + caddy:80 프록시 경유)
+
+**검증 중 발견 → 즉시 수정 (4건)**
+
+- `docker/be/Dockerfile`: gunicorn `--keepalive` → `--keep-alive` (CLI flag 오타)
+- `Back/pyproject.toml`: `cryptography==44.0.0` 추가 (MySQL 8 `caching_sha2_password` 인증 요구)
+- `Back/app/worker.py`: ARQ가 함수 0개로는 기동 거부 → Phase 2 placeholder `_noop` 함수 추가
+- `Back/App` → `Back/app` 케이스 정규화 (Docker COPY 대소문자 인식)
+
+**README §5 협업 규칙 명문화**
+
+- 트랙 간 동기화 (be ↔ fe) 4가지 규칙: Contract-first(api_spec.md + MSW mock 선행) / be·fe → dev promote / dev → be·fe back-merge / 미머지 feat 우선 마무리
+- 문서 커밋 위치 표: spec·plan·PROGRESS·루트 README는 main 직접(admin) 또는 `docs/<주제>` PR / 코드 옆 README는 해당 트랙 / HANDOFF는 .gitignore
+
+**브랜치 통합 (Phase 2 베이스라인)**
+
+- PR #1 BE → be 머지 / #2 FE → fe 머지 / #3 AI → ai 머지 (각 트랙 base)
+- PR #4 dev → main 머지 / #5 ai → main 머지 (Phase 2 통합)
+- 모든 장수 브랜치 5개 동일 commit (`34dc58a`) 정렬 — main = dev = be = fe = ai
+- 옛 `kick_off` 원격 브랜치 삭제
+
+**변경 파일**: Back/(pyproject.toml, app/*, alembic/*, alembic.ini) · Front/(package.json, src/*, vite.config.ts, tsconfig.*, biome.json, vitest.config.ts) · AI/(pyproject.toml, app/*, README.md) · docker/(be, arq, mysql, caddy, n8n, fe, ai) · docker-compose.yml · .env.example · README.md · .gitignore
+
 ### 2026-05-24 (23차)
 
 `docs/plan/` BE/FE 21개 phase 파일을 `/plan-eng-review` 스킬 기준 경량 검토(A안: BE+FE 짝지어 phase별 관찰사항 보고, 추천·판단 금지 메모리 규칙 준수). 10개 정합성 오류·누락 항목을 사용자 답변에 따라 일괄 정정.
