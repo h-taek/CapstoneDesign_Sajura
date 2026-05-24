@@ -15,6 +15,11 @@
 
 - BE: `pos_be` 완료 (M4.B1~M4.B3)
 
+## 디자인 사전 합의 권장
+
+- 업로드 결과 화면(M4.F3) 이상치 표시 영역은 AI 팀 이상치 탐지 방법(IQR/Z-score 등) 확정 전 디자인 고정 시 phase_12 hookup에서 갈아엎는 비용 발생
+- placeholder만 잡아두고 실 표시 디자인은 M12 hookup 시 확정
+
 ## 참조
 
 - [frontend_design.md §5 화면 구성](../../spec/07_frontend/frontend_design.md)
@@ -22,4 +27,4 @@
 
 ## Phase 통합 종료 조건 (M4)
 
-BE·FE 양쪽 완료 — CSV 업로드 → DB INSERT → 화면 표시
+BE·FE 양쪽 완료 — CSV 업로드 → DB INSERT → 화면 표시 → **데모 시나리오 Step 3 동작**

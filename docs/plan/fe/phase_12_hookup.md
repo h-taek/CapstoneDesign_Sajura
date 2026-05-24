@@ -11,6 +11,7 @@
 | M12.F2 | 신뢰도 낮음 배지 임계값 연결 | 응답 `is_low_confidence` + `low_confidence_reason` → 배지 표시 + 사유 툴팁 | `ai/01_model_selection.md` §4 임계값(BE env로 들어옴) |
 | M12.F3 | 예측 정확도 차트 단위·산식 반영 | M11.F2 placeholder → 확정 지표(MAPE/RMSE/MAE 등) 단위·축 label 갱신 | `ai/01_model_selection.md` §3 평가 지표 |
 | M12.F4 | OpenAPI 타입 재생성 | `pnpm gen:api` — BE 응답 스키마 변경 반영 | M12.B2 응답 스키마 |
+| M12.F5 | hookup 후 회귀 검증 | phase_09·11 화면이 hookup 전후로 정상 동작 (Playwright 회귀 시나리오) — 응답 형태 변경 영향 확인 | 회귀 시나리오 통과 |
 
 ## 외부 의존
 

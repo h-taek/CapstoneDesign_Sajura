@@ -11,7 +11,7 @@
 
 ## 산출물
 
-- `docs/research/backend/01_web_framework.md` ~ `14_security_open_items.md` (총 13개 파일)
+- `docs/research/backend/01_web_framework.md` ~ `14_security_open_items.md` (총 13개 파일, **`12_*` 결번** — 의도된 결번, 해당 카테고리 없음)
 - 정책 결정 14건 (PROGRESS.md §3 2026-05-15 ~ 2026-05-16 항목)
 
 ## 외부 의존
