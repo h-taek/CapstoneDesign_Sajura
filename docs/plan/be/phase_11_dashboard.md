@@ -9,8 +9,8 @@
 |---|---|---|---|
 | M11.B1 | DashboardService — 매출 집계 | 일별·주별·메뉴별 집계 + Redis 캐시 | 응답 시간 SLA 통과 |
 | M11.B2 | DashboardService — 예측 집계 | 예측 정확도 지표 placeholder (지표 종류는 M12.B2) | 캐시 키 패턴 정합 |
-| M11.B3 | NotificationService | 인앱(`notifications`) + Web Push(pywebpush·VAPID) + Slack + 이메일(fastapi-mail) 4채널 | 4채널 각 1회 발송 통과 |
-| M11.B4 | `POST /api/notifications/subscribe` | Web Push 구독 — `push_subscriptions` INSERT | 구독 → Web Push 1회 수신 |
+| M11.B3 | NotificationService (점주용 3채널) | 인앱(`notifications`) + Web Push(pywebpush·VAPID) + 이메일(fastapi-mail) — Slack은 운영자 전용으로 분리 (M8.B5·M10.B3) | 3채널 각 1회 발송 통과 |
+| M11.B4 | `POST /api/notifications/subscribe` | Web Push 구독 — `push_subscriptions` INSERT. **VAPID 키 관리: `spec/07_frontend/frontend_design.md` §환경변수(`VITE_VAPID_PUBLIC_KEY` inline 빌드 주입), BE 측은 env 비밀로 관리** | 구독 → Web Push 1회 수신 |
 
 ## 외부 의존
 
@@ -24,4 +24,6 @@
 
 ## Phase 통합 종료 조건 (M11)
 
-`dash` 완료 — **데모 시나리오 Step 5 동작**
+`dash` 완료 — **데모 시나리오 Step 8 동작** (대시보드·알림)
+
+**데모 시드:** notifications 미읽음 1건 이상, Web Push 데모 구독자 1건, 매출 집계용 sales 데이터(phase_05 시드 활용)

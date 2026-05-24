@@ -19,9 +19,11 @@
 
 ## 참조
 
-- [api_spec.md §6 forecast / §7 orders](../../spec/04_api/api_spec.md)
+- [api_spec.md §6 forecast / §7 orders](../../spec/05_api/api_spec.md)
 - [HANDOFF.md AI 의존성 ①·④](../../../HANDOFF.md)
 
 ## Phase 통합 종료 조건 (M9)
 
-`ord_fe_skeleton` 완료 (Day 46) — 예측 수량·발주 화면 동작 (근거·임계값 placeholder)
+`ord_fe_skeleton` 완료 (Day 46) — 예측 수량·발주 화면 동작 (근거·임계값 placeholder) → **데모 시나리오 Step 6·7 동작** (수요예측 + 추천발주)
+
+**데모 시드:** 추천발주 시나리오용 메뉴 3종+예측 수량 더미, 더미 `is_low_confidence=true` 응답 1건(배지 시연용)
