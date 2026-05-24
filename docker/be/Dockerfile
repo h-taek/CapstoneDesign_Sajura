@@ -30,7 +30,7 @@ CMD ["gunicorn", "app.main:app", \
      "-b", "0.0.0.0:8000", \
      "--timeout", "60", \
      "--graceful-timeout", "30", \
-     "--keepalive", "5", \
+     "--keep-alive", "5", \
      "--max-requests", "1000", \
      "--max-requests-jitter", "50", \
      "--preload"]

@@ -15,7 +15,12 @@ def _redis_settings() -> RedisSettings:
     return RedisSettings(host=s.REDIS_HOST, port=s.REDIS_PORT, database=s.REDIS_DB)
 
 
+async def _noop(ctx: dict) -> str:
+    """Phase 2 placeholder — ARQ는 함수 0개로는 기동 거부."""
+    return "ok"
+
+
 class WorkerSettings:
     redis_settings = _redis_settings()
-    functions: list = []
+    functions: list = [_noop]
     cron_jobs: list = []
