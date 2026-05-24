@@ -63,7 +63,7 @@ services:
   be:
     build:
       context: ./Back
-      dockerfile: Dockerfile
+      dockerfile: Docker/app/Dockerfile
     container_name: sajura-be
     restart: unless-stopped
     env_file:
@@ -87,7 +87,7 @@ services:
   arq-worker:
     build:
       context: ./Back
-      dockerfile: Dockerfile.arq
+      dockerfile: Docker/arq/Dockerfile
     container_name: sajura-arq-worker
     restart: unless-stopped
     env_file:
