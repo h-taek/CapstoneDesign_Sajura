@@ -91,11 +91,32 @@ be와 fe는 서로 진행 사항을 공유해야 하므로 아래 규칙을 따�
 
 | 문서 종류 | 커밋 위치 | 비고 |
 |---|---|---|
-| `docs/spec/`, `docs/plan/`, `PROGRESS.md`, 루트 `README.md` | **`main` 직접** (admin) 또는 `docs/<주제>` 브랜치 → main PR | 모든 트랙이 즉시 참조 |
+| `docs/spec/`, `docs/plan/`, `PROGRESS.md`, 루트 `README.md` | **`main` 전용** — admin은 직접 푸시, 그 외 팀원은 `docs/<주제>` 브랜치 → main PR | 모든 트랙이 즉시 참조. `main` 외 브랜치에서 직접 수정 금지 |
 | `Back/README.md`, `Front/README.md`, `AI/README.md` 등 코드 옆 문서 | 해당 트랙(be/fe/ai) 브랜치에 코드와 함께 | 코드 변경과 한 쌍 |
 | `HANDOFF.md` | 커밋 안 함 (`.gitignore`, 개인용) | — |
 
 > 문서 변경을 BE/FE 피처 브랜치에 섞으면 머지 시 노이즈가 된다. 코드 옆 README가 아니라면 분리한다.
+
+**main 전용 문서 운영 규칙 (충돌 방지)**
+
+* `PROGRESS.md` · `docs/spec/*` · `docs/plan/*` · 루트 `README.md` 는 **오직 `main` 브랜치에서만 수정**한다. 다른 브랜치(`feat/*`, `be`, `fe`, `dev`, `ai`)에서 직접 수정하지 않는다.
+* 단방향 정책(main → 다른 브랜치) 덕분에 back-merge 시 충돌 없이 fast-forward로 흡수된다.
+* 본인 작업 파일은 `git merge main`을 해도 **사라지지 않는다**. merge는 추가지 교체가 아님. 한쪽에만 있는 파일은 양쪽 모두 보존된다.
+
+**팀원별 main 변경 절차**
+
+| 누구 | 절차 |
+|---|---|
+| Repo admin (htaeky) | (a) `git push origin main` 직접 (PR 생략) **또는** (b) PR 흐름 |
+| 그 외 팀원 | **PR 흐름 필수** — `git checkout -b docs/<주제>` → 수정 → push → `gh pr create --base main` → 자기가 머지 (승인 의무 없음) |
+
+> 팀원 PR은 base 브랜치 push 권한 없이도 가능하다. `docs/*` feature 브랜치는 누구나 push 가능(main만 보호).
+
+**작업 상황 실시간 공유는 git/PR**
+
+* `PROGRESS.md` 는 **마일스톤 종료 후 정리되는 역사 기록**(왜 그렇게 했나) — 실시간 작업 공유 도구가 아니다.
+* "누가 지금 뭐 하고 있나"는 `gh pr list`, 브랜치 그래프(`git log --all --oneline --graph`), Notion Gantt로 확인.
+* PROGRESS는 Phase 종료 / 정책 결정 / audit 시점에만 차수 단위로 추가한다.
 
 ---
 
