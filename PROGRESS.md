@@ -71,6 +71,7 @@ docs/plan/       → 구현 계획 (단계별 작업, 순서, 역할 분담)
 | 2026-05-17 | **`docs/spec/prompts/08_ai_handoff.md` 폐기** — research 완료 후 곧바로 `docs/spec/08_ai/*.md`에 확정 사실을 역반영하는 흐름으로 작업 모델 단일화. 별도 인수인계 문서 불필요. 동시에 spec/research 8건 참조(`docs/README.md` SSOT 테이블·파일 맵 5건, `consistency_check.md` 2건, `research/ai/01_model_selection.md` 2건) 모두 정리. 사유: handoff가 spec 사이의 중계 노드처럼 작동해 SSOT 위반(같은 임계값이 3곳에 중복 정의 등) 발생 위험. 근거: 본 미확정 AI 항목 검토(20차 진행 중) |
 | 2026-05-17 | **학습 데이터 사용 방식 — 슬라이딩 윈도우 가정 자체를 research 이동** — spec(`ml_pipeline.md` §2, `model_spec.md` §7)이 "최근 N개월 슬라이딩 윈도우"를 사실처럼 적고 있었으나 방식 자체가 미확정. spec에서 슬라이딩 윈도우 문장·"N개월" placeholder를 모두 제거하고 `docs/research/ai/02_ml_pipeline_open_items.md` §2(슬라이딩 윈도우 / 전체 누적 / 시간 가중치 / 시즌별 분할 후보 비교)로 이동. `prompts/08_ai_handoff.md` 작업 체크박스·참고 미확정 표·`ml_pipeline.md` §10 미확정 안내 문구도 "학습 데이터 사용 방식(슬라이딩 윈도우 적용 여부 포함)"으로 일괄 통일. spec에는 "주간 단위 정기 재학습"·"배치 학습" 같은 합의된 사실만 유지. 사유: 어떤 학습 데이터 사용 방식이 적합한지(고정 윈도우 vs 가중치 vs 누적)는 데이터 확보·probe 없이 결정 불가, 슬라이딩 윈도우 단정이 다른 방식 검토를 차단. 근거: 본 미확정 AI 항목 검토(20차 진행 중) |
 | 2026-05-17 | **이상치 탐지 — 사실만 spec 유지, 방법론·정책 전부 research 이동** — spec(`requirements.md` §3, `ml_pipeline.md` §6, `feature_spec.md` §4.6·알림 표, `feature_list.md` POS 연동, `sequence.md` §판매 동기화, `user_flow.md` 알림 표, `service_design.md` 라이브러리 표)에서 IQR/Z-score 방법론 명시·5% 임계값·5% 미만 자동 분리/이상 알림 트리거·"이상 데이터 분리" 정책을 모두 제거하고 `docs/research/ai/02_ml_pipeline_open_items.md` §3로 이동. spec에는 "이상치 탐지를 수행한다"는 사실만 남기고 모든 위치에 "탐지 방법·임계값·처리 정책은 research §3 확정"으로 통일 안내. research §3에 §3.1 결측 보간·§3.2 이상치 탐지 방법·§3.3 처리 정책·§3.4 probe 후 spec 역반영 대상을 소항 분리. 동시에 `mvp_scope.md` 데이터 확보 방식 §8 각주의 "30일 미만·MAPE 20% 초과" 잠정 임계값(직전 결정에서 누락분)도 함께 정리. 사유: 두 탐지 방법 중 컬럼별 적용 조건·임계 계수·분리 vs 수정 선택지가 모두 실데이터 없이는 결정 불가, 잠정값이 spec에 박혀 있으면 probe 단계 누락 위험. 근거: 본 미확정 AI 항목 검토(20차 진행 중) |
+| 2026-05-23 | **Git 브랜치 전략 확정** — 베이스 브랜치 4개(`main`·`ai`·`dev`·`be`·`fe`) 생성·원격 푸시. 머지 흐름: be+fe는 `feat/be-*`/`feat/fe-*` → `be`/`fe` → `dev` → `main`, AI는 별도 서버로 독립 배포되어 `ai` → `main` 직행(`dev`와 합치지 않음, be+fe와는 HTTP API로만 연동). 피처 브랜치 네이밍 `feat/be-<name>`·`feat/fe-<name>`. GitHub main 보호 적용: 직접 푸시 금지·PR 필수(승인 의무 없음)·force push/삭제 차단·`enforce_admins=false`(레포 admin인 담당자는 문서류 직접 푸시 가능). 사유: AI 모델링은 다른 팀원 담당이고 AI 서버가 별도 배포 단위, be+fe만 통합 검증 필요. 근거: README.md §5 브랜치 전략 |
 | 2026-05-16 | **신뢰도 낮음 임계값·MVP MAPE 목표 — AI probe 후 확정으로 분리** — spec에 잠정값으로 적혀 있던 정량 기준(MAPE 20% 초과 / 학습 30일 미만 / 결측 30% 초과 / MVP MAPE 목표 30% 이하)을 모두 spec에서 제거하고 `docs/research/ai/01_model_selection.md` §4로 이동. spec(`feature_spec.md` §5.3, `feature_list.md` 수요예측 섹션, `mvp_scope.md` 예측 품질 기준, `prompts/08_ai_handoff.md` §8)에는 "정량 임계값은 AI probe 후 확정, research §4 참조"로 일괄 대체. `consistency_check.md` §6에 임시 숫자 재유입 방지 점검 행 추가. 신뢰도 낮음 개념·배지·DB 컬럼(`forecast_results.is_low_confidence`, `low_confidence_reason`)은 구조로 유지. 사유: 실제 모델 학습·평가 없이 임계값 확정 불가, 잠정값이 spec에 "확정"으로 박혀 있으면 검증 단계가 누락될 위험. 근거: 본 미확정 AI 항목 검토(20차 진행 중) |
 
 ---
@@ -78,6 +79,38 @@ docs/plan/       → 구현 계획 (단계별 작업, 순서, 역할 분담)
 ## 4. 문서 수정 이력
 
 spec/ 문서 작성·수정 내용을 날짜 역순으로 기록한다.
+
+### 2026-05-24 (23차)
+
+`docs/plan/` BE/FE 21개 phase 파일을 `/plan-eng-review` 스킬 기준 경량 검토(A안: BE+FE 짝지어 phase별 관찰사항 보고, 추천·판단 금지 메모리 규칙 준수). 10개 정합성 오류·누락 항목을 사용자 답변에 따라 일괄 정정.
+
+**A. spec 폴더 경로 정정 (Q1)** — BE plan 4곳에서 `04_api`·`05_db`·`06_flow` 옛 경로 → 신규 `05_api`·`06_database`·`04_flow`. 2026-05-15 폴더 재배치 시 plan 쪽 따라오지 못한 잔재.
+
+**B. FE 알림 폴링 주기 정정 (Q2)** — `phase_09 M9.F5` 30s → **5분** (18차 A-1 결정, 코드 상수·사용자 설정 제거).
+
+**C. Phase 03 온보딩 4스텝 ↔ BE 일정 모순 해결 (Q3)** — POS는 조사 미완으로 phase_03에 stub API(M3.B6, mock 200) 신설, 실연동은 phase_04 그대로. 메뉴는 조사 완료 영역이라 **MenuService 자체를 phase_05 → phase_03 M3.B7로 이동**. phase_05는 M5.B1 결번 없이 재번호(M5.B1 Inventory·B2 Sale·B3 ARQ). FE M3.F4 검증 "API 연결 테스트 버튼 통과" → "화면 흐름 진행 가능 (stub 200)" 약화. BE phase_03·04 외부 의존에 POS 조사 상태 명시.
+
+**D. BE phase_12 Day 33 시작일 모순 해결 (Q4)** — 의존 skeleton 종료가 Day 38·42·49인데 시작 Day 33은 매칭 안 됨(오타). phase_12를 단일 덩어리에서 마일스톤별 분산 실행으로 재해석: M12.B1 Day 38~, B2·B3 Day 42~, B4 Day 49~. 헤더 Day 38~49로 정정.
+
+**E. 데모 시나리오 9단계 SSOT 정의 (Q5)** — phase_13의 6단계 정의와 phase별 Step 번호 불일치 해소. 실제 시연 흐름에 맞춰 **9단계로 확장**: 1.로그인 2.온보딩 3.CSV 4.메뉴·재고·판매 5.n8n야간예측 6.수요예측 7.추천발주 8.대시보드·알림 9.쿠팡자동주문. phase_13 BE에 SSOT 표 추가. 모든 phase 종료 조건 Step 번호 및 plan_gantt.md 갱신.
+
+**F. 알림 채널 책임 분리 (Q6)** — phase_11 NotificationService 4채널에서 **Slack 제거 → 점주용 3채널(인앱·Web Push·이메일)**. phase_08 M8.B5·phase_10 M10.B3의 Slack은 **운영자 모니터링 전용**으로 명시.
+
+**G. 폴링·배치 정합 (Q7)** — FE M10.F2 자동화 폴링 = **30초**(진행 중일 때만, 완료 시 정지). ARQ cron 02:00 ↔ n8n run 02:00 동시각 충돌 해소: **ARQ 01:30 / n8n 02:30** 분산.
+
+**H. 산출물·정합성 비대칭 6항목 (Q8)** — ① FE phase_00 spec 신설은 research 부산물로 그대로 유지 ② BE M5.B3에 "FE 대응 없음 — BE 단독" 명시 ③ FE phase_04·09·11에 "디자인 사전 합의 권장" 노트 추가(phase_12 패턴 확장) ④ phase_12 hookup 후 회귀 마일스톤 신설(BE M12.B5·FE M12.F5) ⑤ 데모 시드 데이터를 phase_03/04/05/08/09/10/11 종료 조건에 분산 명시 ⑥ BE research `12_*` 결번 의도 표시.
+
+**I. 미정의 항목 spec 참조 추가 (Q9)** — CSV 포맷·필수 컬럼(spec/03_feature_design/feature_spec.md §4.4), VAPID(spec/07_frontend §환경변수), AES-256-GCM(spec/09_nonfunctional/security.md §4.1), 외부 데이터 4종(spec/08_ai/ml_pipeline.md) — plan 산출물 칸에 spec 위치 링크 추가.
+
+**J. SLA 강도 명확화 (Q10)** — spec/09_nonfunctional에 정식 SLA 정의 없음 → plan 자체 기준임을 명시. M13.B2 보안 High/Critical 0건은 **강행(배포 차단)**, M13.F2 Lighthouse 90+는 **목표(차단 아님, 시연 변동성 인정)**.
+
+**변경 파일**: BE plan 11개, FE plan 9개, plan_gantt.md (총 21개 plan 파일 수정).
+
+### 2026-05-23 (22차)
+
+루트의 `캡스톤_ML_통합가이드.md`를 `docs/research/ai/00_ml_reference_guide.md`로 이동. `00_` prefix로 "결정 문서가 아닌 기반 레퍼런스"임을 자연 정렬로 분리. 캡스톤 수업자료 통합본(EDA·전처리·피처 선택·AutoML·평가 시각화). `docs/README.md` §3 ai/ 표·`docs/research/README.md` ai/ 표에 인덱스 추가(연결 spec 컬럼은 "—(기반 참고)"). 사유: 일반 ML 방법론 가이드라 spec/plan 부적합, AI 도메인 한정이라 docs/ 루트보다 research/ai/ 적합.
+
+`README.md` §5 "브랜치 전략" 섹션 신규 추가(개발 환경 규칙 4 다음). 브랜치 트리 다이어그램·머지 흐름(be+fe 통합 흐름 + AI 직행 흐름)·작업 규칙·main 보호 규칙·피처 브랜치 작업 예시 명령어 포함. 사유: GitHub 베이스 브랜치 4개(`ai`·`dev`·`be`·`fe`) 신설 및 main 보호 적용에 따른 팀 규칙 문서화. AI 서버 독립 배포 정책 명시(be+fe와는 HTTP API로만 연동, `dev`와 합치지 않음).
 
 ### 2026-05-20 (21차)
 

@@ -7,10 +7,11 @@
 
 | ID | 마일스톤 | 산출물 | 검증 |
 |---|---|---|---|
-| M5.B1 | MenuService | 레시피(재료·수량) + 소프트삭제(`deleted_at`) | CRUD + 레시피 연결 테스트 |
-| M5.B2 | InventoryService | 로트(`inventory_lots`) + FIFO 출고 + 폐기 + 단가 갱신 | FIFO 시나리오 5종 통과 |
-| M5.B3 | SaleService 조회 | 일별·메뉴별·시간대별 집계 | 응답 시간 SLA 통과 |
-| M5.B4 | ARQ cron_jobs 등록 | 소비기한 일일 점검(매일 02:00) + 단가 갱신 | 1회 트리거 → notifications INSERT |
+| M5.B1 | InventoryService | 로트(`inventory_lots`) + FIFO 출고 + 폐기 + 단가 갱신 | FIFO 시나리오 5종 통과 |
+| M5.B2 | SaleService 조회 | 일별·메뉴별·시간대별 집계 | 응답 시간 SLA 통과 |
+| M5.B3 | ARQ cron_jobs 등록 (FE 대응 없음 — BE 단독 백그라운드) | 소비기한 일일 점검(매일 **01:30**, n8n 02:30과 분산) + 단가 갱신 | 1회 트리거 → notifications INSERT |
+
+> MenuService는 phase_03 M3.B7로 이동(2026-05-24 plan-eng-review 정정).
 
 ## 외부 의존
 
@@ -23,4 +24,6 @@
 
 ## Phase 통합 종료 조건 (M5)
 
-`dom_fe` 완료 (Day 35) → **데모 시나리오 Step 2 동작**, n8n 통합 가능
+`dom_fe` 완료 (Day 35) → **데모 시나리오 Step 4 동작** (메뉴·재고·판매 조회), n8n 통합 가능
+
+**데모 시드:** 재고 로트 더미 데이터(다양한 단가·소비기한), 판매 집계 산출 가능한 분량의 sales 행

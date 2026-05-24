@@ -8,11 +8,11 @@
 
 | ID | 마일스톤 | 산출물 | 검증 |
 |---|---|---|---|
-| M8.B1 | `n8n_data_skeleton` — 외부 API 수집 노드 | 날씨·유동인구·달력 4종(`[조사 중]` 항목 제외) 수집 워크플로우 | 일일 수집 1회 통과 |
+| M8.B1 | `n8n_data_skeleton` — 외부 API 수집 노드 | 날씨·유동인구·달력 4종(`[조사 중]` 항목 제외) 수집 워크플로우. **확정 소스 목록: `spec/08_ai/ml_pipeline.md` §외부 데이터 (조사 중 항목은 `research/ai/02_ml_pipeline_open_items.md` §1)** | 일일 수집 1회 통과 |
 | M8.B2 | `n8n_data_skeleton` — 전처리 더미 노드 | 통과·기본 채움(NULL → 0)만 — 결측 보간·이상치 탐지 로직은 M12.B1 hookup | 입력 데이터 그대로 통과 |
-| M8.B3 | `n8n_run` — 야간 예측 배치 | 매일 02:00 → `n8n` → AI Server `/ai/forecast/predict` → `forecast_results` INSERT | 1회 트리거 → 캐시 적재 |
+| M8.B3 | `n8n_run` — 야간 예측 배치 | 매일 **02:30** (ARQ 01:30과 분산) → `n8n` → AI Server `/ai/forecast/predict` → `forecast_results` INSERT | 1회 트리거 → 캐시 적재 |
 | M8.B4 | `n8n_run` — 주간 재학습 배치 | 매주 일요일 → AI Server `/ai/forecast/train` | 1회 트리거 통과 |
-| M8.B5 | `n8n_run` — Slack 알림·재시도 | slack_sdk Webhook + n8n 재시도 3회·exponential | 실패 시뮬레이션 → 재시도 + Slack 알림 |
+| M8.B5 | `n8n_run` — Slack 알림(운영자 전용)·재시도 | slack_sdk Webhook (운영자 모니터링 채널) + n8n 재시도 3회·exponential — 점주 알림 채널 아님 | 실패 시뮬레이션 → 재시도 + 운영자 Slack 알림 |
 
 ## 외부 의존
 
@@ -26,4 +26,6 @@
 
 ## Phase 종료 조건 (M8)
 
-`n8n_run` 완료 → **데모 시나리오 Step 3 동작** (전처리는 더미 노드)
+`n8n_run` 완료 → **데모 시나리오 Step 5 동작** (n8n 야간 예측 배치, 전처리는 더미 노드)
+
+**데모 시드:** AI Server `/ai/forecast/predict` 응답 더미(`forecast_results` 채워질 정도), 외부 데이터 4종 캐시 1일치

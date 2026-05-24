@@ -18,6 +18,11 @@
 - **AI 팀 결정 대기 (Phase 12 hookup)**: 예측 정확도 지표 종류·단위 → M12 reflected
 - **ROI 대시보드는 `[2단계]`** — MVP 범위 밖
 
+## 디자인 사전 합의 권장
+
+- 예측 정확도 차트(M11.F2)는 AI 팀 지표(MAPE/RMSE/MAE) 확정 전 단위·축 디자인 고정 시 M12.F3에서 갈아엎는 비용 발생
+- placeholder UI만 잡아두고 실 단위·축 디자인은 hookup 시 확정
+
 ## 참조
 
 - [frontend_design.md §5 대시보드·알림](../../spec/07_frontend/frontend_design.md)
@@ -25,4 +30,4 @@
 
 ## Phase 통합 종료 조건 (M11)
 
-`dash` 완료 → **데모 시나리오 Step 5 동작**
+`dash` 완료 → **데모 시나리오 Step 8 동작** (대시보드·알림)

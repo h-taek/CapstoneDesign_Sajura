@@ -13,7 +13,7 @@
 
 ## 외부 의존
 
-- BE: `dom_be` 완료 (M5.B1~M5.B3)
+- BE: `dom_be` 완료 (M5.B1 Inventory · M5.B2 Sale) + 메뉴는 phase_03 M3.B7 완료 전제
 
 ## 참조
 
@@ -21,4 +21,4 @@
 
 ## Phase 통합 종료 조건 (M5)
 
-`dom_fe` 완료 → **데모 시나리오 Step 2 동작**
+`dom_fe` 완료 → **데모 시나리오 Step 4 동작** (메뉴·재고·판매 조회)

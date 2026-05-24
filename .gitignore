@@ -41,6 +41,7 @@ Thumbs.db
 .codex/
 .claude/
 .gemini/
+.agents/
 
 # personal (개인용 작업 컨텍스트, 외부 공유 X)
 HANDOFF.md
