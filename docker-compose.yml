@@ -20,6 +20,7 @@ services:
       - --collation-server=utf8mb4_unicode_ci
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init.sh:/docker-entrypoint-initdb.d/init.sh:ro
     ports:
       - "${DB_PORT:-3306}:3306"
     healthcheck:
@@ -62,8 +63,8 @@ services:
 
   be:
     build:
-      context: ./Back
-      dockerfile: Docker/app/Dockerfile
+      context: .
+      dockerfile: docker/be/Dockerfile
     container_name: sajura-be
     restart: unless-stopped
     env_file:
@@ -86,8 +87,8 @@ services:
 
   arq-worker:
     build:
-      context: ./Back
-      dockerfile: Docker/arq/Dockerfile
+      context: .
+      dockerfile: docker/arq/Dockerfile
     container_name: sajura-arq-worker
     restart: unless-stopped
     env_file:
@@ -108,7 +109,8 @@ services:
 
   caddy:
     build:
-      context: ./Back/Docker/caddy
+      context: .
+      dockerfile: docker/caddy/Dockerfile
     container_name: sajura-caddy
     restart: unless-stopped
     depends_on:

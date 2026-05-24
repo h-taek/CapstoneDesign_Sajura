@@ -1,5 +1,5 @@
 # Backend image — service_design.md §11.1 (be 컨테이너, Gunicorn + uvicorn.workers)
-# Build context: ./Back
+# Build context: repo root (compose: context=.)
 FROM python:3.12-slim AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -12,13 +12,13 @@ WORKDIR /app
 # uv (service_design.md §1 dev tools) — used here only to resolve+install deps from pyproject.
 RUN pip install --no-cache-dir uv==0.5.11
 
-COPY pyproject.toml ./
+COPY Back/pyproject.toml ./
 # Generate a lock during build (uv.lock is committed in a later phase once stabilized).
 RUN uv pip install --system --no-cache .
 
-COPY app ./app
-COPY alembic ./alembic
-COPY alembic.ini ./alembic.ini
+COPY Back/app ./app
+COPY Back/alembic ./alembic
+COPY Back/alembic.ini ./alembic.ini
 
 EXPOSE 8000
 
