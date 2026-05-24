@@ -78,6 +78,25 @@ git push -u origin feat/be-csv-upload
 gh pr create --base be
 ```
 
+**트랙 간 동기화 (be ↔ fe)**
+
+be와 fe는 서로 진행 사항을 공유해야 하므로 아래 규칙을 따른다.
+
+* **Contract-first**: BE는 `docs/spec/05_api/api_spec.md`(OpenAPI 계약)를 먼저 안정화한다. FE는 BE 완성 전이라도 `pnpm gen:api`로 타입 코드젠 + MSW mock으로 선행 개발한다.
+* **be/fe → dev promote**: 마일스톤(Phase) 끝나면 `be` / `fe`를 즉시 `dev`로 promote PR한다. dev는 항상 양 트랙의 "최신 truth"가 된다.
+* **dev → fe / dev → be back-merge**: 새 피처 브랜치를 따기 전 또는 매주 정기적으로 `git checkout fe && git merge origin/dev && git push`(또는 be)로 base를 최신화한다. 이후 따는 모든 `feat/*`는 자동으로 최신 상태에서 출발.
+* **충돌 최소화**: 이미 진행 중인 `feat/*` 브랜치는 그대로 두고 마무리한 다음, 다음 피처부터 back-merge된 base에서 따는 것이 깔끔하다.
+
+**문서 커밋 위치**
+
+| 문서 종류 | 커밋 위치 | 비고 |
+|---|---|---|
+| `docs/spec/`, `docs/plan/`, `PROGRESS.md`, 루트 `README.md` | **`main` 직접** (admin) 또는 `docs/<주제>` 브랜치 → main PR | 모든 트랙이 즉시 참조 |
+| `Back/README.md`, `Front/README.md`, `AI/README.md` 등 코드 옆 문서 | 해당 트랙(be/fe/ai) 브랜치에 코드와 함께 | 코드 변경과 한 쌍 |
+| `HANDOFF.md` | 커밋 안 함 (`.gitignore`, 개인용) | — |
+
+> 문서 변경을 BE/FE 피처 브랜치에 섞으면 머지 시 노이즈가 된다. 코드 옆 README가 아니라면 분리한다.
+
 ---
 
 ## 문서 관리
