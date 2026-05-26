@@ -106,8 +106,10 @@ plan/       → 확정된 내용을 구현 단위로 분해
 
 | 파일 | 다루는 내용 |
 |------|------------|
+| `00_ml_guide_reference.md` | 캡스톤 ML 통합가이드 (PART 0~5 + 부록) — 프로젝트 ML 설계 전반의 참고문서 |
 | `01_model_selection.md` | 베이스라인 4·5단계(LSTM/TimExer) 검토, LightGBM↔DNN 전환 기준, Regression/Classification 선택, 평가 지표·데이터 분리 |
-| `02_ml_pipeline_open_items.md` | 외부 데이터 소스(경제지표·검색량·SNS) 수집 가능성, 결측·이상치 처리 기준, 모델 배포 승인 기준 |
+| `02_ml_pipeline_open_items.md` | 결측·이상치 처리 기준, 슬라이딩 윈도우, 모델 배포 승인 기준 |
+| `03_external_data_sources.md` | 외부 데이터 소스 조사 — 날씨·유동인구·상권·조치원 특화 데이터 수집 가능성 |
 
 ---
 

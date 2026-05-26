@@ -19,7 +19,7 @@
 → 학습(주간 재학습, 모델은 research §2 확정)
 → 예측(내일 발주량 계산)
 → 캐싱(DB 저장, 즉시 응답 대비)
-→ 알림(점주에게 푸시 발송)
+→ 알림(앱 내 알림)
 ```
 
 ## 4. 입력 데이터
@@ -57,7 +57,9 @@
 - Canonical Schema로 변환한다.
 - JSON Schema 또는 Pydantic으로 형식을 검증한다.
 - 결측, 이상치, 표준화를 처리한다.
-- 이상치 탐지 방법·임계값·이상 데이터 처리 정책(분리/수정 여부 포함)은 `docs/research/ai/02_ml_pipeline_open_items.md` §3에서 확정한다.
+- 이상치 탐지: IQR 우선 (왜도 높은 분포), Z-score 보조 (정규 분포) — 임계값은 `docs/research/ai/02_ml_pipeline_open_items.md` §3.2 확정.
+- 결측값 처리: 판매량 forward-fill, 날씨 선형 보간 등 컬럼별 전략 — 상세는 `docs/research/ai/02_ml_pipeline_open_items.md` §3.1 확정.
+- **누수 방지**: 보간·통계 계산에 사용하는 기준값은 현재 배치 이전 train 구간 데이터에서만 산출한다.
 
 ## 7. 학습
 
@@ -82,9 +84,11 @@
 
 ## 10. 운영 및 모니터링
 
-- n8n 실행 결과 모니터링 대시보드를 제공한다.
-- 실패 시 Slack 알림을 제공한다.
+- `pipeline_jobs` 테이블로 파이프라인 실행 상태를 추적한다.
+- 실패·지연 시 Slack 알림을 제공한다.
 - GitHub Actions를 통해 CI/CD 자동화를 적용한다.
+
+> 모니터링할 상태값·Slack 알림 트리거 조건 상세는 `docs/research/ai/02_ml_pipeline_open_items.md` §5 참조.
 
 ---
 

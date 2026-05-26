@@ -19,7 +19,8 @@
 ## 3. 초기 모델
 
 - 초기 AI 모델 및 ML Server 사용 라이브러리는 미확정 (`docs/research/ai/01_model_selection.md` §2 확정 — 베이스라인 비교 후보 중 선정).
-- DNN 계열(PyTorch 등) 도입 여부 및 모델 간 전환 기준, Regression vs Classification 선택은 조사 중. `docs/research/ai/01_model_selection.md` §2 참조.
+- **예측 문제 유형: Regression 확정** (수량 직접 예측 — 연속값 출력).
+- DNN 계열 도입 여부 및 전환 기준은 AutoGluon 베이스라인 probe 후 결정. 진단 조건표는 `docs/research/ai/01_model_selection.md` §2.1 참조.
 
 ## 4. 예측 대상
 
@@ -50,7 +51,8 @@
 - n8n을 통해 데이터를 주기적으로 수집한다.
 - 배치 학습 방식을 사용한다.
 - 주간 단위 정기 재학습을 수행한다.
-- 학습 데이터 사용 방식(슬라이딩 윈도우 적용 여부·창 크기 등)은 `docs/research/ai/02_ml_pipeline_open_items.md` §2에서 확정한다.
+- **교차 검증 방식: Walk-forward CV (TimeSeriesSplit)** — 매장별 단일 시계열이므로 무작위 K-fold 금지.
+- 학습 데이터 사용 방식(윈도우 크기 등)은 `docs/research/ai/02_ml_pipeline_open_items.md` §2에서 확정한다.
 - 판매 결과 및 폐기 데이터를 모델 업데이트에 반영한다.
 - 점주 수정 이력을 재학습에 반영한다.
 
@@ -63,8 +65,9 @@
 ## 9. 예측 근거 설계
 
 - 예측 결과의 근거를 점주가 이해할 수 있도록 제공한다.
-- 산출 방법 및 출력 형태는 `docs/research/ai/01_model_selection.md` §3 확정.
-- 신뢰도 경고 기준은 §5.3 (`feature_spec.md`) 참조.
+- **예측 근거 산출: LightGBM `gain` (1차 스크리닝) → TreeSHAP (`shap.TreeExplainer`) 확정.**
+- 출력 형태(top-3 기여 피처, 자연어 변환 여부)는 probe 후 결정 — `docs/research/ai/01_model_selection.md` §3.3 참조.
+- 신뢰도 경고 기준은 `feature_spec.md` §5.3 참조.
 
 ---
 

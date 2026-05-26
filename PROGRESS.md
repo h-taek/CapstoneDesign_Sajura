@@ -79,6 +79,48 @@ docs/plan/       → 구현 계획 (단계별 작업, 순서, 역할 분담)
 
 spec/ 문서 작성·수정 내용을 날짜 역순으로 기록한다.
 
+### 2026-05-24 (22차)
+
+외부 데이터 소스 조사 완료. 대상 지역을 세종 조치원 홍익대 상권으로 확정하여 데이터 수집 가능성 검토.
+
+- `docs/research/ai/03_external_data_sources.md` 신규 작성
+  - 날씨: 기상청 단기예보 API (무료, MVP 필수)
+  - 유동인구: 세담터(세종시 전용 빅데이터 플랫폼, 무료) / SK 지오비전(유료, 2단계)
+  - 상권: 소상공인 상가정보·배달상권 CSV (무료), 세종시 상권정보시스템 (무료)
+  - **조치원 특화**: 홍익대 세종캠퍼스 학사일정 (무료, MVP 강력 권장)
+  - 경제지표·검색량: 2단계 보류
+
+### 2026-05-22 (21차)
+
+캡스톤 ML 통합가이드(`docs/research/ai/00_ml_guide_reference.md`)를 기반으로 AI research 미확정 항목 일부 확정 및 spec 정정.
+
+**A. research/ai 업데이트**
+
+- `01_model_selection.md`:
+  - §2.2 **Regression 확정** (수량 직접 예측, 분류 방식 기각)
+  - §2.1 DNN 진단 조건표 추가 (AutoGluon probe 후 결정 기준 명시)
+  - §3.1 **Walk-forward CV (TimeSeriesSplit) 확정** (단일 시계열, K-fold 금지)
+  - §3.2 평가 지표 3종 후보 확정: **MAE + MAPE + R²** (목표값 probe 후)
+  - §3.3 **예측 근거: LightGBM `gain` + TreeSHAP 확정**
+- `02_ml_pipeline_open_items.md`:
+  - §3.1 결측값 보간 전략 확정 (판매량 ffill, 날씨 보간 등 컬럼별 매핑)
+  - §3.2 이상치 탐지 방법론 확정: **IQR 우선, Z-score 보조** (임계 계수 probe 후)
+  - §3.3 **데이터 누수 방지 원칙** 신규 추가
+  - §2.0 Walk-forward CV와 슬라이딩 윈도우 연관 관계 명시
+
+**B. spec/08_ai 정정 (HANDOFF 항목 처리)**
+
+- `ml_pipeline.md` §3: "푸시 발송" → **"앱 내 알림"** 정정
+- `ml_pipeline.md` §6: IQR·결측 전략·누수 방지 원칙 추가
+- `ml_pipeline.md` §10: "n8n 대시보드" → **"`pipeline_jobs` 테이블 + Slack"** 정정
+- `model_spec.md` §3: **Regression 확정** 반영
+- `model_spec.md` §7: **Walk-forward CV** 반영
+- `model_spec.md` §9: **TreeSHAP 채택** 반영
+
+**C. 신규 파일**
+
+- `docs/research/ai/00_ml_guide_reference.md` — 캡스톤 ML 통합가이드 (PART 0~5 + 부록)
+
 ### 2026-05-16~17 (20차)
 
 14개 미확정 AI 항목을 일괄 검토하여 spec 전반의 가정·잠정값을 research로 위임. 작업 모델 단순화 위해 `docs/spec/prompts/` 폴더 두 파일(`08_ai_handoff.md`·`consistency_check.md`) 모두 폐기. 검토 항목 본 단위로 사용자가 직접 결정(AI 판단 금지·미확정+확정 사실 동시 나열·일반어 설명·단계별 진행 원칙).

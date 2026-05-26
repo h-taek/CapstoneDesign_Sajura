@@ -36,34 +36,83 @@
 
 ### 2.1 DNN 도입 여부 및 LightGBM ↔ DNN 전환 기준
 
-> spec(`model_spec.md` §3)에 "PyTorch DNN 기술 스택 포함"이 사실처럼 적혀 있었으나, DNN 도입 자체가 미확정. spec에서 추상 표현으로 정리.
+> 근거: `00_ml_guide_reference.md` PART 3-5 "부스팅이 안 맞을 때의 진단"
 
-조사 필요:
-- DNN 계열(PyTorch DNN, Transformer 변형 등) 도입 여부 자체
-- 도입 시 LightGBM이 DNN을 능가/패배하기 시작하는 데이터 규모 임계점
-- 자동 전환 vs 수동 평가 후 전환
-- 외생 변수 수·계절성 패턴 복잡도에 따른 모델 선택
+사주라 조건에서 DNN 전환 여부를 결정하는 진단 조건표:
 
-### 2.2 Regression vs Classification
+| 진단 조건 | 사주라 예상 | 권장 방향 |
+|---|---|---|
+| 데이터 < 수천 행 | 매장별 가능성 높음 | DNN 과적합 위험 → LightGBM 유지 |
+| 순서·시간 의존성 있음 | 판매 시계열 해당 | lag/rolling 피처 추가로 LightGBM에서 처리 |
+| AutoML 리더보드에서 NN이 상위권 | 베이스라인 probe 후 확인 | DNN 도입 검토 |
+| LightGBM이 리더보드 1~2위 유지 | probe 후 확인 | DNN 도입 보류 |
 
-- 메뉴별 1~3일 수요예측을 회귀(수량 직접 예측)로 풀지, 분류(수량 구간 예측)로 풀지 미정.
+**결정 프로세스**: AutoGluon `best_quality`로 베이스라인 비교(§1 4단계 probe) → 부스팅이 리더보드 상위면 LightGBM 유지, FT-Transformer·NN_TORCH가 상위면 DNN 검토.
 
-조사 필요:
-- 추천발주 결정 단위에서 어떤 방식이 더 신뢰 가능한 출력을 주는가
-- XAI(SHAP) 해석 용이성 차이
+추가 조사 필요:
+- 매장별 모델 vs 통합 모델 구조에서 DNN 학습 가능성
+- 외생 변수(날씨·유동인구) 통합 시 LSTM/TimExer 효과
+
+### 2.2 Regression vs Classification ✅ 확정
+
+**결론: Regression (수량 직접 예측)**
+
+- 메뉴별 1~3일 수요는 연속 정수값 → 회귀가 자연스럽다.
+- 분류(수량 구간 예측)는 구간 경계 정의를 추가로 요구하고, 발주 계산 시 역변환 필요.
+- 근거: `00_ml_guide_reference.md` PART 2-3 — 연속 y → `f_regression` / `mutual_info_regression` 경로. PART 4-4 회귀 평가 지표(MAE/MAPE/R²)가 직접 적용 가능.
+- spec `model_spec.md` §3에 반영: "Regression 확정"
 
 ---
 
 ## 3. 추가 조사 필요 항목 (spec/08_ai에서 이동)
 
-| 항목 | 연결 spec | 결정 필요 사항 |
-|------|----------|----------------|
-| 학습/검증/테스트 데이터 분리 기준 | model_spec.md §7 | 날짜 기반 시계열 분리 방식(holdout/walk-forward) |
-| 평가 지표 선정(MAPE 사용 여부 포함) 및 목표 성능 | model_spec.md §6, mvp_scope.md §5, feature_spec.md ROI 대시보드 §8.2, feature_spec.md §5.3 | 예측 정확도 측정 지표(MAPE / RMSE / MAE / bias 등) 선정·산식·목표값·신뢰도 낮음 임계값 모두 미정. 결정 후 spec에 "예측 정확도 지표" 추상 표현 자리를 채움 |
-| Cold-start 파이프라인 분기 로직 | feature_spec.md §5.4 [2단계], ml_pipeline.md | 정상 경로 vs Cold-start 경로 분기 판정 위치(n8n/AI Server)·유사 매장 매칭 알고리즘·매칭 결과 0개 대응·자체 데이터 전환 트리거. 전략 자체(유사 매장 기반·신뢰도 낮음 배지·자체 데이터 30일 후 전환)는 spec 유지 |
-| 예측 근거 산출 방법 및 출력 형태 | model_spec.md §9, ml_pipeline.md §9, feature_spec.md §5·§9·§12, api_spec.md AI Server API, schema.md `forecast_results`, service_design.md AIServerClient, sequence.md | 산출 방법(SHAP·Feature Importance·기타 후보) 및 출력 형태(자연어·표·수치 등) 모두 미확정. 결정 후 spec에 (1) 산출 방법 한 줄, (2) 출력 형태에 따른 DB 컬럼/API 응답 필드/엔드포인트 부활 또는 신규 정의. 자연어 채택 시 변수별 매핑 규칙·임계값별 문장 패턴·예외 처리 별도 정의 |
-| 모델 버전 관리 방식 | (신규) | MLflow·W&B·자체 관리 비교 |
-| 재학습 후 배포 승인·모델 교체 기준 | ml_pipeline.md §10 | → `02_ml_pipeline_open_items.md` §6에서 통합 결정 (성능 임계값·자동 vs 수동·롤백 절차) |
+| 항목 | 연결 spec | 결정 필요 사항 | 상태 |
+|------|----------|----------------|------|
+| 학습/검증/테스트 데이터 분리 기준 | model_spec.md §7 | 날짜 기반 시계열 분리 방식(holdout/walk-forward) | ✅ §3.1 확정 |
+| 평가 지표 선정(MAPE 사용 여부 포함) 및 목표 성능 | model_spec.md §6, mvp_scope.md §5, feature_spec.md §5.3 | 예측 정확도 측정 지표 선정·산식·목표값·신뢰도 낮음 임계값 | ✅ §3.2 후보 확정 / 목표값 probe 후 |
+| Cold-start 파이프라인 분기 로직 | feature_spec.md §5.4 [2단계], ml_pipeline.md | 분기 판정 위치·유사 매장 매칭 알고리즘·결과 0개 대응·전환 트리거 | 🟡 검토 예정 |
+| 예측 근거 산출 방법 및 출력 형태 | model_spec.md §9, ml_pipeline.md §9 | 산출 방법 및 출력 형태 | ✅ §3.3 확정 |
+| 모델 버전 관리 방식 | (신규) | MLflow·W&B·자체 관리 비교 | 🟡 조사 필요 |
+| 재학습 후 배포 승인·모델 교체 기준 | ml_pipeline.md §10 | 성능 임계값·자동 vs 수동·롤백 절차 | → `02_ml_pipeline_open_items.md` §6 |
+
+### 3.1 학습·검증·테스트 분리 방식 ✅ 확정
+
+**결론: Walk-forward CV (TimeSeriesSplit)**
+
+- 사주라는 매장별 단일 시계열이므로, 무작위 K-fold 분할 시 미래 정보가 과거 학습에 새어 들어간다.
+- 근거: `00_ml_guide_reference.md` PART 5-2 함정 4번 — "K-fold를 한 개의 긴 시계열에 적용하면 TimeSeriesSplit 필수"
+- 구현: `sklearn.model_selection.TimeSeriesSplit(n_splits=5)` 또는 수동 walk-forward
+- test set: 가장 최근 N일 hold-out (N은 probe 시 결정, 권장 30~60일)
+- spec `model_spec.md` §7에 "Walk-forward CV (TimeSeriesSplit)" 반영
+
+### 3.2 평가 지표 ✅ 후보 확정 (목표값은 probe 후)
+
+**채택 지표 3종: MAE + MAPE + R²**
+
+| 지표 | 산식 | 특징 | 비고 |
+|---|---|---|---|
+| **MAE** | mean(\|y - ŷ\|) | 절대 오차 평균, 이상치에 덜 민감 | 점주 직관적 이해 가능 |
+| **MAPE** | mean(\|y - ŷ\| / y) × 100 | 비율 오차, 메뉴별 규모 차이 무관 | **y=0 시 정의 불가 → 0 판매일 처리 필요** |
+| **R²** | 1 − SS_res/SS_tot | 0~1 설명력, baseline 비교 유용 | 음수 가능(baseline보다 나쁘면) |
+
+> 근거: `00_ml_guide_reference.md` PART 4-4 회귀 평가 지표 목록
+
+**MAPE 0 판매일 처리**: y=0인 행 제외하거나 sMAPE(대칭 MAPE)로 대체 — probe 후 결정.
+목표값(MAPE XX% 이하 등)은 초기 LightGBM probe 후 `§4.2`에 기록.
+
+### 3.3 예측 근거 산출 방법 ✅ 확정
+
+**결론: LightGBM `gain` + TreeSHAP**
+
+- 1차 스크리닝: `feature_importance(importance_type='gain')` — 손실 감소량 기준 (연속형 편향 없음)
+- 최종 해석·보고: `shap.TreeExplainer` (일관성 공리 만족, Lundberg & Lee 2017 NeurIPS)
+- 출력 형태: TreeSHAP global summary + 예측 인스턴스별 top-3 기여 피처
+- 자연어 변환 여부: probe 후 결정 (출력 형태가 확정되어야 DB 컬럼 부활 가능)
+
+> 근거: `00_ml_guide_reference.md` PART 2-4-7, PART 5-3 함정 11번 (LightGBM `split` 기본값 편향 경고)
+
+**주의**: LightGBM 기본 `importance_type='split'`은 분할 횟수만 셈 → 자주 분할되는 연속형 변수가 과대평가됨. 항상 `importance_type='gain'` 명시.
+spec 연동: `shap` 라이브러리를 AI Server 의존성에 추가.
 
 ---
 
