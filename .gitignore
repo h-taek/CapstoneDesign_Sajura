@@ -3,6 +3,7 @@
 .env
 .env.local
 .env.*.local
+.env.zip
 
 # Python
 __pycache__/
@@ -42,6 +43,13 @@ Thumbs.db
 .claude/
 .gemini/
 .agents/
+
+# Images
+*.jpg
+*.jpeg
+*.png
+*.svg
+*.pdf
 
 # personal (개인용 작업 컨텍스트, 외부 공유 X)
 HANDOFF.md

@@ -80,7 +80,7 @@ docs/plan/       → 구현 계획 (단계별 작업, 순서, 역할 분담)
 
 spec/ 문서 작성·수정 내용을 날짜 역순으로 기록한다.
 
-### 2026-05-25 (24차) — Phase 2 인프라 부트스트랩 구현 + main 베이스라인 통합
+### 2026-05-25 (26차) — Phase 2 인프라 부트스트랩 구현 + main 베이스라인 통합
 
 **구현 시작 — 3트랙 부트스트랩 (M2.B1~B4 / M2.F1~F6 / AI skeleton)**
 
@@ -122,7 +122,7 @@ spec/ 문서 작성·수정 내용을 날짜 역순으로 기록한다.
 
 **변경 파일**: Back/(pyproject.toml, app/*, alembic/*, alembic.ini) · Front/(package.json, src/*, vite.config.ts, tsconfig.*, biome.json, vitest.config.ts) · AI/(pyproject.toml, app/*, README.md) · docker/(be, arq, mysql, caddy, n8n, fe, ai) · docker-compose.yml · .env.example · README.md · .gitignore
 
-### 2026-05-24 (23차)
+### 2026-05-24 (25차)
 
 `docs/plan/` BE/FE 21개 phase 파일을 `/plan-eng-review` 스킬 기준 경량 검토(A안: BE+FE 짝지어 phase별 관찰사항 보고, 추천·판단 금지 메모리 규칙 준수). 10개 정합성 오류·누락 항목을 사용자 답변에 따라 일괄 정정.
 
@@ -148,11 +148,53 @@ spec/ 문서 작성·수정 내용을 날짜 역순으로 기록한다.
 
 **변경 파일**: BE plan 11개, FE plan 9개, plan_gantt.md (총 21개 plan 파일 수정).
 
-### 2026-05-23 (22차)
+### 2026-05-24 (24차)
+
+외부 데이터 소스 조사 완료. 대상 지역을 세종 조치원 홍익대 상권으로 확정하여 데이터 수집 가능성 검토.
+
+- `docs/research/ai/03_external_data_sources.md` 신규 작성
+  - 날씨: 기상청 단기예보 API (무료, MVP 필수)
+  - 유동인구: 세담터(세종시 전용 빅데이터 플랫폼, 무료) / SK 지오비전(유료, 2단계)
+  - 상권: 소상공인 상가정보·배달상권 CSV (무료), 세종시 상권정보시스템 (무료)
+  - **조치원 특화**: 홍익대 세종캠퍼스 학사일정 (무료, MVP 강력 권장)
+  - 경제지표·검색량: 2단계 보류
+
+### 2026-05-23 (23차)
 
 루트의 `캡스톤_ML_통합가이드.md`를 `docs/research/ai/00_ml_reference_guide.md`로 이동. `00_` prefix로 "결정 문서가 아닌 기반 레퍼런스"임을 자연 정렬로 분리. 캡스톤 수업자료 통합본(EDA·전처리·피처 선택·AutoML·평가 시각화). `docs/README.md` §3 ai/ 표·`docs/research/README.md` ai/ 표에 인덱스 추가(연결 spec 컬럼은 "—(기반 참고)"). 사유: 일반 ML 방법론 가이드라 spec/plan 부적합, AI 도메인 한정이라 docs/ 루트보다 research/ai/ 적합.
 
 `README.md` §5 "브랜치 전략" 섹션 신규 추가(개발 환경 규칙 4 다음). 브랜치 트리 다이어그램·머지 흐름(be+fe 통합 흐름 + AI 직행 흐름)·작업 규칙·main 보호 규칙·피처 브랜치 작업 예시 명령어 포함. 사유: GitHub 베이스 브랜치 4개(`ai`·`dev`·`be`·`fe`) 신설 및 main 보호 적용에 따른 팀 규칙 문서화. AI 서버 독립 배포 정책 명시(be+fe와는 HTTP API로만 연동, `dev`와 합치지 않음).
+
+### 2026-05-22 (22차)
+
+캡스톤 ML 통합가이드(`docs/research/ai/00_ml_guide_reference.md`)를 기반으로 AI research 미확정 항목 일부 확정 및 spec 정정.
+
+**A. research/ai 업데이트**
+
+- `01_model_selection.md`:
+  - §2.2 **Regression 확정** (수량 직접 예측, 분류 방식 기각)
+  - §2.1 DNN 진단 조건표 추가 (AutoGluon probe 후 결정 기준 명시)
+  - §3.1 **Walk-forward CV (TimeSeriesSplit) 확정** (단일 시계열, K-fold 금지)
+  - §3.2 평가 지표 3종 후보 확정: **MAE + MAPE + R²** (목표값 probe 후)
+  - §3.3 **예측 근거: LightGBM `gain` + TreeSHAP 확정**
+- `02_ml_pipeline_open_items.md`:
+  - §3.1 결측값 보간 전략 확정 (판매량 ffill, 날씨 보간 등 컬럼별 매핑)
+  - §3.2 이상치 탐지 방법론 확정: **IQR 우선, Z-score 보조** (임계 계수 probe 후)
+  - §3.3 **데이터 누수 방지 원칙** 신규 추가
+  - §2.0 Walk-forward CV와 슬라이딩 윈도우 연관 관계 명시
+
+**B. spec/08_ai 정정 (HANDOFF 항목 처리)**
+
+- `ml_pipeline.md` §3: "푸시 발송" → **"앱 내 알림"** 정정
+- `ml_pipeline.md` §6: IQR·결측 전략·누수 방지 원칙 추가
+- `ml_pipeline.md` §10: "n8n 대시보드" → **"`pipeline_jobs` 테이블 + Slack"** 정정
+- `model_spec.md` §3: **Regression 확정** 반영
+- `model_spec.md` §7: **Walk-forward CV** 반영
+- `model_spec.md` §9: **TreeSHAP 채택** 반영
+
+**C. 신규 파일**
+
+- `docs/research/ai/00_ml_guide_reference.md` — 캡스톤 ML 통합가이드 (PART 0~5 + 부록)
 
 ### 2026-05-20 (21차)
 

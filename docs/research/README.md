@@ -54,9 +54,10 @@ research/
 
 | 파일 | 다루는 내용 | 연결 spec |
 |------|------------|-----------|
-| `00_ml_reference_guide.md` | ML 파이프라인 일반 레퍼런스(EDA·전처리·피처 선택·AutoML·평가 시각화). 캡스톤 수업자료 통합본, 의사결정 문서 아님 | — (기반 참고) |
+| `00_ml_guide_reference.md` | 캡스톤 ML 통합가이드 (PART 0~5 + 부록) | — |
 | `01_model_selection.md` | 베이스라인 4·5단계 검토, LightGBM↔DNN 전환 기준, Regression/Classification, 평가 지표, SHAP 템플릿 등 | `08_ai/model_spec.md` |
-| `02_ml_pipeline_open_items.md` | 외부 데이터 소스 검토, 슬라이딩 윈도우, 결측·이상치 기준, 알림·모니터링·배포 승인 | `08_ai/ml_pipeline.md` |
+| `02_ml_pipeline_open_items.md` | 슬라이딩 윈도우, 결측·이상치 기준, 알림·모니터링·배포 승인 | `08_ai/ml_pipeline.md` |
+| `03_external_data_sources.md` | 외부 데이터 소스 조사 — 날씨·유동인구·상권·조치원 특화 | `08_ai/ml_pipeline.md` §4 |
 
 ---
 
