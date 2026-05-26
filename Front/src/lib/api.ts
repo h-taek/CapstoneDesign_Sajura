@@ -1,6 +1,6 @@
 // HTTP 클라이언트 — frontend_design.md §1 (ky 1.x) + §2 (401 단일 refresh 인터셉터).
 import ky from "ky";
-import { useAuthStore } from "./auth-store";
+import { useAuthStore } from "../stores/auth-store";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
