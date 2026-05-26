@@ -105,7 +105,7 @@ async def update_menu(
     return _menu_to_dto(menu)
 
 
-@router.delete("/{menu_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
+@router.delete("/{menu_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response, response_model=None)
 async def delete_menu(menu_id: str, session: SessionDep, current: CurrentUserDep) -> None:
     store_id = await _store_id(session, current.user_id)
     await MenuService(session).delete_menu(store_id=store_id, menu_id=menu_id)
@@ -142,7 +142,7 @@ async def upsert_recipe(
     return await get_recipe(menu_id, session, current)
 
 
-@router.delete("/{menu_id}/recipe", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
+@router.delete("/{menu_id}/recipe", status_code=status.HTTP_204_NO_CONTENT, response_class=Response, response_model=None)
 async def delete_recipe(menu_id: str, session: SessionDep, current: CurrentUserDep) -> None:
     store_id = await _store_id(session, current.user_id)
     await MenuService(session).delete_recipe(store_id=store_id, menu_id=menu_id)

@@ -73,7 +73,7 @@ async def refresh(
     return TokenResponse(access_token=tokens.access_token, expires_in=tokens.expires_in)
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, response_class=Response, response_model=None)
 async def logout(
     response: Response, session: SessionDep, current: CurrentUserDep,
     refresh_token: Annotated[str | None, Cookie()] = None,
@@ -84,7 +84,7 @@ async def logout(
     return response
 
 
-@router.post("/logout-all", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
+@router.post("/logout-all", status_code=status.HTTP_204_NO_CONTENT, response_class=Response, response_model=None)
 async def logout_all(
     response: Response, session: SessionDep, current: CurrentUserDep
 ) -> Response:
@@ -119,7 +119,7 @@ async def update_me(
     return await get_me(session, current)
 
 
-@router.patch("/password", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
+@router.patch("/password", status_code=status.HTTP_204_NO_CONTENT, response_class=Response, response_model=None)
 async def change_password(
     payload: ChangePasswordRequest, response: Response,
     session: SessionDep, current: CurrentUserDep,
@@ -134,7 +134,7 @@ async def change_password(
     return response
 
 
-@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT, response_class=Response, response_model=None)
 async def delete_me(
     payload: DeleteAccountRequest, response: Response,
     session: SessionDep, current: CurrentUserDep,

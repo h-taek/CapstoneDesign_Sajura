@@ -112,7 +112,7 @@ async def update_pos(
     return _to_dto(pos)
 
 
-@router.delete("", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
+@router.delete("", status_code=status.HTTP_204_NO_CONTENT, response_class=Response, response_model=None)
 async def delete_pos(session: SessionDep, current: CurrentUserDep) -> None:
     store = await StoreService(session).get_store(current.user_id)
     pos = await session.scalar(select(PosConnection).where(PosConnection.store_id == store.store_id))
