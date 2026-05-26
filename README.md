@@ -112,6 +112,19 @@ be와 fe는 서로 진행 사항을 공유해야 하므로 아래 규칙을 따�
 
 > 팀원 PR은 base 브랜치 push 권한 없이도 가능하다. `docs/*` feature 브랜치는 누구나 push 가능(main만 보호).
 
+**⚠️ 문서 작업 시작 전 필수 절차 — 최신 main 동기화**
+
+main 전용 문서(`PROGRESS.md` · `docs/spec/*` · `docs/plan/*` · 루트 `README.md` · `CLAUDE.md` · `AGENTS.md`)를 수정하기 전에는 **항상 최신 `origin/main`을 먼저 받아온 다음** 작업한다. 이를 어기면 다른 팀원/이전 세션의 변경분을 덮어쓰거나, 머지 시 불필요한 충돌이 발생한다.
+
+| 단계 | 명령 |
+|---|---|
+| 1. main 체크아웃 + 최신화 | `git checkout main && git fetch origin && git pull --ff-only origin main` |
+| 2. (admin 직접 푸시) 그 자리에서 수정 → 커밋 → `git push origin main` | — |
+| 2. (팀원 PR 흐름) 최신 main에서 작업 브랜치 분기 | `git checkout -b docs/<주제>` → 수정 → push → `gh pr create --base main` → 머지 |
+| 3. 머지 후 모든 장수 브랜치에 main을 back-merge하여 정합 | `git checkout <be|fe|dev|ai> && git merge origin/main && git push` |
+
+> **순서 절대 금지**: 옛 main 상태에서 수정 → 커밋 → push 시도 → 충돌/거부. 항상 "1. 최신 main 받기 → 2. 수정"의 순서를 지킨다. AI 에이전트(Claude·Codex 등)도 이 규칙을 따른다 — `CLAUDE.md` · `AGENTS.md` 참고.
+
 **작업 상황 실시간 공유는 git/PR**
 
 * `PROGRESS.md` 는 **마일스톤 종료 후 정리되는 역사 기록**(왜 그렇게 했나) — 실시간 작업 공유 도구가 아니다.

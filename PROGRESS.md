@@ -80,6 +80,71 @@ docs/plan/       → 구현 계획 (단계별 작업, 순서, 역할 분담)
 
 spec/ 문서 작성·수정 내용을 날짜 역순으로 기록한다.
 
+### 2026-05-27 (28차) — Phase 3 사후 정리: 브랜치/HANDOFF/문서 작업 규칙 정합
+
+**머지 완료된 피처 브랜치 삭제**
+
+- `feat/be-auth` (PR #7로 `be`에 머지 완료) · `feat/fe-auth` (PR #8로 `fe`에 머지 완료) — 원격(`origin/feat/*`) + 로컬 모두 삭제
+- 결과: 장수 브랜치 5개(`main`·`dev`·`be`·`fe`·`ai`)만 잔존
+- outdated stash 1건(`WIP: BE phase 3 (M3.B1~B7 in progress)` — PR #7로 이미 통합된 옛 스냅샷) drop
+
+**HANDOFF.md slim down (213→107줄, 50% 감축)**
+
+- stale 4개 섹션 제거:
+  - `작업 1: frontend 리서치 ✅` — 상단 "본인이 결정·검토한 spec" 표와 중복
+  - `작업 2: spec/08_ai 정리 ✅` — 동일 중복
+  - `작업 A: BE/FE plan 작성 ⬜` — **실제로는 21차/23차 audit에서 ✅ 완료**, 상단 표와 모순되는 stale
+  - `작업 B: BE/FE 구현 ⬜` — Phase 2/3 ✅ 완료, 상단 표 B/C/D와 모순되는 stale
+- 중복 표 1건 제거: `다른 담당자 영역` 표가 바로 아래 "AI 팀 결과 대기 중" 섹션과 중복
+- Phase 3 통합 결과(2026-05-26) + Phase 4 진입 메모로 우선순위 행 갱신 (E=dev→main 통합, F=Phase 4 POS)
+
+**문서 작업 규칙 — main 동기화 의무화 (충돌·덮어쓰기 방지)**
+
+- `README.md` §5: "⚠️ 문서 작업 시작 전 필수 절차 — 최신 main 동기화" 블록 신설. main 전용 문서(PROGRESS·docs/spec·docs/plan·루트 README·CLAUDE·AGENTS) 수정 전 `git checkout main && git fetch origin && git pull --ff-only origin main` 의무화. admin 직접 푸시 / 팀원 PR 분기 2가지 경로 표 + 머지 후 장수 브랜치 back-merge 절차 명시
+- `CLAUDE.md` · `AGENTS.md`: 핵심 규칙 3→4로 확장. 규칙 4에 동일 사항 명시 + README §5 참조. AI 에이전트(Claude·Codex)도 동일 규칙 준수 명령
+- 사유: 옛 main 상태에서 곧장 수정 시 다른 팀원/이전 세션 변경분 덮어쓰기·머지 충돌 발생 위험
+
+**변경 파일**: `PROGRESS.md`(본 항목) · `HANDOFF.md` · `README.md` · `CLAUDE.md` · `AGENTS.md`
+
+### 2026-05-26 (27차) — Phase 3 인증·온보딩 구현 (BE M3.B1~B7 + FE M3.F1~F6)
+
+**BE Phase 3 (`feat/be-auth` → `be`, PR #7)**
+
+- 라이브러리: Authlib(OAuth) + python-jose(JWT) + passlib[bcrypt] + cryptography(AES-256-GCM) — `security.md` §2·§4.1 정합
+- `AuthService` — 이메일 로그인(M3.B1) + 카카오/구글 OAuth 콜백 → Refresh HttpOnly Cookie + FE root 302 redirect (`api_spec.md` §2)
+- `StoreService` — 매장 정보 등록/조회/PATCH + 소프트 삭제 + `POST /api/store/onboarding/complete` 멱등 처리(M3.B2)
+- 국세청 사업자등록번호 검증 어댑터 (`integrations/nts.py`) — 키 미설정 시 stub 통과 모드(M3.B3)
+- `POST /api/auth/logout-all` — 모든 디바이스 Refresh 일괄 폐기 (`security.md` §2.3)(M3.B4)
+- `auth_test` BE 통합 테스트 12개 (pytest + testcontainers)(M3.B5)
+- POS stub API — Phase 4 실연동 전 화면 흐름 막힘 방지용 mock 200 응답(M3.B6)
+- `MenuService` — 메뉴 CRUD + `POST /api/menus/bulk`(중복 메뉴 skip 응답)(M3.B7)
+- 사후 수정: FastAPI 0.115 호환 — 204 응답 라우터에 `response_model=None` 명시 (`f53c5d4`)
+
+**FE Phase 3 (`feat/fe-auth` → `fe`, PR #8)**
+
+- 라우터·가드: React Router v7 data router + `RequireAuth`·`RequireGuest`(부트스트랩 완료·onboarding_completed 상태 분기)(M3.F1, M3.F2)
+- Auth 부트스트랩: 마운트 1회 `POST /api/auth/refresh` → 메모리 Access Token 동기 + `GET /api/auth/me`로 `user.onboarding_completed` 확보 (`frontend_design.md` §2)
+- 로그인 화면(`/login`): 카카오·구글 버튼 → BE `/api/auth/login/{provider}` 302 진입(M3.F1)
+- 온보딩 4스텝 폼 (React Hook Form + zod + `@hookform/resolvers/zod`):
+  - Step 1 매장 정보 — phone 자동 마스크(`0xx-xxxx-xxxx`)(M3.F3)
+  - Step 2 POS 연동 — `CSV_ONLY`/`UNIONPOS`/`OKPOS`/`POSBANK` 선택, CSV_ONLY는 자격증명 생략(M3.F4)
+  - Step 3 메뉴 등록 — `useFieldArray` 동적 배열(M3.F5)
+  - Step 4 확인·제출 — `PATCH /api/store` → (POS 등록 옵션) → `POST /api/menus/bulk` → `POST /api/store/onboarding/complete` 순차 호출 후 메인 진입(M3.F6)
+- 스토어 분리: Zustand `useAuthStore`(메모리 Access Token + user) / `useOnboardingStore`(스텝 간 폼 캐시) — persist 미들웨어 미사용
+- 단위 테스트: 폰 마스크·zod 스키마 검증 (Vitest 8 케이스 통과)
+- Playwright E2E 시나리오(`src/test/e2e/auth-onboarding.spec.ts`) — BE 미가용 상태에서도 `page.route`로 라우트 인터셉트하여 라우팅·가드·폼 흐름 검증(M3.F7 스캐폴드 — 실 BE 통합 검증은 BE M3.B1~B3 완료 후)
+- 빌드/타입 검증: `pnpm typecheck` ✓ · `pnpm test` 8/8 ✓ · 앱 영역 `tsc -p tsconfig.app.json` ✓ (사전 존재 `sw.ts` workbox-precaching 미설치는 Phase 2 베이스라인 결함, 별도)
+
+**브랜치 통합**
+
+- PR #7 `feat/be-auth` → `be` 머지 / PR #8 `feat/fe-auth` → `fe` 머지
+- PR #9 `be` 후속 정리 / PR #10 `fe` 후속 정리 — be/fe 베이스 동기화 완료
+
+**변경 파일**
+
+- BE: `Back/app/api/{auth,oauth,store,pos_stub,menu,deps}.py`, `Back/app/services/*`, `Back/app/models/*`, `Back/app/schemas/*`, `Back/app/integrations/nts.py`, `Back/app/core/{errors,security}.py`, `Back/app/db.py`, `Back/app/{config,main}.py`, `Back/pyproject.toml`
+- FE: `Front/src/routes/{login,home,router,guards}.tsx`, `Front/src/routes/onboarding/{layout,step-store,step-pos,step-menus,step-confirm}.tsx`, `Front/src/api/endpoints/{auth,store,menus}.ts`, `Front/src/stores/{auth-store,onboarding-store}.ts`, `Front/src/schemas/onboarding.ts`, `Front/src/features/auth/use-auth-bootstrap.ts`, `Front/src/components/ui/{button,field}.tsx`, `Front/src/App.tsx`, `Front/src/lib/api.ts`, `Front/src/test/{smoke.test.tsx,onboarding-schema.test.ts,e2e/auth-onboarding.spec.ts}`, `Front/{package.json,playwright.config.ts,vitest.config.ts,pnpm-lock.yaml}`
+
 ### 2026-05-25 (26차) — Phase 2 인프라 부트스트랩 구현 + main 베이스라인 통합
 
 **구현 시작 — 3트랙 부트스트랩 (M2.B1~B4 / M2.F1~F6 / AI skeleton)**

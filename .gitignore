@@ -43,6 +43,7 @@ Thumbs.db
 .claude/
 .gemini/
 .agents/
+.agentbridge/
 
 # Images
 *.jpg
