@@ -67,6 +67,11 @@ class Settings(BaseSettings):
     AI_SERVER_BASE_URL: str = "http://ai-server:8001"
     N8N_BASE_URL: str = "http://n8n:5678"
 
+    # 국세청 사업자등록 조회 (M3.B3)
+    NTS_API_BASE_URL: str = "https://api.odcloud.kr/api/nts-businessman/v1"
+    NTS_API_SERVICE_KEY: str = ""
+    NTS_API_STUB_MODE: bool = True
+
     # Middleware policy (service_design.md §10)
     CORS_ALLOW_ORIGINS: str = "http://localhost:5173"
     TRUSTED_HOSTS: str = "localhost,be"
