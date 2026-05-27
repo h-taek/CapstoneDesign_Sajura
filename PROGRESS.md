@@ -64,6 +64,7 @@ docs/plan/       → 구현 계획 (단계별 작업, 순서, 역할 분담)
 | 보안 정책 | RBAC MVP 단일 역할 점주 / 감사 로그 1년 보관·`ops_readonly` 조회·append-only / 다중 디바이스 자체 토큰 / 강제 로그아웃 `POST /api/auth/logout-all` 채택 / 결제는 쿠팡 자체 수행(사주라 미경유·미저장) | `security.md` §2·§5, `research/backend/14_security_open_items.md` |
 | 데모 시나리오 | 9단계 SSOT — 1.로그인 2.온보딩 3.CSV 4.메뉴·재고·판매 5.n8n야간예측 6.수요예측 7.추천발주 8.대시보드·알림 9.쿠팡자동주문 | `docs/plan/be/phase_13_release.md` |
 | OAuth dev 운영 (29차) | (a) 카카오 scope에서 `account_email` 제거 — 동의항목 미검수 환경 대응. (b) fallback 이메일은 `{provider}_{id}@social.example.com` (valid TLD). (c) `UserMeResponse.email`은 `str` (register/login 입력 검증만 `EmailStr`). (d) Vite dev proxy `/api → BE`로 FE/BE 같은 origin 통합 — Safari ITP cross-site cookie 차단 회피 | `Back/app/api/oauth.py`, `Back/app/schemas/auth.py`, `Front/vite.config.ts` |
+| FE 자체 로그인·회원가입 (29차) | spec(`feature_spec.md` §1.2)·BE(9개 라우터 + auth_test 12개)는 정상이나 27차 phase_03 작성 시 FE 마일스톤이 누락되어 OAuth 화면만 노출. `docs/plan/fe/phase_03_auth.md` M3.F8로 명시화하고 **다음 단계로 즉시 진행**. `dev` 위에서 `feat/fe-register` → `fe` → `dev` 머지 흐름. **main 릴리즈는 전체 phase 완료 후 1회**로 유보 | `docs/plan/fe/phase_03_auth.md` M3.F8, `feature_spec.md` §1.2, `HANDOFF.md` |
 
 ---
 

@@ -14,6 +14,9 @@
 | M3.F5 | 온보딩 3스텝 — 메뉴 등록 | 메뉴·레시피 폼 (동적 배열) | 5개 메뉴 등록 통과 |
 | M3.F6 | 온보딩 4스텝 — 확인·완료 | 요약 표시 + 제출 → 메인 화면 | end-to-end 1회 통과 |
 | M3.F7 | auth_test FE 측 | Playwright E2E (로그인 → 온보딩 4스텝 → 메인) | 시나리오 1회 통과 |
+| M3.F8 | **자체 로그인·회원가입 화면** | `routes/register.tsx` 신설 + `routes/login.tsx`에 이메일/비밀번호 폼 + 사업자번호 검증 화면 (`api_spec.md` §2 `POST /api/auth/register`·`POST /api/auth/login` 호출) | 이메일/비밀번호로 회원가입 → 즉시 로그인 → 온보딩 진입 통과 |
+
+> **M3.F8 추가 사유 (29차)**: 본 마일스톤은 Phase 3 dev 통합 검증(E)·dev→main 릴리즈(F) 직후 **곧바로 진행** 예정. BE(`feat/be-auth`)는 `feature_spec.md` §1.2에 따라 자체 로그인·회원가입 9개 라우터 모두 구현·테스트(auth_test 12 케이스) 완료되어 있으나, FE는 OAuth 화면만 노출 상태였음. 27차 phase_03 마일스톤 작성 시 누락된 항목을 명시화.
 
 ## 외부 의존
 
