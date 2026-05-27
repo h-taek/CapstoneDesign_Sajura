@@ -45,3 +45,8 @@ Thumbs.db
 
 # personal (개인용 작업 컨텍스트, 외부 공유 X)
 HANDOFF.md
+.agentbridge/
+
+# dev-up.sh runtime artifacts
+.dev-fe.log
+.dev-fe.pid
