@@ -10,3 +10,5 @@ coverage/
 .eslintcache
 .tsbuildinfo
 *.tsbuildinfo
+test-results/
+playwright-report/
