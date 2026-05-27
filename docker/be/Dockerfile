@@ -13,12 +13,14 @@ WORKDIR /app
 RUN pip install --no-cache-dir uv==0.5.11
 
 COPY Back/pyproject.toml ./
-# Generate a lock during build (uv.lock is committed in a later phase once stabilized).
-RUN uv pip install --system --no-cache .
+# Dev image: runtime deps + [dev] extras (pytest, ruff, mypy 등) — auth_test 실행용.
+# 운영 단계에서는 multi-stage로 dev extras 제외 예정 (Phase 13 release hardening).
+RUN uv pip install --system --no-cache ".[dev]"
 
 COPY Back/app ./app
 COPY Back/alembic ./alembic
 COPY Back/alembic.ini ./alembic.ini
+COPY Back/tests ./tests
 
 EXPOSE 8000
 
