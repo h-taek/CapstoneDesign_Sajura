@@ -33,7 +33,7 @@ _USERINFO_URLS = {
     "kakao": "https://kapi.kakao.com/v2/user/me",
     "google": "https://www.googleapis.com/oauth2/v3/userinfo",
 }
-_SCOPES = {"kakao": "account_email profile_nickname", "google": "openid email profile"}
+_SCOPES = {"kakao": "profile_nickname", "google": "openid email profile"}
 
 
 def _client_id(p: str) -> str:
@@ -153,11 +153,11 @@ async def _fetch_userinfo(provider: str, access_token: str) -> dict[str, str]:
         prof = acc.get("profile", {}) or {}
         return {
             "social_id": str(data.get("id", "")),
-            "email": acc.get("email") or f"kakao_{data.get('id')}@no-email.local",
+            "email": acc.get("email") or f"kakao_{data.get('id')}@social.example.com",
             "name": prof.get("nickname") or "카카오사용자",
         }
     return {
         "social_id": str(data.get("sub", "")),
-        "email": data.get("email") or f"google_{data.get('sub')}@no-email.local",
+        "email": data.get("email") or f"google_{data.get('sub')}@social.example.com",
         "name": data.get("name") or "Google User",
     }

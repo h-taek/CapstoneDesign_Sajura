@@ -36,7 +36,9 @@ class TokenResponse(BaseModel):
 
 class UserMeResponse(BaseModel):
     user_id: str
-    email: EmailStr
+    # OAuth 사용자가 이메일 권한 미허용 시 fallback(`{provider}_{id}@social.example.com`)을
+    # 저장하므로 EmailStr 대신 일반 str 사용 — 입력 검증은 register/login 단계에서만.
+    email: str
     name: str
     auth_provider: Literal["LOCAL", "KAKAO", "GOOGLE"]
     store_name: str | None

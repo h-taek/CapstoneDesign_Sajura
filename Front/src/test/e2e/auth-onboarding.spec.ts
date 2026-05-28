@@ -74,6 +74,11 @@ test.describe("auth + onboarding", () => {
   });
 
   test("login page exposes both OAuth buttons", async ({ page }) => {
+    // beforeEach가 /api/auth/refresh를 200으로 stub하므로 RequireGuest가 /login에서
+    // 리다이렉트시킴 → 로그인 화면 자체 검증을 위해 refresh만 401로 덮어씀.
+    await page.route("**/api/auth/refresh", async (route) =>
+      route.fulfill({ status: 401, body: JSON.stringify({ error: "AUTH_REFRESH_TOKEN_INVALID" }) }),
+    );
     await page.goto("/login");
     await expect(page.getByRole("button", { name: /카카오로 계속하기/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /Google로 계속하기/ })).toBeVisible();
