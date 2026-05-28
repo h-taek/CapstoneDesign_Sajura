@@ -960,7 +960,7 @@ Authorization: Bearer <access_token>
       "menu_name": "아메리카노",
       "predicted_quantity": 52,
       "confidence_score": 0.87
-      // 예측 근거 필드는 산출 방법·출력 형태 확정 후 추가 (`docs/research/ai/01_model_selection.md` §3)
+      // 예측 근거 필드는 산출 방법·출력 형태 확정 후 추가
     }
   ]
 }
@@ -1242,7 +1242,7 @@ Authorization: Bearer <access_token>
       "menu_id": "uuid",
       "predicted_quantity": 52,
       "confidence_score": 0.87
-      // 예측 근거 필드는 산출 방법·출력 형태 확정 후 추가 (`docs/research/ai/01_model_selection.md` §3)
+      // 예측 근거 필드는 산출 방법·출력 형태 확정 후 추가
     }
   ]
 }
@@ -1296,7 +1296,7 @@ Authorization: Bearer <access_token>
       "config_status": "USER_CONFIGURED",
       "defaults_used": null,
       "recommendation_reason": "예측 판매량과 현재 재고 기준으로 2일 내 재고 부족이 예상됩니다."
-      // 추가 근거 필드(영향 변수 등)는 산출 방법·출력 형태 확정 후 추가 (`docs/research/ai/01_model_selection.md` §3)
+      // 추가 근거 필드(영향 변수 등)는 산출 방법·출력 형태 확정 후 추가
     }
   ]
 }
@@ -1433,7 +1433,7 @@ Authorization: Bearer <access_token>
   "calculation_notes": [
     "waste_reduction_rate는 기준월(start_month) 대비 각 월의 폐기 비용 감소율입니다.",
     "inventory_turnover_change는 기준월 대비 기간 평균 재고 회전율 변화입니다.",
-    "forecast_accuracy_metric은 해당 기간 예측 결과와 실제 판매량을 비교해 계산합니다. 산정 방식(어떤 지표를 쓸지)은 `docs/research/ai/01_model_selection.md` §3 확정."
+    "forecast_accuracy_metric은 해당 기간 예측 결과와 실제 판매량을 비교해 계산합니다. 산정 방식(어떤 지표를 쓸지)은 별도 확정 예정."
   ]
 }
 ```

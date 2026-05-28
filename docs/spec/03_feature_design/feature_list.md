@@ -58,8 +58,8 @@
 
 ### 2.6 AI/예측 근거
 
-- 이동평균, ARIMA/Prophet, XGBoost/LightGBM, LSTM, TimExer 순서로 베이스라인을 비교한다 (초기 모델 선정은 `docs/research/ai/01_model_selection.md` §2).
-- 예측 결과에 대한 근거를 제공한다 (산출 방법·출력 형태는 `docs/research/ai/01_model_selection.md` §3 확정).
+- 이동평균, ARIMA/Prophet, XGBoost/LightGBM, LSTM, TimExer 순서로 베이스라인을 비교한다 (초기 모델은 베이스라인 비교 후 선정).
+- 예측 결과에 대한 근거를 제공한다 (산출 방법·출력 형태는 별도 확정).
 
 ### 2.7 자동화 파이프라인
 
@@ -78,7 +78,7 @@
 
 ### POS 연동
 - CSV 업로드는 사주라 제공 고정 템플릿 형식만 허용
-- 이상치 처리 방식(자동 분리·점주 알림·복구·폐기 분기 조건)은 `docs/research/ai/02_ml_pipeline_open_items.md` §3에서 확정
+- 이상치 처리 방식(자동 분리·점주 알림·복구·폐기 분기 조건)은 별도 확정 예정
 - POS사별 API 자격증명 형식은 `docs/research/backend/13_pos_adapter.md`에서 조사·정의
 
 ### 메뉴 관리
@@ -97,7 +97,7 @@
 
 ### 수요예측
 - 전체 메뉴 대상 예측 (재고 차감 여부 무관)
-- 신뢰도 낮음 경고 기준: 예측 정확도·학습 데이터 기간·결측값 비율 기반 (지표 선정·정량 임계값 모두 AI probe 후 확정, `docs/research/ai/01_model_selection.md` §3·§4 참조)
+- 신뢰도 낮음 경고 기준: 예측 정확도·학습 데이터 기간·결측값 비율 기반 (지표 선정·정량 임계값 모두 AI probe 후 확정)
 - Cold-start: 자체 데이터 30일 전까지 동일 업종 + 유사 상권 + 매장 규모 기준 유사 매장 예측 활용
 
 ### 추천발주

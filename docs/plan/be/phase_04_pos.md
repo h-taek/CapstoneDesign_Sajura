@@ -13,7 +13,7 @@
 
 ## 외부 의존
 
-- AI 팀의 이상치 탐지 방법(IQR/Z-score 등) 미정 — `ai/02_ml_pipeline_open_items.md` §3.2 확정 시 M12.B1에서 실제 로직 반영
+- AI 팀의 이상치 탐지 방법(IQR/Z-score 등) 미정 — AI 팀 확정 시 M12.B1에서 실제 로직 반영
 - BARO V2 어댑터 조사 완료 전제 (`docs/research/backend/13_pos_adapter.md`) — 미완 시 M3.B6 stub 유지
 
 ## 참조

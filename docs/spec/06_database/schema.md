@@ -308,7 +308,6 @@ CREATE TABLE forecast_results (
     low_confidence_reason   VARCHAR(255)    NULL,
     generated_at            DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     -- 예측 근거 저장 컬럼은 산출 방법·출력 형태 확정 후 추가
-    -- (`docs/research/ai/01_model_selection.md` §3 참조)
     PRIMARY KEY (forecast_id),
     UNIQUE KEY uq_forecast_store_menu_date (store_id, menu_id, target_date),
     CONSTRAINT fk_forecast_results_store FOREIGN KEY (store_id) REFERENCES stores (store_id),
