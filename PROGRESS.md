@@ -58,9 +58,9 @@ docs/plan/       → 구현 계획 (단계별 작업, 순서, 역할 분담)
 | Frontend 스택 | React 19 + Vite 6 + TS strict + React Router v7 + Zustand 5(auth 메모리·prefs persist 분리) + TanStack Query v5 + ky 1.x(401 단일 refresh 인터셉터) + openapi-typescript + Tailwind v4 + shadcn/ui + RHF + zod + Recharts + vite-plugin-pwa(injectManifest) + @sentry/react | `frontend_design.md` |
 | Git 브랜치 전략 | 장수 5개(`main`·`dev`·`be`·`fe`·`ai`). be+fe → `feat/*` → be/fe → dev → main, AI는 ai → main 직행. main 보호(직접 푸시 금지·PR 필수). 통합 후 5브랜치 동일 commit 정렬 | `README.md` §5 |
 | 문서 작업 main 동기화 | main 전용 문서(PROGRESS·docs/spec·docs/plan·루트 README·CLAUDE·AGENTS) 수정 전 `git pull --ff-only origin main` 의무 | `README.md` §5, `CLAUDE.md` 규칙 ④ |
-| AI 미확정 → research 위임 | 평가 지표(MAPE 사용 여부)·예측 근거 산출 방법·DNN 도입 여부·학습 데이터 사용 방식·결측 보간·이상치 탐지 정책·신뢰도 임계값·재학습 교체 기준 — spec에서 "사실"로 박지 않고 `research/ai/01·02`에서 probe 후 확정 | `research/ai/01_model_selection.md`, `02_ml_pipeline_open_items.md` |
-| AI 일부 확정 (22차) | Regression 방식 + Walk-forward CV + IQR 우선/Z-score 보조(임계 계수 probe 후) + 데이터 누수 방지 원칙. 모델 자체는 미확정 유지 | `research/ai/01·02` |
-| MVP 외부 데이터 | 4종(POS·날씨·유동인구·달력)만으로 시작. 경제지표·검색량·SNS 등은 `[조사 중]` 표기 유지 — 활용 의도 확정 / 기술 가능성만 미정 | `research/ai/03_external_data_sources.md` |
+| AI 미확정 항목 | 평가 지표·예측 근거 산출 방법·DNN 도입 여부·학습 데이터 사용 방식·결측 보간·이상치 임계값·신뢰도 임계값·재학습 교체 기준 — AI 팀 확정 시 spec에 직접 반영. spec/plan은 "별도 확정 예정"으로 표기 (30차 research 위임 폐기) | 각 spec 본문 (`08_ai/model_spec.md`, `ml_pipeline.md` 등) |
+| AI 일부 확정 (22차) | Regression 방식 + Walk-forward CV + IQR 우선/Z-score 보조(임계 계수 probe 후) + 데이터 누수 방지 원칙. 모델 자체는 미확정 유지 | `08_ai/model_spec.md` §3·§7, `08_ai/ml_pipeline.md` §6 |
+| MVP 외부 데이터 (30차 확정) | 03 조사로 확정 — 기상청 단기예보·과거 기상·공휴일·홍익대 학사일정 [필수]; 세담터 유동인구·소상공인 상가정보 [권장]; 배달상권 [선택]. [2단계]: SK 지오비전·ECOS·네이버 데이터랩. 세종 조치원 홍익대 상권 기준 | `08_ai/ml_pipeline.md` §4 + `research/ai/03_external_data_sources.md` |
 | 보안 정책 | RBAC MVP 단일 역할 점주 / 감사 로그 1년 보관·`ops_readonly` 조회·append-only / 다중 디바이스 자체 토큰 / 강제 로그아웃 `POST /api/auth/logout-all` 채택 / 결제는 쿠팡 자체 수행(사주라 미경유·미저장) | `security.md` §2·§5, `research/backend/14_security_open_items.md` |
 | 데모 시나리오 | 9단계 SSOT — 1.로그인 2.온보딩 3.CSV 4.메뉴·재고·판매 5.n8n야간예측 6.수요예측 7.추천발주 8.대시보드·알림 9.쿠팡자동주문 | `docs/plan/be/phase_13_release.md` |
 | OAuth dev 운영 (29차) | (a) 카카오 scope에서 `account_email` 제거 — 동의항목 미검수 환경 대응. (b) fallback 이메일은 `{provider}_{id}@social.example.com` (valid TLD). (c) `UserMeResponse.email`은 `str` (register/login 입력 검증만 `EmailStr`). (d) Vite dev proxy `/api → BE`로 FE/BE 같은 origin 통합 — Safari ITP cross-site cookie 차단 회피 | `Back/app/api/oauth.py`, `Back/app/schemas/auth.py`, `Front/vite.config.ts` |
@@ -176,6 +176,22 @@ HANDOFF.md E단계 9개 검증 시나리오 수행 + 발견된 결함 일괄 정
 ## 5. 문서 수정 이력
 
 차수별 상세 변경. 최근 항목을 위로, 옛 항목은 추상화한다. 1~27차 audit 상세는 git log + spec/research 본문 참조.
+
+### 2026-05-28 (30차) — research/ai/01·02 폐기 + spec 위임 표현 일괄 정리
+
+`docs/research/ai/01_model_selection.md`(28곳) · `02_ml_pipeline_open_items.md`(13곳) 폐기. spec/plan/research 18개 파일에서 위임 문구를 일괄 제거하고 결정 대기 사항은 "별도 확정 예정" 또는 "AI 팀 확정"으로 약화 — 위임 위치 포인터(파일+섹션 ref)는 모두 제거. §3 정책 결정 이력의 "AI 미확정 → research 위임" 행은 정책 폐기 반영으로 갱신, "MVP 외부 데이터" 행은 03 조사 결과로 보강.
+
+추가로 `docs/spec/08_ai/ml_pipeline.md` §4·§5 와 `model_spec.md` §5 입력 피처를 `research/ai/03_external_data_sources.md`(2026-05-24 조사, 24차) 정합으로 갱신 — 서울 생활인구→세담터, [조사 중]→[2단계] 분류, 학사일정/상가정보 추가.
+
+**변경 파일**
+
+- spec(10): `01_requirements/requirements·usecase_spec`, `02_mvp/mvp_scope`, `03_feature_design/feature_spec·feature_list`, `05_api/api_spec`, `06_database/schema`, `07_backend/service_design`, `08_ai/ml_pipeline·model_spec`
+- plan(5): `be/phase_04_pos·08_n8n·11_dashboard·12_hookup`, `fe/phase_12_hookup`
+- research/backend(3): `06_external_integration·08_async_pipeline·14_security_open_items`
+- 인덱스(4): `docs/README.md` · `docs/research/README.md` · `docs/사주라_기술문서.md` · `PROGRESS.md` §3
+- 삭제(2): `docs/research/ai/01_model_selection.md` · `02_ml_pipeline_open_items.md`
+
+브랜치: `docs/cleanup-ai-research-01-02` → PR → main (`README.md` §5 · `CLAUDE.md` 핵심 규칙 ④ 정합).
 
 ### 2026-05-27 (29차) — dev 통합 검증(E단계) + 골든패스
 

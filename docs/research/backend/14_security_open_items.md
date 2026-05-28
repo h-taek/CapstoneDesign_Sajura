@@ -126,7 +126,7 @@
 |---------|------|------|
 | POS사 (TossPlace·키움·OKPOS) scope·rate limit | 2단계 진입 시 — `13_pos_adapter.md` §2 체크리스트 일부 | 13 (2단계) |
 | 국세청 사업자 진위확인 rate limit | 외부 공공데이터포털 정책 — Plan 단계 진입 전 확인 | 본 문서 §5 |
-| 기상청·서울시 도시데이터·천문연·네이버 등 | 사용 결정 자체가 AI 영역(`docs/research/ai/02_ml_pipeline_open_items.md`) — 결정 후 확인 | AI 영역 |
+| 기상청·세담터·천문연·홍익대 학사일력 등 | 사용 결정 자체가 AI 영역 — 결정 후 확인 | AI 영역 |
 | 자체 throttling | `09_testing_quality.md` §5.5 fastapi-limiter 정책 (login 5/min 등) ratify | 09 |
 
 → 본 audit 단계 결정 사항 없음.
