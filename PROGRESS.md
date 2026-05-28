@@ -177,6 +177,27 @@ HANDOFF.md E단계 9개 검증 시나리오 수행 + 발견된 결함 일괄 정
 
 차수별 상세 변경. 최근 항목을 위로, 옛 항목은 추상화한다. 1~27차 audit 상세는 git log + spec/research 본문 참조.
 
+### 2026-05-28 (31차) — docs/plan/ai/ 신설 + plan_gantt §6 AI 트랙 색인 정렬
+
+AI 트랙 plan 폴더가 부재했던 점을 30차 후속으로 보강. `be/`·`fe/`와 동일 형식의 6개 phase 파일 작성 + `plan_gantt.md` §6 색인 표에 "AI 파일" 열 신설.
+
+**작성 방향 (사용자 지정)**: Phase 6 마일스톤은 **"데이터 수집 → EDA → 피처 관계 분석 → 모델 선정"** 순으로 분해. 모델 결정을 EDA·피처 분석 뒤로 명시적 후행화 — 30차 정합으로 모델 선정이 미확정인 상태에서 데이터·EDA 결과로 후보를 좁히는 흐름.
+
+**신설 파일 (6)**
+
+- `docs/plan/ai/phase_00_research.md` — M0.A1
+- `docs/plan/ai/phase_02_infra.md` — M2.A1~A4 (AI Server 베이스·ML lib·Docker·env)
+- `docs/plan/ai/phase_06_model.md` — M6.A1~A9 (데이터·EDA·피처·결측/이상치·모델비교·선정·XAI·신뢰도·DNN)
+- `docs/plan/ai/phase_07_api.md` — M7.A1~A7 (REST API: forecast·recommend·xai·train·health)
+- `docs/plan/ai/phase_12_hookup.md` — M12.A1~A6 (예측 근거 형태·임계값·n8n 규칙·평가 지표·XAI UI·회귀 검증)
+- `docs/plan/ai/phase_13_release.md` — M13.A1~A5 (데모·성능·보안·CI/CD·모니터링)
+
+**변경 (1)**
+
+- `docs/plan/plan_gantt.md` §6 — Phase 색인 표 "AI 파일" 열 신설, Phase 6·7·12·13의 "AI 팀 영역, 본인 작업 아님" 빈 칸 채움. 마일스톤 ID 규칙에 `M{Phase}.A{n}` 추가.
+
+브랜치: `docs/plan-ai-bootstrap` → PR → main (CLAUDE.md §4 정합).
+
 ### 2026-05-28 (30차) — research/ai/01·02 폐기 + spec 위임 표현 일괄 정리
 
 `docs/research/ai/01_model_selection.md`(28곳) · `02_ml_pipeline_open_items.md`(13곳) 폐기. spec/plan/research 18개 파일에서 위임 문구를 일괄 제거하고 결정 대기 사항은 "별도 확정 예정" 또는 "AI 팀 확정"으로 약화 — 위임 위치 포인터(파일+섹션 ref)는 모두 제거. §3 정책 결정 이력의 "AI 미확정 → research 위임" 행은 정책 폐기 반영으로 갱신, "MVP 외부 데이터" 행은 03 조사 결과로 보강.
