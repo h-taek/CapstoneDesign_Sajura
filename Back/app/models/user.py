@@ -21,6 +21,11 @@ class AuthProvider(str, enum.Enum):
     GOOGLE = "GOOGLE"
 
 
+class UserRole(str, enum.Enum):
+    OWNER = "OWNER"   # 점주 (기본)
+    ADMIN = "ADMIN"   # 운영자 — DB에서 수동 지정 (security.md §5.1)
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -28,6 +33,9 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     name: Mapped[str] = mapped_column(String(50), nullable=False)
+    role: Mapped[UserRole] = mapped_column(
+        Enum(UserRole, name="user_role"), nullable=False, default=UserRole.OWNER
+    )
     auth_provider: Mapped[AuthProvider] = mapped_column(
         Enum(AuthProvider, name="auth_provider"), nullable=False, default=AuthProvider.LOCAL
     )
