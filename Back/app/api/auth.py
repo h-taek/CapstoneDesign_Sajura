@@ -42,11 +42,8 @@ def _clear_refresh_cookie(response: Response) -> None:
 async def register(payload: RegisterRequest, session: SessionDep) -> RegisterResponse:
     user = await AuthService(session).register(
         email=payload.email, password=payload.password, name=payload.name,
-        business_no=payload.business_no, store_name=payload.store_name,
     )
-    return RegisterResponse(
-        user_id=user.user_id, email=user.email, name=user.name, store_name=payload.store_name
-    )
+    return RegisterResponse(user_id=user.user_id, email=user.email, name=user.name)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -57,6 +54,7 @@ async def login(payload: LoginRequest, response: Response, session: SessionDep) 
     _set_refresh_cookie(response, tokens)
     return TokenResponse(
         access_token=tokens.access_token, expires_in=tokens.expires_in,
+        business_status=store.business_status.value if store else "UNVERIFIED",
         onboarding_completed=bool(store.onboarding_completed) if store else False,
     )
 
@@ -104,6 +102,7 @@ async def get_me(session: SessionDep, current: CurrentUserDep) -> UserMeResponse
         auth_provider=user.auth_provider.value,
         store_name=store.store_name if store else None,
         business_no=store.business_no if store else None,
+        business_status=store.business_status.value if store else "UNVERIFIED",
         onboarding_completed=bool(store.onboarding_completed) if store else False,
         created_at=user.created_at,
     )

@@ -71,6 +71,12 @@ class Settings(BaseSettings):
     NTS_API_BASE_URL: str = "https://api.odcloud.kr/api/nts-businessman/v1"
     NTS_API_SERVICE_KEY: str = ""
     NTS_API_STUB_MODE: bool = True
+    # 시연/테스트용 강제 패스 코드 (security.md §2.4). 빈 값이면 비활성(운영 기본).
+    NTS_MASTER_BYPASS_CODE: str = ""
+
+    # 사업자등록증 업로드 저장 (security.md §4.2) — be 컨테이너 볼륨 마운트 경로
+    UPLOAD_DIR: str = "/app/uploads"
+    UPLOAD_MAX_BYTES: int = 10 * 1024 * 1024  # 10MB
 
     # Middleware policy (service_design.md §10)
     CORS_ALLOW_ORIGINS: str = "http://localhost:5173"
