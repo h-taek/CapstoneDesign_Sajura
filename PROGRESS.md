@@ -65,7 +65,8 @@ docs/plan/       → 구현 계획 (단계별 작업, 순서, 역할 분담)
 | 데모 시나리오 | 9단계 SSOT — 1.로그인 2.온보딩 3.CSV 4.메뉴·재고·판매 5.n8n야간예측 6.수요예측 7.추천발주 8.대시보드·알림 9.쿠팡자동주문 | `docs/plan/be/phase_13_release.md` |
 | OAuth dev 운영 (29차) | (a) 카카오 scope에서 `account_email` 제거 — 동의항목 미검수 환경 대응. (b) fallback 이메일은 `{provider}_{id}@social.example.com` (valid TLD). (c) `UserMeResponse.email`은 `str` (register/login 입력 검증만 `EmailStr`). (d) Vite dev proxy `/api → BE`로 FE/BE 같은 origin 통합 — Safari ITP cross-site cookie 차단 회피 | `Back/app/api/oauth.py`, `Back/app/schemas/auth.py`, `Front/vite.config.ts` |
 | FE 자체 로그인·회원가입 (29차) | spec(`feature_spec.md` §1.2)·BE(9개 라우터 + auth_test 12개)는 정상이나 27차 phase_03 작성 시 FE 마일스톤이 누락되어 OAuth 화면만 노출. `docs/plan/fe/phase_03_auth.md` M3.F8로 명시화하고 **다음 단계로 즉시 진행**. `dev` 위에서 `feat/fe-register` → `fe` → `dev` 머지 흐름. **main 릴리즈는 전체 phase 완료 후 1회**로 유보 | `docs/plan/fe/phase_03_auth.md` M3.F8, `feature_spec.md` §1.2, `HANDOFF.md` |
-| 사업자 검증 = 온보딩 前 독립 게이트 (32차) | 사업자 검증을 회원가입에 묶지 않고 **인증 후·온보딩 진입 전 독립 단계(`/verify-business`, `POST /api/store/business/verify`)**로 분리 — 소셜·이메일 계정 공통 적용(기존엔 이메일 register에만 있어 OAuth 갭). `register`는 email·password·name만 받고 매장 행은 빈 상태로 생성. `stores.business_verified` 플래그 + `business_no`/매장필드 nullable. 검증 실패 시 **계정 유지 + 재검증**(미등록/형식 재입력·휴폐업 안내), 가드가 미검증자 온보딩 차단. 시연용 마스터 코드(`NTS_MASTER_BYPASS_CODE`)로 국세청 호출 없이 강제 통과 가능(운영 빈 값). 국세청 API는 odcloud(`api.odcloud.kr/api/nts-businessman/v1`), `.env`에 `NTS_API_SERVICE_KEY` 등 추가 | `feature_spec.md` §1.4, `api_spec.md` §3, `service_design.md`, `schema.md`, `security.md` §2.4, `frontend_design.md` §3, `plan/be·fe/phase_03_auth.md` |
+| 사업자 검증 = 온보딩 前 독립 게이트 (32차) | 사업자 검증을 회원가입에 묶지 않고 **인증 후·온보딩 진입 전 독립 단계(`/verify-business`, `POST /api/store/business/verify`)**로 분리 — 소셜·이메일 계정 공통 적용(기존엔 이메일 register에만 있어 OAuth 갭). `register`는 email·password·name만 받고 매장 행은 빈 상태로 생성. `stores.business_verified` 플래그 + `business_no`/매장필드 nullable. 검증 실패 시 **계정 유지 + 재검증**(미등록/형식 재입력·휴폐업 안내), 가드가 미검증자 온보딩 차단. 시연용 마스터 코드(`NTS_MASTER_BYPASS_CODE`)로 강제 통과 가능. **33차에서 상태 모델·소유권 검증으로 확장됨** | `feature_spec.md` §1.4, `api_spec.md` §3 등 |
+| 사업자 소유권 검증 = NTS + 등록증 + 관리자 승인 (33차) | NTS 조회는 사업자 실재·영업만 확인하고 **소유권은 증명 못 하는 공백**을 보완. ① NTS 즉시 조회 ② **사업자등록증 업로드** → `PENDING` ③ **관리자 승인**(`/admin` 심사) → `VERIFIED`/반려 `REJECTED`. `business_verified`(boolean) → **`business_status` 4단계 enum**. **PENDING부터 온보딩 진입 허용(1-B)**. `users.role`(OWNER/ADMIN) 신설, 관리자 최소 심사(`/api/admin/*`)는 Phase 3 포함·종합 관리도구는 Phase 11로. 등록증 파일은 서버 볼륨 저장(DB엔 경로), ADMIN 가드 하에서만 조회. 마스터 코드→곧바로 VERIFIED | `feature_spec.md` §1.4, `api_spec.md` §2·§3, `schema.md`(users.role·stores.business_status·cert), `service_design.md`(AdminVerificationService), `security.md` §2.4·§4.2·§5.1, `frontend_design.md` §3, `plan/be·fe/phase_03_auth.md`(M3.B8·B9·F9·F10), `plan_gantt.md` |
 
 ---
 
@@ -177,6 +178,16 @@ HANDOFF.md E단계 9개 검증 시나리오 수행 + 발견된 결함 일괄 정
 ## 5. 문서 수정 이력
 
 차수별 상세 변경. 최근 항목을 위로, 옛 항목은 추상화한다. 1~27차 audit 상세는 git log + spec/research 본문 참조.
+
+### 2026-05-29 (33차) — 사업자 소유권 검증: NTS + 등록증 업로드 + 관리자 승인 (32차 확장)
+
+실 사업자번호로 국세청 호출 테스트(460-07-03149 → 계속사업자) 결과, **NTS 조회는 사업자 실재·영업만 확인하고 가입자가 그 사업자의 주인인지(소유권)는 증명 못 한다**는 한계를 확인. 32차 설계(NTS 단독)를 소유권 검증까지 확장.
+
+**상태 모델**: `business_verified`(boolean) → **`business_status` 4단계 enum**(`UNVERIFIED`→`PENDING`→`VERIFIED`/`REJECTED`). 검증 흐름: ① NTS 즉시 조회(실재·영업) → ② 사업자등록증 업로드 → `PENDING` → ③ 관리자 심사 → `VERIFIED`/반려 `REJECTED`.
+
+**핵심 결정**: ① **온보딩 진입은 PENDING부터 허용(1-B)** — 관리자 승인을 기다리지 않고 진행, 사후 반려로 차단 ② NTS와 등록증+승인 **병행(2-A)** ③ 관리자 도입: `users.role`(OWNER/ADMIN, 운영자만 수동 지정), `/api/admin/*` ADMIN 가드, **심사 큐 1화면 + 승인/반려 + 등록증 열람**은 Phase 3에 포함, **사용자·매장 종합 관리도구는 Phase 11로** 후행. ④ 등록증 파일은 서버 볼륨 저장(DB엔 경로만), ADMIN 가드 하에서만 스트리밍. ⑤ 마스터 코드는 곧바로 `VERIFIED`.
+
+**영향 문서**: `feature_spec.md` §1.2·§1.4, `api_spec.md` §2(login/me)·§3(verify multipart + `/api/admin/*` 신설), `schema.md`(users.role, stores.business_status·business_cert_path·business_reject_reason·business_reviewed_by), `service_design.md`(verify_business 업로드 + AdminVerificationService), `security.md` §2.4·§4.2(등록증 보관)·§5.1(ADMIN RBAC), `frontend_design.md` §3(/verify-business 업로드·/admin·상태 가드), `feature_list.md`, `user_flow.md`·`sequence.md`·`usecase_spec.md`, `plan/be`(M3.B8·B9)·`plan/fe`(M3.F9·F10)·`plan_gantt.md`(Phase 3·11). 코드(BE enum·업로드·admin, FE 업로드·admin 화면)는 후속 `feat/*` — 본 회차는 문서 확정. 32차에 만든 BE(`feat/be-verify`, boolean)는 enum으로 재작업 예정.
 
 ### 2026-05-29 (32차) — 사업자 검증을 온보딩 前 독립 게이트로 분리 + 마스터 코드
 

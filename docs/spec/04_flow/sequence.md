@@ -61,19 +61,20 @@ sequenceDiagram
         사주라UI->>사주라서버: POST /api/auth/refresh (Cookie 자동 전송)
         사주라서버-->>사주라UI: Access Token 응답
         사주라UI->>사주라서버: GET /api/auth/me
-        사주라서버-->>사주라UI: user 정보 + business_verified: false + onboarding_completed: false
+        사주라서버-->>사주라UI: user 정보 + business_status: UNVERIFIED + onboarding_completed: false
         사주라UI-->>사용자: 사업자 검증 화면 진입 (온보딩 진입 전 게이트)
 
-        사용자->>사주라UI: 사업자등록번호 입력
-        사주라UI->>사주라서버: POST /api/store/business/verify (business_no)
-        사주라서버->>사주라서버: 국세청 API 즉시 검증 (마스터 코드 일치 시 호출 생략)
+        사용자->>사주라UI: 사업자등록번호 + 사업자등록증 파일 입력
+        사주라UI->>사주라서버: POST /api/store/business/verify (multipart: business_no + cert)
+        사주라서버->>사주라서버: 국세청 API 즉시 검증 (마스터 코드면 곧바로 VERIFIED)
         alt 휴업 / 폐업 / 미등록 / 형식오류
-            사주라서버-->>사주라UI: 400·422 오류 + 사유 (계정·상태 유지)
+            사주라서버-->>사주라UI: 400·422 오류 + 사유 (상태 유지)
             사주라UI-->>사용자: 재입력 / 진행 불가 안내
         else 계속사업자 (또는 마스터 코드)
-            사주라서버->>DB: business_no 저장 + business_verified=true
-            사주라서버-->>사주라UI: 200 business_verified: true
-            사주라UI-->>사용자: 온보딩 Step 1 진입
+            사주라서버->>DB: 등록증 파일 저장(경로) + business_no 저장 + business_status=PENDING (마스터면 VERIFIED)
+            사주라서버-->>사주라UI: 200 business_status: PENDING
+            사주라UI-->>사용자: 온보딩 Step 1 진입 (PENDING부터 허용)
+            note over 사주라서버,DB: (비동기) 관리자가 /admin 심사 큐에서 등록증 확인 → 승인(VERIFIED) / 반려(REJECTED·사유)
 
             사용자->>사주라UI: 매장 정보 입력 (매장명·업종·연락처·주소·규모·운영형태)
             사주라UI->>사주라서버: PATCH /api/store

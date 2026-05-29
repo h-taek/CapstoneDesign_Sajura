@@ -14,17 +14,22 @@
 ```text
 [공통 시작]
 회원가입(이메일)/로그인/소셜 로그인
-→ business_verified 확인
-    ├─ false → 사업자 검증 화면
-    └─ true  → onboarding_completed 확인
+→ business_status 확인
+    ├─ UNVERIFIED·REJECTED → 사업자 검증 화면
+    └─ PENDING·VERIFIED → onboarding_completed 확인
                 ├─ false → 온보딩 흐름 시작
                 └─ true  → 메인 홈
 
-[사업자 검증 (온보딩과 분리된 게이트)]
-사업자등록번호 입력 → 국세청 API 검증 (마스터 코드면 강제 통과)
-    ├─ 미등록/형식 → 재입력 (계정 유지)
-    ├─ 휴업/폐업 → 진행 불가, 사유 안내 (계정 유지)
-    └─ 계속사업자 → business_verified=true → 온보딩 흐름 시작
+[사업자 검증 (온보딩과 분리된 게이트, NTS 자동 + 관리자 승인 병행)]
+사업자등록번호 + 사업자등록증 업로드
+→ ① 국세청 API 검증 (마스터 코드면 곧바로 VERIFIED)
+    ├─ 미등록/형식 → 재입력 (상태 유지)
+    ├─ 휴업/폐업 → 진행 불가, 사유 안내 (상태 유지)
+    └─ 계속사업자 → ② 등록증 업로드 → business_status=PENDING → 온보딩 흐름 시작
+                      └─ 관리자 심사: 승인 → VERIFIED / 반려 → REJECTED(사유) → 재검증
+
+[관리자 심사 흐름 (role=ADMIN)]
+/admin 심사 큐 → PENDING 목록·등록증 확인 → 승인(VERIFIED) 또는 반려(사유 입력→REJECTED)
 
 [온보딩 흐름]
 매장 정보 입력
@@ -50,12 +55,13 @@
 
 > 온보딩 입력 항목 및 POS 상태 기준: feature_spec.md 섹션 1.4
 
-1. 사용자가 이메일 회원가입 또는 Google/카카오 로그인으로 계정을 만든다. (Authlib OAuth 2.0, Firebase 미사용)
-2. 인증 완료 후 `business_verified`·`onboarding_completed` 값을 확인한다. `business_verified=false`이면 사업자 검증 화면으로 이동한다.
-3. (검증 게이트) 사업자등록번호를 입력하고 국세청 API로 즉시 검증한다. **온보딩과 분리된 별도 단계**다.
-   - 계속사업자(또는 마스터 코드) → `business_verified=true` → 온보딩 진행
-   - 미등록 / 형식 오류 → 재입력 (계정 유지)
-   - 휴업 / 폐업 → 진행 불가, 사유 안내 (계정 유지)
+1. 사용자가 이메일 회원가입 또는 Google/카카오 로그인으로 계정을 만든다. (Authlib OAuth 2.0, Firebase 미사용) → `business_status=UNVERIFIED`
+2. 인증 완료 후 `business_status`·`onboarding_completed`를 확인한다. `UNVERIFIED`·`REJECTED`면 사업자 검증 화면으로 이동한다.
+3. (검증 게이트, 온보딩과 분리) 사업자등록번호를 입력하면 국세청 API로 즉시 검증한다.
+   - 미등록 / 형식 오류 → 재입력 (상태 유지)
+   - 휴업 / 폐업 → 진행 불가, 사유 안내 (상태 유지)
+   - 계속사업자(또는 마스터 코드) → **사업자등록증 업로드** → `business_status=PENDING` → 온보딩 진행 (관리자 승인 전이라도 진입 가능, 1-B)
+   - 관리자 심사: 승인 → `VERIFIED` / 반려 → `REJECTED`(사유) → 재검증
 4. 매장명, 업종, 연락처, 주소, 매장 규모 구간, 운영 형태를 입력한다.
 5. POS 연동 방식을 선택한다.
    - **CSV 모드 (MVP 기본 경로)** → CSV 템플릿 다운로드 → 보유 POS 데이터 업로드

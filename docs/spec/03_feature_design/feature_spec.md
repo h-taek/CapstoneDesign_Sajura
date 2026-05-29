@@ -50,7 +50,7 @@ Frontend → GET /api/auth/login/kakao
 | 구분 | 항목 |
 |---|---|
 | 입력 | 회원가입: email, password, name / 로그인: email, password |
-| 출력 | JWT Access Token, JWT Refresh Token, user_id, email, business_verified, onboarding_completed |
+| 출력 | JWT Access Token, JWT Refresh Token, user_id, email, business_status, onboarding_completed |
 
 > 이메일 회원가입(`POST /api/auth/register`)은 email·password·name만 받는다. 사업자등록번호·매장 정보는 가입 이후 사업자 검증·온보딩 단계(§1.4)에서 입력한다.
 
@@ -67,11 +67,14 @@ Frontend → GET /api/auth/login/kakao
 계정 생성 직후 매장 서비스 진입 전까지 아래 단계를 순서대로 진행한다. 각 단계는 직전 단계 완료 전에는 진입할 수 없다(가드).
 
 ```
-1. 계정 생성 (Google / 카카오 OAuth 또는 이메일/비밀번호 회원가입)
-2. 사업자 검증 (온보딩과 분리된 독립 단계) — 사업자등록번호 입력 → 국세청 API 즉시 검증
-     ├─ 계속사업자 확인 → business_verified=true → 온보딩 진행 허용
-     ├─ 미등록 / 형식 오류 → 재입력 요청 (계정 유지)
-     └─ 휴업 / 폐업 → 진행 불가, 사유 안내 (계정 유지, business_verified=false)
+1. 계정 생성 (Google / 카카오 OAuth 또는 이메일/비밀번호 회원가입) → business_status=UNVERIFIED
+2. 사업자 검증 (온보딩과 분리된 독립 단계) — 사업자등록번호 입력 + 사업자등록증 업로드
+     ├─ ① 국세청 API 즉시 검증 (존재·영업 여부)
+     │      ├─ 미등록 / 형식 오류 → 재입력 요청 (상태 유지)
+     │      └─ 휴업 / 폐업 → 진행 불가, 사유 안내 (상태 유지)
+     └─ ② 계속사업자 통과 시 사업자등록증 업로드 → business_status=PENDING (관리자 심사 대기)
+            · PENDING부터 온보딩 진행 허용 (관리자 승인을 기다리지 않음)
+            · 관리자 승인 → VERIFIED / 반려 → REJECTED(사유) → 재검증
 3. 매장 정보 입력 (매장명, 업종, 연락처, 주소)
 4. POS 연동 방식 선택
      ├─ CSV 모드 (MVP 기본 경로) → CSV 템플릿 다운로드 → 보유 POS 데이터 업로드
@@ -84,14 +87,18 @@ Frontend → GET /api/auth/login/kakao
 6. 메인 화면 진입 (onboarding_completed=true)
 ```
 
-- 사업자 검증(2)은 온보딩(3~5)과 분리된 단계다. 인증된 사용자라도 `business_verified=false`이면 온보딩 화면에 진입할 수 없다(가드가 검증 화면으로 강제 이동).
-- 검증 실패 시 **계정을 삭제하지 않고 유지**하며, 재검증 화면으로 안내한다. 미등록/형식은 재입력, 휴업/폐업은 사유를 표시한다.
-- 미검증·미완료 상태에서 재접속 시 `GET /api/auth/me`의 `business_verified`·`onboarding_completed` 값으로 Frontend가 검증/온보딩 화면으로 강제 이동한다.
+**사업자 검증 = 2단계 (NTS 자동 + 관리자 승인 병행).** NTS 조회는 "그 사업자가 실재·영업 중"인지만 보장하고 **소유권(본인 사업자인지)은 증명하지 못하므로**, 사업자등록증 업로드 + 관리자 심사로 소유권을 확인한다.
+
+- **상태 모델** `business_status`: `UNVERIFIED` → (NTS 통과 + 등록증 업로드) `PENDING` → (관리자 승인) `VERIFIED` / (반려) `REJECTED`.
+- **온보딩 진입 가드(1-B)**: `PENDING` 또는 `VERIFIED`면 온보딩 진입 허용. `UNVERIFIED`·`REJECTED`면 검증 화면으로 강제 이동. 즉 등록증을 올려 PENDING이 되면 관리자 승인 전이라도 온보딩·서비스 사용이 가능하고, 관리자는 사후 반려로 차단할 수 있다.
+- 검증 실패 시 **계정을 삭제하지 않고 유지**한다. 미등록/형식은 재입력, 휴업/폐업·반려는 사유를 표시하고 재검증을 안내한다.
+- 재접속 시 `GET /api/auth/me`의 `business_status`·`onboarding_completed`로 Frontend가 검증/온보딩 화면으로 강제 이동한다.
 - 소셜·이메일 계정 모두 동일하게 사업자 검증 단계를 거친다(인증 방식 무관).
+- **관리자 심사(최소)**: 관리자(`users.role=ADMIN`)가 `/admin` 심사 큐에서 PENDING 목록·업로드 등록증을 보고 승인/반려한다. 사용자·매장 종합 관리도구는 [후속 phase].
 
 | 구분 | 항목 | 비고 |
 |---|---|---|
-| 입력 | 사업자등록번호 | 필수, 국세청 API 검증. `POST /api/store/business/verify` |
+| 입력 | 사업자등록번호 + 사업자등록증 파일 | 필수, NTS 검증 + 업로드. `POST /api/store/business/verify` (multipart) |
 | | 매장명 | 필수 |
 | | 업종 | 필수 |
 | | 연락처 | 필수 |
@@ -100,10 +107,10 @@ Frontend → GET /api/auth/login/kakao
 | | 운영 형태 | 필수, 선택지 제공 (홀 운영 / 배달 전용 / 홀+배달 병행) |
 | | POS 종류 및 자격증명 | [2단계] POS API 선택 시 필수. MVP는 CSV 모드 선택이 기본 |
 | 출력 | store_id | |
-| | business_verified | boolean |
+| | business_status | UNVERIFIED / PENDING / VERIFIED / REJECTED |
 | | onboarding_completed | boolean |
 
-> 시연·테스트용 강제 패스: 입력 사업자번호가 환경변수 마스터 코드(`NTS_MASTER_BYPASS_CODE`)와 일치하면 국세청 호출 없이 검증을 통과시킨다. 상세·위험은 `security.md` §2.4.
+> 시연·테스트용 강제 패스: 입력 사업자번호가 환경변수 마스터 코드(`NTS_MASTER_BYPASS_CODE`)와 일치하면 국세청 호출·등록증 업로드 없이 곧바로 `VERIFIED` 처리한다. 상세·위험은 `security.md` §2.4.
 
 > POS 연동 상태(`CONNECTED` / `CSV_MODE` / `DISCONNECTED`)는 온보딩 완료 후 `GET /api/store/pos/status`로 별도 조회한다.
 

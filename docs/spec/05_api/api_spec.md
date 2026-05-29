@@ -137,13 +137,13 @@ Authorization: Bearer <access_token>
   "access_token": "jwt_string",
   "token_type": "bearer",
   "expires_in": 3600,
-  "business_verified": false,
+  "business_status": "UNVERIFIED",
   "onboarding_completed": true
 }
 // Refresh Token은 HttpOnly Cookie로 Set-Cookie
 ```
 
-> FE 진입 분기: `business_verified=false` → 사업자 검증 화면 / `true && onboarding_completed=false` → 온보딩 / 둘 다 true → 메인.
+> FE 진입 분기: `business_status` ∈ {UNVERIFIED, REJECTED} → 사업자 검증 화면 / {PENDING, VERIFIED} && `onboarding_completed=false` → 온보딩 / 둘 다 충족 → 메인.
 
 ### GET /api/auth/login/kakao
 
@@ -218,13 +218,14 @@ Authorization: Bearer <access_token>
   "auth_provider": "LOCAL",
   "store_name": "길동 카페",
   "business_no": "123-45-67890",
-  "business_verified": true,
+  "business_status": "VERIFIED",
+  "role": "OWNER",
   "onboarding_completed": true,
   "created_at": "2026-01-01T00:00:00Z"
 }
 ```
 
-> `store_name`·`business_no`는 사업자 검증·온보딩 전이면 `null`. `business_verified`가 false면 FE는 사업자 검증 화면으로 강제 이동한다.
+> `store_name`·`business_no`는 사업자 검증·온보딩 전이면 `null`. `business_status`가 `UNVERIFIED`·`REJECTED`면 FE는 사업자 검증 화면으로 강제 이동한다. `role`이 `ADMIN`이면 `/admin` 심사 화면 접근 가능.
 
 ### PATCH /api/auth/me
 
@@ -268,10 +269,14 @@ Authorization: Bearer <access_token>
 
 | Method | Path | 설명 | 단계 |
 |--------|------|------|------|
-| `POST` | `/api/store/business/verify` | 사업자등록번호 국세청 검증 (온보딩 진입 전 게이트) | [MVP] |
+| `POST` | `/api/store/business/verify` | 사업자 검증 — NTS 조회 + 등록증 업로드 → PENDING (multipart) | [MVP] |
 | `GET` | `/api/store` | 내 매장 정보 조회 | [MVP] |
 | `PATCH` | `/api/store` | 매장 정보 수정 | [MVP] |
 | `POST` | `/api/store/onboarding/complete` | 온보딩 완료 처리 | [MVP] |
+| `GET` | `/api/admin/verifications` | (ADMIN) 사업자 검증 심사 큐 — PENDING 목록 | [MVP] |
+| `GET` | `/api/admin/verifications/{store_id}/cert` | (ADMIN) 업로드된 사업자등록증 파일 조회 | [MVP] |
+| `POST` | `/api/admin/verifications/{store_id}/approve` | (ADMIN) 승인 → VERIFIED | [MVP] |
+| `POST` | `/api/admin/verifications/{store_id}/reject` | (ADMIN) 반려 → REJECTED (+사유) | [MVP] |
 | `GET` | `/api/store/pos` | POS 연동 정보 조회 | [2단계] |
 | `POST` | `/api/store/pos` | POS 연동 등록 | [2단계] |
 | `PATCH` | `/api/store/pos` | POS 연동 정보 수정 | [2단계] |
@@ -283,24 +288,52 @@ Authorization: Bearer <access_token>
 
 ### POST /api/store/business/verify
 
-```json
-// Request (인증 필요)
-{
-  "business_no": "123-45-67890"
-}
+```
+// Request (인증 필요) — multipart/form-data
+//   business_no: "123-45-67890"
+//   cert:        <사업자등록증 파일 (image/* 또는 application/pdf)>
 
-// Response 200 — 검증 성공 (계속사업자 또는 마스터 코드)
+// Response 200 — NTS 통과 + 등록증 저장 → 심사 대기
 {
-  "business_verified": true,
+  "business_status": "PENDING",   // 마스터 코드면 "VERIFIED"
   "business_no": "123-45-67890"
 }
 
 // 실패 — 형식 오류·미등록: 400 AUTH_BUSINESS_NO_INVALID
 // 실패 — 휴업/폐업: 422 AUTH_BUSINESS_NO_NOT_ACTIVE
 // 실패 — 국세청 서비스 장애: 503 SERVICE_UNAVAILABLE
+// 실패 — 파일 형식·용량 위반: 400 VALIDATION_ERROR
 ```
 
-> 온보딩(매장 정보 입력) 진입 **전** 게이트. 성공 시 `stores.business_verified=true` + `business_no` 저장. 실패 시 **계정·상태를 유지**하고 사유만 반환하여 FE가 재입력/안내를 표시한다(계정 삭제 없음). 입력 `business_no`가 환경변수 마스터 코드(`NTS_MASTER_BYPASS_CODE`)와 일치하면 국세청 호출 없이 통과(시연용, `security.md` §2.4). 소셜·이메일 계정 공통 진입. 검증 어댑터: `nts.assert_business_active` (`service_design.md`).
+> 온보딩 진입 **전** 게이트. ① 국세청 조회로 계속사업자 여부 확인 → ② 통과 시 등록증 파일을 서버 볼륨에 저장(경로만 DB)하고 `business_status=PENDING`. **PENDING부터 온보딩 진입 허용**(1-B). 실패 시 **계정·상태 유지**하고 사유만 반환(삭제 없음). 입력 `business_no`가 마스터 코드(`NTS_MASTER_BYPASS_CODE`)와 일치하면 NTS 호출·파일 없이 곧바로 `VERIFIED`(시연용, `security.md` §2.4). 소셜·이메일 공통. 검증 어댑터: `nts.assert_business_active`, 승인 루프: 관리자 API(하단).
+
+### 관리자 심사 API (role=ADMIN 전용)
+
+> `users.role=ADMIN`만 접근. 그 외 403 FORBIDDEN. 사업자등록증은 민감정보이므로 파일 조회도 ADMIN 가드 하에서만 (`security.md` §4.1). 사용자·매장 종합 관리도구는 [후속 phase].
+
+```json
+// GET /api/admin/verifications?status=pending
+// Response 200
+{
+  "items": [
+    {
+      "store_id": "uuid", "user_email": "owner@example.com",
+      "business_no": "123-45-67890", "business_status": "PENDING",
+      "cert_url": "/api/admin/verifications/uuid/cert", "submitted_at": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "total": 1, "page": 1, "size": 20, "total_pages": 1
+}
+
+// GET /api/admin/verifications/{store_id}/cert  → 등록증 파일 바이너리(이미지/PDF)
+
+// POST /api/admin/verifications/{store_id}/approve
+// Response 200: { "store_id": "uuid", "business_status": "VERIFIED" }
+
+// POST /api/admin/verifications/{store_id}/reject
+// Request: { "reason": "등록증과 입력 사업자번호 불일치" }
+// Response 200: { "store_id": "uuid", "business_status": "REJECTED", "reason": "..." }
+```
 
 ### GET /api/store
 
@@ -315,13 +348,13 @@ Authorization: Bearer <access_token>
   "operation_type": "HALL",
   "address": "서울시 강남구 ...",
   "phone": "02-1234-5678",
-  "business_verified": true,
+  "business_status": "VERIFIED",
   "onboarding_completed": true,
   "created_at": "2026-01-01T00:00:00Z"
 }
 ```
 
-> 사업자 검증 전이면 `business_no`·`store_name` 등은 `null`, `business_verified=false`.
+> 사업자 검증 전이면 `business_no`·`store_name` 등은 `null`, `business_status="UNVERIFIED"`.
 
 ### PATCH /api/store
 

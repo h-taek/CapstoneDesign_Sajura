@@ -99,7 +99,8 @@
 | 클래스 | 담당 도메인 |
 |--------|------------|
 | `AuthService` | 로그인, 회원가입, JWT 발급, OAuth 처리 |
-| `StoreService` | 매장 정보 CRUD, 온보딩 완료 처리 |
+| `StoreService` | 매장 정보 CRUD, 사업자 검증(NTS+등록증 업로드), 온보딩 완료 처리 |
+| `AdminVerificationService` | (role=ADMIN) 사업자 검증 심사 큐 조회, 등록증 파일 조회, 승인/반려 [최소 — 종합 관리도구는 후속] |
 | `PosService` | POS API 연동·동기화·상태 관리 [`get_pos_status` MVP·나머지 2단계, `mvp_scope.md` §4] |
 | `MenuService` | 메뉴 CRUD, 레시피 관리 |
 | `InventoryService` | 재고 품목, 로트, 폐기, 경고, FIFO 차감 |
@@ -124,7 +125,7 @@
 
 | 메서드 | 파라미터 | 반환 | 설명 |
 |--------|----------|------|------|
-| `register` | email, password, name | `UserDTO` | 이메일 회원가입 (email·password·name만). 사업자 검증·매장 정보는 가입 후 별도 단계. 가입 시 빈 매장 행 생성(business_verified=false) |
+| `register` | email, password, name | `UserDTO` | 이메일 회원가입 (email·password·name만). 사업자 검증·매장 정보는 가입 후 별도 단계. 가입 시 빈 매장 행 생성(business_status=UNVERIFIED, role=OWNER) |
 | `login_with_email` | email, password | `TokenDTO` | 이메일 로그인 |
 | `login_with_oauth` | provider, code, state | `TokenDTO` | Google/카카오 OAuth 로그인 |
 | `logout` | user_id, refresh_token_hash | `None` | Refresh Token 무효화 (현 디바이스) |
@@ -139,9 +140,18 @@
 
 | 메서드 | 파라미터 | 반환 | 설명 |
 |--------|----------|------|------|
-| `verify_business` | user_id, business_no | `StoreDTO` | 국세청 사업자 검증(`nts.assert_business_active`) 후 `business_no` 저장 + `business_verified=true`. 마스터 코드 일치 시 호출 생략. 실패 시 계정·상태 유지하고 도메인 에러 반환 — 온보딩 진입 게이트 |
+| `verify_business` | user_id, business_no, cert_file | `StoreDTO` | NTS 검증(`nts.assert_business_active`) 통과 시 등록증 파일 저장(서버 볼륨, 경로만 DB) + `business_no` 저장 + `business_status=PENDING`. 마스터 코드면 호출·파일 없이 `VERIFIED`. 실패 시 계정·상태 유지하고 도메인 에러 반환 — 온보딩 진입 게이트 |
 | `get_store` | user_id | `StoreDTO` | 매장 정보 조회 |
-| `update_store` | user_id, data | `StoreDTO` | 매장 정보 수정 (business_type, store_size, operation_type 포함). `business_verified=true` 전제 |
+| `update_store` | user_id, data | `StoreDTO` | 매장 정보 수정 (business_type, store_size, operation_type 포함). `business_status` ∈ {PENDING, VERIFIED} 전제 |
+
+### AdminVerificationService (role=ADMIN)
+
+| 메서드 | 파라미터 | 반환 | 설명 |
+|--------|----------|------|------|
+| `list_pending` | page, size | `PaginatedDTO[VerificationDTO]` | `business_status=PENDING` 매장 심사 큐 조회 |
+| `get_cert_file` | store_id | `FileResponse` | 업로드된 사업자등록증 파일 반환 (ADMIN 가드) |
+| `approve` | store_id, admin_user_id | `StoreDTO` | `business_status=VERIFIED` + `business_reviewed_by` 기록 |
+| `reject` | store_id, admin_user_id, reason | `StoreDTO` | `business_status=REJECTED` + `business_reject_reason`·`business_reviewed_by` 기록 |
 | `complete_onboarding` | store_id | `None` | 온보딩 완료 처리 (onboarding_completed = true) |
 
 ### PosService

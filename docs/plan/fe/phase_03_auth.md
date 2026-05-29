@@ -15,9 +15,10 @@
 | M3.F6 | 온보딩 4스텝 — 확인·완료 | 요약 표시 + 제출 → 메인 화면 | end-to-end 1회 통과 |
 | M3.F7 | auth_test FE 측 | Playwright E2E (로그인 → 온보딩 4스텝 → 메인) | 시나리오 1회 통과 |
 | M3.F8 | **자체 로그인·회원가입 화면** | `routes/register.tsx` 신설(`POST /api/auth/register` — email·password·name만) + `routes/login.tsx`에 이메일/비밀번호 폼 병치(`POST /api/auth/login`) + `schemas/auth.ts` | 이메일/비밀번호로 회원가입 → 로그인 → 사업자 검증 진입 통과 |
-| M3.F9 | **사업자 검증 화면 (온보딩 게이트)** | `routes/verify-business.tsx` 신설(사업자번호 입력·마스크, `POST /api/store/business/verify`) + 가드에 `business_verified` 단계 추가(미검증 → `/verify-business`) + 미등록/휴폐업 메시지 분기 | 미검증 사용자 온보딩 차단 + 검증 성공 시 온보딩 진입 E2E |
+| M3.F9 | **사업자 검증 화면 (온보딩 게이트)** | `routes/verify-business.tsx` 신설(사업자번호 입력·마스크 + 사업자등록증 파일 업로드, `POST /api/store/business/verify` multipart) + 가드를 `business_status`(UNVERIFIED·REJECTED→`/verify-business`, PENDING·VERIFIED→온보딩 허용)로 전환 + 미등록/휴폐업/반려 사유 분기 | 미검증 온보딩 차단 + 업로드→PENDING→온보딩 진입 E2E |
+| M3.F10 | **관리자 심사 화면 (최소)** | `routes/admin/verifications.tsx` 신설(PENDING 목록·등록증 미리보기·승인/반려) + `role=ADMIN` 가드 + `/api/admin/*` 연동 | 비ADMIN 접근 차단 + 승인/반려 후 목록 갱신 E2E. 종합 관리도구는 [후속] |
 
-> **M3.F8·F9 사유**: BE는 자체 로그인·회원가입 라우터 구현·테스트(auth_test 12) 완료, FE는 OAuth 화면만 노출 상태였음(27차 누락). 사업자 검증은 회원가입에 묶지 않고 **온보딩 진입 전 독립 게이트(`/verify-business`)**로 분리 — 소셜·이메일 계정 공통 적용. 상세 흐름·정책: `feature_spec.md` §1.4, `api_spec.md` §3 `POST /api/store/business/verify`, `security.md` §2.4(마스터 코드).
+> **M3.F8·F9·F10 사유**: 사업자 검증을 회원가입에서 분리해 **온보딩 진입 전 독립 게이트(`/verify-business`)**로 두고, NTS 자동 조회 + 사업자등록증 업로드 + 관리자 승인(`/admin`) 2단계로 소유권까지 확인 — 소셜·이메일 공통. PENDING부터 온보딩 허용(1-B). 상세: `feature_spec.md` §1.4, `api_spec.md` §3, `security.md` §2.4·§4.2·§5.1.
 
 ## 외부 의존
 

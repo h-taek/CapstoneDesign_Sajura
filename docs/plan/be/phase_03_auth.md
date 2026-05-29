@@ -14,7 +14,8 @@
 | M3.B5 | auth_test BE 측 | API 통합 테스트 (pytest + testcontainers + respx) | 12개 시나리오 통과 |
 | M3.B6 | POS stub API (실연동 전 임시) | 자격증명 입력·연결 테스트 엔드포인트 stub (mock 200 응답) — 실연동은 M4.B1 | stub 호출 200 |
 | M3.B7 | MenuService (phase_05 M5.B1에서 이동) | 레시피(재료·수량) + 소프트삭제(`deleted_at`) | CRUD + 레시피 연결 테스트 |
-| M3.B8 | 사업자 검증 게이트 분리 | `POST /api/store/business/verify`(`StoreService.verify_business`) + `stores.business_verified` 컬럼 + `business_no`/매장필드 nullable 마이그레이션 + 마스터 코드(`NTS_MASTER_BYPASS_CODE`) 우회 + `register`에서 business_no 제거(빈 매장 행 생성) + me/login 응답에 `business_verified` 추가 | 검증 전 온보딩 차단·미등록/휴폐업/형식 분기·마스터 코드 통과 테스트 |
+| M3.B8 | 사업자 검증 게이트 (NTS+등록증 업로드) | `POST /api/store/business/verify`(multipart, `StoreService.verify_business`) — NTS 통과 시 등록증 파일 서버 볼륨 저장 + `business_status=PENDING`. `stores.business_status` enum·`business_cert_path`·`business_reject_reason`·`business_reviewed_by` 컬럼 + `business_no`/매장필드 nullable 마이그레이션 + 마스터 코드→VERIFIED + `register`에서 business_no 제거(빈 매장 행) + me/login에 `business_status` | PENDING부터 온보딩 허용·미등록/휴폐업/형식 분기·마스터 통과·파일 검증 테스트 |
+| M3.B9 | 관리자 심사 (최소) | `users.role`(OWNER/ADMIN) 컬럼 + `/api/admin/*` ADMIN 가드 + `AdminVerificationService`(list_pending·get_cert_file·approve·reject) + 등록증 파일 ADMIN 전용 스트리밍 | 비ADMIN 403·승인→VERIFIED·반려→REJECTED(+사유) 테스트. 종합 관리도구는 [후속] |
 
 ## 외부 의존
 

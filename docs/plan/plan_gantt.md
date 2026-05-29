@@ -31,7 +31,7 @@
 | 0 | **Research** | 구현에 사용할 기술·오픈소스·라이브러리 조사 | BE / FE / AI 트랙별 |
 | 1 | **Plan** | 실질적 구현 계획 수립 (스프린트·역할 분담·마일스톤) | 전 파트 |
 | 2 | 인프라 부트스트랩 | Docker(MySQL·Redis·n8n), 3트랙 베이스(FastAPI/React PWA/AI Server), DB 마이그레이션 | BE+FE+AI |
-| 3 | 인증·온보딩 | AuthService·StoreService·국세청 검증, 로그인/온보딩 화면, 통합 검증 | BE+FE |
+| 3 | 인증·온보딩 | AuthService·StoreService·국세청 검증 + 사업자등록증 업로드·관리자 최소 심사(승인/반려), 로그인/온보딩/검증 화면, 통합 검증 | BE+FE |
 | 4 | POS·데이터 적재 | POS 어댑터, CSV 업로드, 이상치 탐지, 화면 | BE+FE |
 | 5 | 메뉴·재고·판매 도메인 | MenuService, InventoryService(FIFO·폐기·단가), SaleService 조회, 화면 | BE+FE |
 | 6 | AI 모델 개발 | 데이터 전처리, 모델 비교/선정/평가, XAI 모듈 | AI |
@@ -39,7 +39,7 @@
 | 8 | n8n 배치 (골격) | 외부 데이터 수집 + **전처리 더미 노드** + 야간 예측·주간 재학습 배치 + Slack 알림 | BE 주도 + AI 연동 |
 | 9 | 예측·발주 UI (골격) | ForecastService 수량·OrderService + 수요예측·추천발주·홈 배지 화면 골격(근거·임계값 placeholder) | BE+FE |
 | 10 | 쿠팡 자동화 | Playwright 자동화 + 결과 화면 | BE+FE |
-| 11 | 대시보드·알림 | DashboardService(매출/예측), 인앱 알림, 대시보드 화면 | BE+FE |
+| 11 | 대시보드·알림 | DashboardService(매출/예측), 인앱 알림, 대시보드 화면, **관리자 종합 관리도구 확장**(사용자·매장 관리 — Phase 3 최소 심사에서 확장) | BE+FE |
 | 12 | **AI hookup** | AI 팀 확정 결과 반영 — n8n 전처리 실제 로직·예측 근거 응답/UI·신뢰도 임계값 | BE+FE |
 | 13 | 통합 검증·배포 | 데모 시나리오 end-to-end, 성능·보안 검증, CI/CD 배포 | 전 파트 |
 

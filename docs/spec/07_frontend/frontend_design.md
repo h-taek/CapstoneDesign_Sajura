@@ -69,8 +69,8 @@
 |------|------|------|
 | `/login` | 로그인 (이메일/비밀번호 + Google·카카오 버튼) | 미인증만 |
 | `/register` | 이메일 회원가입 (email·password·name) | 미인증만 |
-| `/verify-business` | 사업자 검증 (사업자등록번호 입력·검증) | 인증 + `business_verified=false` |
-| `/onboarding/*` | 온보딩 (매장 정보·POS 모드 선택·초기 재고/메뉴) | 인증 + `business_verified=true` + `onboarding_completed=false` |
+| `/verify-business` | 사업자 검증 (사업자번호 입력 + 등록증 업로드, 반려 사유 표시) | 인증 + `business_status` ∈ {UNVERIFIED, REJECTED} |
+| `/onboarding/*` | 온보딩 (매장 정보·POS 모드 선택·초기 재고/메뉴) | 인증 + `business_status` ∈ {PENDING, VERIFIED} + `onboarding_completed=false` |
 | `/` | 홈 (오늘의 요약 + 경고 배지) | 인증 + 온보딩 완료 |
 | `/dashboard` | 대시보드 (매출·예측) | 인증 + 온보딩 완료 |
 | `/inventory` | 재고 관리 (목록·상세) | 동상 |
@@ -80,8 +80,9 @@
 | `/orders` | 추천발주·승인 | 동상 |
 | `/orders/{id}/result` | 쿠팡 자동화 결과 | 동상 |
 | `/settings/*` | 설정 (POS·단가·알림·계정·앱 정보) | 동상 |
+| `/admin/verifications` | (관리자) 사업자 검증 심사 큐 — 등록증 확인·승인/반려 | 인증 + `role=ADMIN` |
 
-- 가드 미통과 시 redirect 순서: 미인증 → `/login` / 인증·미검증(`business_verified=false`) → `/verify-business` / 검증·온보딩 미완료 → `/onboarding/{현재 스텝}` / 모두 완료 → `/`.
+- 가드 미통과 시 redirect 순서: 미인증 → `/login` / `business_status` ∈ {UNVERIFIED, REJECTED} → `/verify-business` / {PENDING, VERIFIED} && 온보딩 미완료 → `/onboarding/{현재 스텝}` / 모두 완료 → `/`. `role=ADMIN`이 아닌데 `/admin/*` 접근 시 → `/`.
 - 라우터는 React Router v7 data router 모드(loader/action)를 사용하되, 서버 데이터는 TanStack Query에 위임한다(loader는 권한 가드·라우트 진입 조건 검증 위주).
 
 ---

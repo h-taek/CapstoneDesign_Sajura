@@ -28,6 +28,7 @@ CREATE TABLE users (
     email         VARCHAR(255)                        NOT NULL,
     password_hash VARCHAR(255)                        NULL COMMENT '소셜 로그인 계정은 NULL',
     name          VARCHAR(50)                         NOT NULL,
+    role          ENUM('OWNER','ADMIN')               NOT NULL DEFAULT 'OWNER' COMMENT '점주/관리자 — 관리자는 운영자 계정만 수동 지정 (security.md §5.1)',
     auth_provider ENUM('LOCAL','KAKAO','GOOGLE')      NOT NULL DEFAULT 'LOCAL',
     social_id     VARCHAR(100)                        NULL COMMENT '소셜 서비스의 사용자 고유 ID',
     created_at    DATETIME                            NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -65,7 +66,11 @@ CREATE TABLE stores (
     user_id               CHAR(36)                                    NOT NULL,
     store_name            VARCHAR(100)                                NULL COMMENT '온보딩 전 NULL',
     business_no           VARCHAR(20)                                 NULL COMMENT '사업자 검증 전 NULL',
-    business_verified     TINYINT(1)                                  NOT NULL DEFAULT 0 COMMENT '국세청 검증 통과 여부 — 온보딩 진입 게이트',
+    business_status       ENUM('UNVERIFIED','PENDING','VERIFIED','REJECTED') NOT NULL DEFAULT 'UNVERIFIED'
+                          COMMENT 'NTS통과+등록증업로드→PENDING, 관리자 승인→VERIFIED, 반려→REJECTED — 온보딩 진입 게이트',
+    business_cert_path    VARCHAR(255)                                NULL COMMENT '업로드한 사업자등록증 파일 경로(서버 볼륨). 원본은 DB 미저장',
+    business_reject_reason VARCHAR(255)                               NULL COMMENT '관리자 반려 사유 (REJECTED 시)',
+    business_reviewed_by  CHAR(36)                                    NULL COMMENT '승인/반려한 관리자 user_id (감사)',
     business_type         VARCHAR(50)                                 NULL COMMENT '업종 (AI 예측 지역 변수), 온보딩 전 NULL',
     store_size            ENUM('SMALL','MEDIUM','LARGE')              NULL COMMENT '소형~10석 / 중형11~30석 / 대형31석~',
     operation_type        ENUM('HALL','DELIVERY','BOTH')              NULL COMMENT '홀 운영 / 배달 전용 / 홀+배달',
@@ -81,7 +86,9 @@ CREATE TABLE stores (
 );
 ```
 
-> 매장 행은 계정 생성(소셜/이메일) 시 1:1로 함께 생성되며, `store_name`·`business_no`·`business_type` 등은 NULL로 시작해 사업자 검증·온보딩에서 채운다. `business_verified=true`가 되어야 온보딩 진입이 허용된다. `uq_stores_business_no`는 NULL 다중 허용(MySQL)이므로 미검증 매장 공존 가능.
+> 매장 행은 계정 생성(소셜/이메일) 시 1:1로 함께 생성되며, `store_name`·`business_no`·`business_type` 등은 NULL로 시작해 사업자 검증·온보딩에서 채운다.
+>
+> **사업자 검증 상태(`business_status`) 흐름**: `UNVERIFIED`(초기) → NTS 즉시검증 통과 + 사업자등록증 업로드 → `PENDING`(관리자 심사 대기) → 관리자 승인 → `VERIFIED` / 반려 → `REJECTED`(재시도 가능). **온보딩 진입은 `PENDING` 또는 `VERIFIED`에서 허용**(`UNVERIFIED`·`REJECTED`는 차단). 마스터 코드(`NTS_MASTER_BYPASS_CODE`)는 곧바로 `VERIFIED`. 등록증 원본 파일은 서버 볼륨에 저장하고 DB엔 경로만 둔다(민감정보, `security.md` §4.1). `uq_stores_business_no`는 NULL 다중 허용(MySQL)이라 미검증 매장 공존 가능.
 
 ### 3.4 pos_connections
 
