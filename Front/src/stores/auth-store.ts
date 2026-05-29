@@ -2,12 +2,14 @@
 import { create } from "zustand";
 
 export type BusinessStatus = "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
+export type UserRole = "OWNER" | "ADMIN";
 
 export interface AuthUser {
   user_id: string;
   email: string;
   name: string;
   auth_provider: "LOCAL" | "KAKAO" | "GOOGLE";
+  role: UserRole;
   store_name: string | null;
   business_no: string | null;
   business_status: BusinessStatus;

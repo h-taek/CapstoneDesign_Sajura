@@ -1,6 +1,7 @@
 // 라우터 정의 — frontend_design.md §3.
 import { Navigate, createBrowserRouter } from "react-router";
-import { RequireGuest, RequireStage } from "./guards";
+import AdminVerificationsPage from "./admin/verifications";
+import { RequireAdmin, RequireGuest, RequireStage } from "./guards";
 import HomePage from "./home";
 import LoginPage from "./login";
 import OnboardingLayout from "./onboarding/layout";
@@ -50,6 +51,14 @@ export const router = createBrowserRouter([
       { path: "3", element: <MenusStep /> },
       { path: "4", element: <ConfirmStep /> },
     ],
+  },
+  {
+    path: "/admin/verifications",
+    element: (
+      <RequireAdmin>
+        <AdminVerificationsPage />
+      </RequireAdmin>
+    ),
   },
   {
     path: "/",

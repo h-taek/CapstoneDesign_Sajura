@@ -48,6 +48,17 @@ export function RequireStage({ stage, children }: { stage: Stage; children: Reac
   return <>{children}</>;
 }
 
+/** 관리자 전용 가드 — role=ADMIN만 통과, 그 외 본인 단계로 리다이렉트. */
+export function RequireAdmin({ children }: { children: ReactNode }) {
+  const bootstrapped = useAuthStore((s) => s.bootstrapped);
+  const token = useAuthStore((s) => s.accessToken);
+  const user = useAuthStore((s) => s.user);
+  if (!bootstrapped) return <SplashScreen />;
+  if (!token || !user) return <Navigate to="/login" replace />;
+  if (user.role !== "ADMIN") return <Navigate to={landingPath(user)} replace />;
+  return <>{children}</>;
+}
+
 function SplashScreen() {
   return (
     <output
