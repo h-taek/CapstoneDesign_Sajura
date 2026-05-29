@@ -100,6 +100,7 @@ async def get_me(session: SessionDep, current: CurrentUserDep) -> UserMeResponse
     return UserMeResponse(
         user_id=user.user_id, email=user.email, name=user.name,
         auth_provider=user.auth_provider.value,
+        role=user.role.value,
         store_name=store.store_name if store else None,
         business_no=store.business_no if store else None,
         business_status=store.business_status.value if store else "UNVERIFIED",

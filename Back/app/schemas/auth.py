@@ -39,6 +39,7 @@ class UserMeResponse(BaseModel):
     email: str
     name: str
     auth_provider: Literal["LOCAL", "KAKAO", "GOOGLE"]
+    role: Literal["OWNER", "ADMIN"]
     store_name: str | None
     business_no: str | None
     business_status: Literal["UNVERIFIED", "PENDING", "VERIFIED", "REJECTED"]
