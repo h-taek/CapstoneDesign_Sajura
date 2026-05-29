@@ -1,13 +1,16 @@
 // 라우터 정의 — frontend_design.md §3.
-import { createBrowserRouter, Navigate } from "react-router";
-import LoginPage from "./login";
+import { Navigate, createBrowserRouter } from "react-router";
+import AdminVerificationsPage from "./admin/verifications";
+import { RequireAdmin, RequireGuest, RequireStage } from "./guards";
 import HomePage from "./home";
+import LoginPage from "./login";
 import OnboardingLayout from "./onboarding/layout";
-import StoreStep from "./onboarding/step-store";
-import PosStep from "./onboarding/step-pos";
-import MenusStep from "./onboarding/step-menus";
 import ConfirmStep from "./onboarding/step-confirm";
-import { RequireAuth, RequireGuest } from "./guards";
+import MenusStep from "./onboarding/step-menus";
+import PosStep from "./onboarding/step-pos";
+import StoreStep from "./onboarding/step-store";
+import RegisterPage from "./register";
+import VerifyBusinessPage from "./verify-business";
 
 export const router = createBrowserRouter([
   {
@@ -19,11 +22,27 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    path: "/register",
+    element: (
+      <RequireGuest>
+        <RegisterPage />
+      </RequireGuest>
+    ),
+  },
+  {
+    path: "/verify-business",
+    element: (
+      <RequireStage stage="verify">
+        <VerifyBusinessPage />
+      </RequireStage>
+    ),
+  },
+  {
     path: "/onboarding",
     element: (
-      <RequireAuth requireOnboarding={false}>
+      <RequireStage stage="onboarding">
         <OnboardingLayout />
-      </RequireAuth>
+      </RequireStage>
     ),
     children: [
       { index: true, element: <Navigate to="/onboarding/1" replace /> },
@@ -34,11 +53,19 @@ export const router = createBrowserRouter([
     ],
   },
   {
+    path: "/admin/verifications",
+    element: (
+      <RequireAdmin>
+        <AdminVerificationsPage />
+      </RequireAdmin>
+    ),
+  },
+  {
     path: "/",
     element: (
-      <RequireAuth>
+      <RequireStage stage="app">
         <HomePage />
-      </RequireAuth>
+      </RequireStage>
     ),
   },
   { path: "*", element: <Navigate to="/" replace /> },
