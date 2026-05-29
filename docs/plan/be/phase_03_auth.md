@@ -17,6 +17,12 @@
 | M3.B8 | 사업자 검증 게이트 (NTS+등록증 업로드) | `POST /api/store/business/verify`(multipart, `StoreService.verify_business`) — NTS 통과 시 등록증 파일 서버 볼륨 저장 + `business_status=PENDING`. `stores.business_status` enum·`business_cert_path`·`business_reject_reason`·`business_reviewed_by` 컬럼 + `business_no`/매장필드 nullable 마이그레이션 + 마스터 코드→VERIFIED + `register`에서 business_no 제거(빈 매장 행) + me/login에 `business_status` | PENDING부터 온보딩 허용·미등록/휴폐업/형식 분기·마스터 통과·파일 검증 테스트 |
 | M3.B9 | 관리자 심사 (최소) | `users.role`(OWNER/ADMIN) 컬럼 + `/api/admin/*` ADMIN 가드 + `AdminVerificationService`(list_pending·get_cert_file·approve·reject) + 등록증 파일 ADMIN 전용 스트리밍 | 비ADMIN 403·승인→VERIFIED·반려→REJECTED(+사유) 테스트. 종합 관리도구는 [후속] |
 
+> **구현 결정 (plan-eng-review 후속)**
+> - **PR 분할**: M3.B8(점주 측)=PR-A `feat/be-verify` → M3.B9(관리자 측)=PR-B `feat/be-admin`. 각 PR 작게·리뷰 가능하게. PR-A만으로 데모 흐름(PENDING→온보딩) 완성.
+> - **0003 마이그레이션 = drop+add**: 0002의 `business_verified`(boolean)를 데이터 변환 없이 DROP하고 `business_status` enum·cert·role 신설. dev 한정·검증 데이터 없음 전제(운영 데이터 있으면 보존 변환 필요).
+> - **등록증 파일 = 서버 볼륨**: `be` 컨테이너에 uploads 볼륨 신설(docker-compose). 현재 be는 볼륨이 없어 재빌드 시 파일 소실 → DB 경로와 불일치(깨진 링크) 방지 위해 필수. DB(mysql_data)는 경로만 보관.
+> - **관리자 판별 = 매 요청 DB 조회**: `role`을 JWT에 넣지 않고 `/api/admin/*` 진입 시 DB에서 조회. 역할 변경 즉시 반영, 관리자 트래픽 적어 부담 없음.
+
 ## 외부 의존
 
 - FE: `auth_fe` 완료 시 Phase 통합 종료(M3) 가능

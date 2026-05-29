@@ -19,6 +19,8 @@
 | M3.F10 | **관리자 심사 화면 (최소)** | `routes/admin/verifications.tsx` 신설(PENDING 목록·등록증 미리보기·승인/반려) + `role=ADMIN` 가드 + `/api/admin/*` 연동 | 비ADMIN 접근 차단 + 승인/반려 후 목록 갱신 E2E. 종합 관리도구는 [후속] |
 
 > **M3.F8·F9·F10 사유**: 사업자 검증을 회원가입에서 분리해 **온보딩 진입 전 독립 게이트(`/verify-business`)**로 두고, NTS 자동 조회 + 사업자등록증 업로드 + 관리자 승인(`/admin`) 2단계로 소유권까지 확인 — 소셜·이메일 공통. PENDING부터 온보딩 허용(1-B). 상세: `feature_spec.md` §1.4, `api_spec.md` §3, `security.md` §2.4·§4.2·§5.1.
+>
+> **구현 순서 (plan-eng-review 후속)**: M3.F8·F9(점주 측)=PR-A 먼저, M3.F10(관리자 화면)=PR-B 나중. BE PR-A/PR-B와 짝. F9 가드는 `business_status` 4값 기준으로 전환.
 
 ## 외부 의존
 
