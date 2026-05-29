@@ -63,7 +63,7 @@ docs/plan/       → 구현 계획 (단계별 작업, 순서, 역할 분담)
 | MVP 외부 데이터 (30차 확정) | 03 조사로 확정 — 기상청 단기예보·과거 기상·공휴일·홍익대 학사일정 [필수]; 세담터 유동인구·소상공인 상가정보 [권장]; 배달상권 [선택]. [2단계]: SK 지오비전·ECOS·네이버 데이터랩. 세종 조치원 홍익대 상권 기준 | `08_ai/ml_pipeline.md` §4 + `research/ai/03_external_data_sources.md` |
 | 보안 정책 | RBAC MVP 단일 역할 점주 / 감사 로그 1년 보관·`ops_readonly` 조회·append-only / 다중 디바이스 자체 토큰 / 강제 로그아웃 `POST /api/auth/logout-all` 채택 / 결제는 쿠팡 자체 수행(사주라 미경유·미저장) | `security.md` §2·§5, `research/backend/14_security_open_items.md` |
 | 데모 시나리오 | 9단계 SSOT — 1.로그인 2.온보딩 3.CSV 4.메뉴·재고·판매 5.n8n야간예측 6.수요예측 7.추천발주 8.대시보드·알림 9.쿠팡자동주문 | `docs/plan/be/phase_13_release.md` |
-| OAuth dev 운영 (29차) | (a) 카카오 scope에서 `account_email` 제거 — 동의항목 미검수 환경 대응. (b) fallback 이메일은 `{provider}_{id}@social.example.com` (valid TLD). (c) `UserMeResponse.email`은 `str` (register/login 입력 검증만 `EmailStr`). (d) Vite dev proxy `/api → BE`로 FE/BE 같은 origin 통합 — Safari ITP cross-site cookie 차단 회피 | `Back/app/api/oauth.py`, `Back/app/schemas/auth.py`, `Front/vite.config.ts` |
+| OAuth dev 운영 (29차) | (a) 카카오 scope에서 `account_email` 제거 — 동의항목 미검수 환경 대응. (b) fallback 이메일은 `{provider}_{id}@social.example.com` (valid TLD). (c) `UserMeResponse.email`은 `str` (register/login 입력 검증만 `EmailStr`). (d) Vite dev proxy `/api → BE`로 FE/BE 같은 origin 통합 + **OAuth `redirect_uri`도 proxy 경유(`localhost:5173/api/auth/callback/*`)로 통일(34차)** — Safari ITP cross-site cookie 차단 회피. 콜백을 BE:8000으로 직접 보내면 refresh 쿠키가 cross-site로 설정돼 첫 로그인이 차단(2회 클릭 필요)되던 문제 해결. **OAuth 콘솔(Google/Kakao) 승인 redirect URI에도 5173 주소 등록 필요** | `Back/app/api/oauth.py`, `Back/app/schemas/auth.py`, `Front/vite.config.ts`, `.env.example` |
 | FE 자체 로그인·회원가입 (29차) | spec(`feature_spec.md` §1.2)·BE(9개 라우터 + auth_test 12개)는 정상이나 27차 phase_03 작성 시 FE 마일스톤이 누락되어 OAuth 화면만 노출. `docs/plan/fe/phase_03_auth.md` M3.F8로 명시화하고 **다음 단계로 즉시 진행**. `dev` 위에서 `feat/fe-register` → `fe` → `dev` 머지 흐름. **main 릴리즈는 전체 phase 완료 후 1회**로 유보 | `docs/plan/fe/phase_03_auth.md` M3.F8, `feature_spec.md` §1.2, `HANDOFF.md` |
 | 사업자 검증 = 온보딩 前 독립 게이트 (32차) | 사업자 검증을 회원가입에 묶지 않고 **인증 후·온보딩 진입 전 독립 단계(`/verify-business`, `POST /api/store/business/verify`)**로 분리 — 소셜·이메일 계정 공통 적용(기존엔 이메일 register에만 있어 OAuth 갭). `register`는 email·password·name만 받고 매장 행은 빈 상태로 생성. `stores.business_verified` 플래그 + `business_no`/매장필드 nullable. 검증 실패 시 **계정 유지 + 재검증**(미등록/형식 재입력·휴폐업 안내), 가드가 미검증자 온보딩 차단. 시연용 마스터 코드(`NTS_MASTER_BYPASS_CODE`)로 강제 통과 가능. **33차에서 상태 모델·소유권 검증으로 확장됨** | `feature_spec.md` §1.4, `api_spec.md` §3 등 |
 | 사업자 소유권 검증 = NTS + 등록증 + 관리자 승인 (33차) | NTS 조회는 사업자 실재·영업만 확인하고 **소유권은 증명 못 하는 공백**을 보완. ① NTS 즉시 조회 ② **사업자등록증 업로드** → `PENDING` ③ **관리자 승인**(`/admin` 심사) → `VERIFIED`/반려 `REJECTED`. `business_verified`(boolean) → **`business_status` 4단계 enum**. **PENDING부터 온보딩 진입 허용(1-B)**. `users.role`(OWNER/ADMIN) 신설, 관리자 최소 심사(`/api/admin/*`)는 Phase 3 포함·종합 관리도구는 Phase 11로. 등록증 파일은 서버 볼륨 저장(DB엔 경로), ADMIN 가드 하에서만 조회. 마스터 코드→곧바로 VERIFIED | `feature_spec.md` §1.4, `api_spec.md` §2·§3, `schema.md`(users.role·stores.business_status·cert), `service_design.md`(AdminVerificationService), `security.md` §2.4·§4.2·§5.1, `frontend_design.md` §3, `plan/be·fe/phase_03_auth.md`(M3.B8·B9·F9·F10), `plan_gantt.md` |
@@ -175,9 +175,38 @@ HANDOFF.md E단계 9개 검증 시나리오 수행 + 발견된 결함 일괄 정
 
 ---
 
+### Phase 3 — 사업자 검증 게이트 구현 + dev 통합 + OAuth 픽스 (2026-05-29, 34차)
+
+32·33차에서 문서로 확정한 사업자 검증 게이트(NTS + 등록증 업로드 + 관리자 승인)를 코드로 구현하고 `dev`에 통합. 수동 테스트로 골든패스·관리자 흐름 확인.
+
+**구현 (PR-A 점주 측 → PR-B 관리자 측, 각 BE→FE 순)**
+
+| 영역 | 산출물 | 마일스톤 |
+|---|---|---|
+| BE PR-A | `business_status` enum 마이그레이션(0003) + `core/storage.py`(등록증 저장) + `verify_business`(NTS→마스터=VERIFIED/등록증=PENDING) + verify 엔드포인트 multipart | M3.B8 |
+| BE PR-B | `users.role` 마이그레이션(0004) + `AdminVerificationService`(목록·승인·반려·등록증 스트리밍) + `/api/admin/*` ADMIN 가드(`get_admin_user`, role DB 실시간 조회) | M3.B9 |
+| FE PR-A | register 단순화(email·pw·name) + `/verify-business`(사업자번호+등록증 업로드, 반려 사유 표시) + `RequireStage`(verify/onboarding/app) 가드 + `landingPath()` | M3.F8·F9 |
+| FE PR-B | `/admin/verifications` 심사 큐(목록·등록증 미리보기·승인/반려) + `RequireAdmin` 가드 | M3.F10 |
+
+**docker**: `be` 서비스에 `be_uploads` 볼륨 추가(등록증 파일이 rebuild 시 유실되지 않도록).
+
+**테스트**: BE pytest 20개(auth_test 16 + admin_test 4) + FE Vitest 19 + Playwright E2E 7 통과.
+
+**OAuth 더블클릭 픽스**: 구글/카카오 콜백 `redirect_uri`를 BE:8000 직접 → FE proxy(`localhost:5173/api/auth/callback/*`)로 변경. cross-site refresh 쿠키를 Safari ITP가 첫 시도에 차단하던 문제 해결(§3 OAuth dev 운영 (d) 참조). OAuth 콘솔 양쪽에 5173 redirect URI 등록 후 1회 클릭 정상 동작 확인.
+
+**수동 테스트 (`scripts/dev-up.sh`)**: 구글 로그인 → `/verify-business` 자동 진입 정상. 관리자 흐름은 `htaeky@gmail.com`을 DB에서 `role=ADMIN` 승격 후 `/admin/verifications` 접근 확인.
+
+**브랜치 통합**: `feat/be-admin`(BE 전체) → dev, `feat/fe-admin`(FE 전체) → dev 직접 머지(BE는 `Back/`·`docker-compose`, FE는 `Front/`·`.env.example`로 파일 겹침 없음). `.env.example` OAuth redirect 수정은 dev 커밋. **be/fe 브랜치 정렬·dev → main 릴리즈는 전체 phase 완료 후 1회로 유보**.
+
+---
+
 ## 5. 문서 수정 이력
 
 차수별 상세 변경. 최근 항목을 위로, 옛 항목은 추상화한다. 1~27차 audit 상세는 git log + spec/research 본문 참조.
+
+### 2026-05-29 (34차) — 사업자 검증 게이트 구현·dev 통합 + OAuth redirect_uri 픽스
+
+32·33차 문서 확정분을 코드로 구현(§4 34차 참조). 본 회차 문서 작업: ① §3 OAuth dev 운영 (d) 행에 `redirect_uri` proxy 경유(5173) 통일 + 콘솔 등록 의무 추가 ② §4 개발 이력에 34차(구현·통합·OAuth 픽스·수동 테스트) 추가 ③ `HANDOFF.md`를 검증 게이트 완료 상태로 갱신(다음 우선순위 = Phase 4 POS). `.env.example`의 OAuth redirect 기본값(5173)·설명 주석은 dev 브랜치에 커밋(코드 변경이라 main 릴리즈 때 동반).
 
 ### 2026-05-29 (33차) — 사업자 소유권 검증: NTS + 등록증 업로드 + 관리자 승인 (32차 확장)
 
