@@ -63,11 +63,12 @@ CREATE TABLE refresh_tokens (
 CREATE TABLE stores (
     store_id              CHAR(36)                                    NOT NULL,
     user_id               CHAR(36)                                    NOT NULL,
-    store_name            VARCHAR(100)                                NOT NULL,
-    business_no           VARCHAR(20)                                 NOT NULL,
-    business_type         VARCHAR(50)                                 NOT NULL COMMENT '업종 (AI 예측 지역 변수)',
-    store_size            ENUM('SMALL','MEDIUM','LARGE')              NOT NULL COMMENT '소형~10석 / 중형11~30석 / 대형31석~',
-    operation_type        ENUM('HALL','DELIVERY','BOTH')              NOT NULL COMMENT '홀 운영 / 배달 전용 / 홀+배달',
+    store_name            VARCHAR(100)                                NULL COMMENT '온보딩 전 NULL',
+    business_no           VARCHAR(20)                                 NULL COMMENT '사업자 검증 전 NULL',
+    business_verified     TINYINT(1)                                  NOT NULL DEFAULT 0 COMMENT '국세청 검증 통과 여부 — 온보딩 진입 게이트',
+    business_type         VARCHAR(50)                                 NULL COMMENT '업종 (AI 예측 지역 변수), 온보딩 전 NULL',
+    store_size            ENUM('SMALL','MEDIUM','LARGE')              NULL COMMENT '소형~10석 / 중형11~30석 / 대형31석~',
+    operation_type        ENUM('HALL','DELIVERY','BOTH')              NULL COMMENT '홀 운영 / 배달 전용 / 홀+배달',
     address               VARCHAR(255)                                NULL,
     phone                 VARCHAR(20)                                 NULL COMMENT 'NATIONAL 형식 010-1234-5678 — BE가 phonenumbers로 정규화 후 저장',
     onboarding_completed  TINYINT(1)                                  NOT NULL DEFAULT 0,
@@ -79,6 +80,8 @@ CREATE TABLE stores (
     CONSTRAINT fk_stores_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
 );
 ```
+
+> 매장 행은 계정 생성(소셜/이메일) 시 1:1로 함께 생성되며, `store_name`·`business_no`·`business_type` 등은 NULL로 시작해 사업자 검증·온보딩에서 채운다. `business_verified=true`가 되어야 온보딩 진입이 허용된다. `uq_stores_business_no`는 NULL 다중 허용(MySQL)이므로 미검증 매장 공존 가능.
 
 ### 3.4 pos_connections
 

@@ -89,7 +89,7 @@ Authorization: Bearer <access_token>
 
 | Method | Path | 설명 | 인증 필요 |
 |--------|------|------|-----------|
-| `POST` | `/api/auth/register` | 회원가입 (사업자번호 검증 포함) | X |
+| `POST` | `/api/auth/register` | 회원가입 (email·password·name만, 사업자 검증은 별도 단계) | X |
 | `POST` | `/api/auth/login` | 이메일/비밀번호 로그인 | X |
 | `GET` | `/api/auth/login/kakao` | 카카오 OAuth 인가 URL 리다이렉트 | X |
 | `GET` | `/api/auth/callback/kakao` | 카카오 인가 코드 수신 → Refresh Set-Cookie + FE 진입 URL로 302 redirect | X |
@@ -110,19 +110,18 @@ Authorization: Bearer <access_token>
 {
   "email": "owner@example.com",
   "password": "string",
-  "name": "홍길동",
-  "business_no": "123-45-67890",
-  "store_name": "길동 카페"
+  "name": "홍길동"
 }
 
 // Response 201
 {
   "user_id": "uuid",
   "email": "owner@example.com",
-  "name": "홍길동",
-  "store_name": "길동 카페"
+  "name": "홍길동"
 }
 ```
+
+> 회원가입은 email·password·name만 받는다. 사업자등록번호·매장명은 가입 이후 사업자 검증(`POST /api/store/business/verify`)·온보딩(`PATCH /api/store`) 단계에서 입력한다. 소셜·이메일 계정 모두 가입 직후 `business_verified=false` 상태로 시작한다.
 
 ### POST /api/auth/login
 
@@ -138,10 +137,13 @@ Authorization: Bearer <access_token>
   "access_token": "jwt_string",
   "token_type": "bearer",
   "expires_in": 3600,
+  "business_verified": false,
   "onboarding_completed": true
 }
 // Refresh Token은 HttpOnly Cookie로 Set-Cookie
 ```
+
+> FE 진입 분기: `business_verified=false` → 사업자 검증 화면 / `true && onboarding_completed=false` → 온보딩 / 둘 다 true → 메인.
 
 ### GET /api/auth/login/kakao
 
@@ -216,10 +218,13 @@ Authorization: Bearer <access_token>
   "auth_provider": "LOCAL",
   "store_name": "길동 카페",
   "business_no": "123-45-67890",
+  "business_verified": true,
   "onboarding_completed": true,
   "created_at": "2026-01-01T00:00:00Z"
 }
 ```
+
+> `store_name`·`business_no`는 사업자 검증·온보딩 전이면 `null`. `business_verified`가 false면 FE는 사업자 검증 화면으로 강제 이동한다.
 
 ### PATCH /api/auth/me
 
@@ -263,6 +268,7 @@ Authorization: Bearer <access_token>
 
 | Method | Path | 설명 | 단계 |
 |--------|------|------|------|
+| `POST` | `/api/store/business/verify` | 사업자등록번호 국세청 검증 (온보딩 진입 전 게이트) | [MVP] |
 | `GET` | `/api/store` | 내 매장 정보 조회 | [MVP] |
 | `PATCH` | `/api/store` | 매장 정보 수정 | [MVP] |
 | `POST` | `/api/store/onboarding/complete` | 온보딩 완료 처리 | [MVP] |
@@ -274,6 +280,27 @@ Authorization: Bearer <access_token>
 | `GET` | `/api/store/pos/status` | POS 연동 상태 조회 (`CSV_MODE`·`CONNECTED`·`ERROR`·`DISCONNECTED`) | [MVP] |
 
 > 1계정 1매장 구조이므로 `/api/store/{id}` 대신 `/api/store`로 단순화.
+
+### POST /api/store/business/verify
+
+```json
+// Request (인증 필요)
+{
+  "business_no": "123-45-67890"
+}
+
+// Response 200 — 검증 성공 (계속사업자 또는 마스터 코드)
+{
+  "business_verified": true,
+  "business_no": "123-45-67890"
+}
+
+// 실패 — 형식 오류·미등록: 400 AUTH_BUSINESS_NO_INVALID
+// 실패 — 휴업/폐업: 422 AUTH_BUSINESS_NO_NOT_ACTIVE
+// 실패 — 국세청 서비스 장애: 503 SERVICE_UNAVAILABLE
+```
+
+> 온보딩(매장 정보 입력) 진입 **전** 게이트. 성공 시 `stores.business_verified=true` + `business_no` 저장. 실패 시 **계정·상태를 유지**하고 사유만 반환하여 FE가 재입력/안내를 표시한다(계정 삭제 없음). 입력 `business_no`가 환경변수 마스터 코드(`NTS_MASTER_BYPASS_CODE`)와 일치하면 국세청 호출 없이 통과(시연용, `security.md` §2.4). 소셜·이메일 계정 공통 진입. 검증 어댑터: `nts.assert_business_active` (`service_design.md`).
 
 ### GET /api/store
 
@@ -288,10 +315,13 @@ Authorization: Bearer <access_token>
   "operation_type": "HALL",
   "address": "서울시 강남구 ...",
   "phone": "02-1234-5678",
+  "business_verified": true,
   "onboarding_completed": true,
   "created_at": "2026-01-01T00:00:00Z"
 }
 ```
+
+> 사업자 검증 전이면 `business_no`·`store_name` 등은 `null`, `business_verified=false`.
 
 ### PATCH /api/store
 

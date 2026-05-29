@@ -71,8 +71,9 @@
 
 ### 인증/회원
 - Google / 카카오 로그인 모두 Backend가 자체 JWT 발급 (Access Token 1시간, Refresh Token 30일 HttpOnly Cookie, Rotation 적용)
-- 사업자등록번호 입력 즉시 국세청 API 검증, 계속사업자만 가입 허용
-- 온보딩 미완료 시 재접속해도 초기 설정 화면으로 강제 이동 (onboarding_completed 필드 관리)
+- 이메일 회원가입은 email·password·name만 받고, 소셜·이메일 계정 모두 가입 직후 사업자 검증 단계로 진입 (계정은 항상 생성됨)
+- 사업자 검증은 온보딩과 분리된 게이트: 사업자등록번호 입력 즉시 국세청 API 검증, 계속사업자만 온보딩 진입 허용 (`business_verified` 필드). 검증 실패 시 계정 유지 + 재검증, 마스터 코드로 강제 패스 가능 (`security.md` §2.4)
+- 미검증·온보딩 미완료 시 재접속해도 검증/초기 설정 화면으로 강제 이동 (`business_verified`·`onboarding_completed` 필드 관리)
 - 매장 정보 입력 항목: 사업자등록번호, 매장명, 업종, 연락처, 주소, 매장 규모 구간, 운영 형태 (전체 필수)
 - POS 연동 실패 시 CSV 임시 모드 허용, 수요예측/자동발주 비활성화 + "POS 연동 미완료" 배지 표시
 

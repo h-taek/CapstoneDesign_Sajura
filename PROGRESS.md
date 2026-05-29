@@ -65,6 +65,7 @@ docs/plan/       → 구현 계획 (단계별 작업, 순서, 역할 분담)
 | 데모 시나리오 | 9단계 SSOT — 1.로그인 2.온보딩 3.CSV 4.메뉴·재고·판매 5.n8n야간예측 6.수요예측 7.추천발주 8.대시보드·알림 9.쿠팡자동주문 | `docs/plan/be/phase_13_release.md` |
 | OAuth dev 운영 (29차) | (a) 카카오 scope에서 `account_email` 제거 — 동의항목 미검수 환경 대응. (b) fallback 이메일은 `{provider}_{id}@social.example.com` (valid TLD). (c) `UserMeResponse.email`은 `str` (register/login 입력 검증만 `EmailStr`). (d) Vite dev proxy `/api → BE`로 FE/BE 같은 origin 통합 — Safari ITP cross-site cookie 차단 회피 | `Back/app/api/oauth.py`, `Back/app/schemas/auth.py`, `Front/vite.config.ts` |
 | FE 자체 로그인·회원가입 (29차) | spec(`feature_spec.md` §1.2)·BE(9개 라우터 + auth_test 12개)는 정상이나 27차 phase_03 작성 시 FE 마일스톤이 누락되어 OAuth 화면만 노출. `docs/plan/fe/phase_03_auth.md` M3.F8로 명시화하고 **다음 단계로 즉시 진행**. `dev` 위에서 `feat/fe-register` → `fe` → `dev` 머지 흐름. **main 릴리즈는 전체 phase 완료 후 1회**로 유보 | `docs/plan/fe/phase_03_auth.md` M3.F8, `feature_spec.md` §1.2, `HANDOFF.md` |
+| 사업자 검증 = 온보딩 前 독립 게이트 (32차) | 사업자 검증을 회원가입에 묶지 않고 **인증 후·온보딩 진입 전 독립 단계(`/verify-business`, `POST /api/store/business/verify`)**로 분리 — 소셜·이메일 계정 공통 적용(기존엔 이메일 register에만 있어 OAuth 갭). `register`는 email·password·name만 받고 매장 행은 빈 상태로 생성. `stores.business_verified` 플래그 + `business_no`/매장필드 nullable. 검증 실패 시 **계정 유지 + 재검증**(미등록/형식 재입력·휴폐업 안내), 가드가 미검증자 온보딩 차단. 시연용 마스터 코드(`NTS_MASTER_BYPASS_CODE`)로 국세청 호출 없이 강제 통과 가능(운영 빈 값). 국세청 API는 odcloud(`api.odcloud.kr/api/nts-businessman/v1`), `.env`에 `NTS_API_SERVICE_KEY` 등 추가 | `feature_spec.md` §1.4, `api_spec.md` §3, `service_design.md`, `schema.md`, `security.md` §2.4, `frontend_design.md` §3, `plan/be·fe/phase_03_auth.md` |
 
 ---
 
@@ -176,6 +177,14 @@ HANDOFF.md E단계 9개 검증 시나리오 수행 + 발견된 결함 일괄 정
 ## 5. 문서 수정 이력
 
 차수별 상세 변경. 최근 항목을 위로, 옛 항목은 추상화한다. 1~27차 audit 상세는 git log + spec/research 본문 참조.
+
+### 2026-05-29 (32차) — 사업자 검증을 온보딩 前 독립 게이트로 분리 + 마스터 코드
+
+검증 호출이 이메일 `register`에만 있어 OAuth 가입자는 사업자 검증을 거치지 않던 불일치(spec 내부도 register-시점 vs 온보딩-시점 혼재)를 해소. 검증을 **인증 후·온보딩 진입 전 독립 단계**(`/verify-business`, `POST /api/store/business/verify`)로 통일하여 소셜·이메일 공통 적용.
+
+**핵심 변경**: ① `register` 페이로드에서 `business_no`·`store_name` 제거(email·password·name만), 매장 행은 가입 시 빈 상태로 생성 ② `stores.business_verified` 컬럼 신설 + `business_no`·매장필드 nullable ③ 가드 순서에 `business_verified` 단계 추가(미검증 → `/verify-business`, 검증 전 온보딩 차단) ④ 검증 실패 시 계정 유지 + 재검증(미등록/형식 재입력·휴폐업 안내) ⑤ 시연용 마스터 코드(`NTS_MASTER_BYPASS_CODE`)로 국세청 호출 없이 강제 통과(운영 빈 값, 백도어로 `security.md` §2.4 명시) ⑥ 국세청 API는 odcloud(`api.odcloud.kr/api/nts-businessman/v1`), `.env`/`.env.example`에 `NTS_API_SERVICE_KEY`·`NTS_API_STUB_MODE`·`NTS_MASTER_BYPASS_CODE` 추가.
+
+**영향 문서**: `feature_spec.md` §1.2·§1.4, `api_spec.md` §2·§3(verify 엔드포인트 신설), `service_design.md`(register 시그니처·`verify_business`), `schema.md`(stores), `sequence.md`, `user_flow.md`, `usecase_spec.md`, `security.md` §2.4, `frontend_design.md` §3, `feature_list.md`, `plan/be·fe/phase_03_auth.md`(M3.B8·M3.F9 신설). 코드 구현(BE 마이그레이션·verify 엔드포인트, FE `/verify-business`·가드)은 후속 `feat/*` 진행 — 본 회차는 문서·`.env` 확정만.
 
 ### 2026-05-28 (31차) — docs/plan/ai/ 신설 + plan_gantt §6 AI 트랙 색인 정렬
 

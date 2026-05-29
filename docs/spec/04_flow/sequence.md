@@ -61,16 +61,22 @@ sequenceDiagram
         사주라UI->>사주라서버: POST /api/auth/refresh (Cookie 자동 전송)
         사주라서버-->>사주라UI: Access Token 응답
         사주라UI->>사주라서버: GET /api/auth/me
-        사주라서버-->>사주라UI: user 정보 + onboarding_completed: false
-        사주라UI-->>사용자: 온보딩 Step 1 진입
+        사주라서버-->>사주라UI: user 정보 + business_verified: false + onboarding_completed: false
+        사주라UI-->>사용자: 사업자 검증 화면 진입 (온보딩 진입 전 게이트)
 
-        사용자->>사주라UI: 사업자등록번호 + 매장 정보 입력 (매장명·업종·연락처·주소·규모·운영형태)
-        사주라UI->>사주라서버: PATCH /api/store (business_no 포함)
-        사주라서버->>사주라서버: 국세청 API 즉시 검증 (business_no)
-        alt 휴업 / 폐업 / 미등록
-            사주라서버-->>사주라UI: 400 오류 + 사유 메시지
-            사주라UI-->>사용자: 진행 불가 오류 표시
-        else 계속사업자
+        사용자->>사주라UI: 사업자등록번호 입력
+        사주라UI->>사주라서버: POST /api/store/business/verify (business_no)
+        사주라서버->>사주라서버: 국세청 API 즉시 검증 (마스터 코드 일치 시 호출 생략)
+        alt 휴업 / 폐업 / 미등록 / 형식오류
+            사주라서버-->>사주라UI: 400·422 오류 + 사유 (계정·상태 유지)
+            사주라UI-->>사용자: 재입력 / 진행 불가 안내
+        else 계속사업자 (또는 마스터 코드)
+            사주라서버->>DB: business_no 저장 + business_verified=true
+            사주라서버-->>사주라UI: 200 business_verified: true
+            사주라UI-->>사용자: 온보딩 Step 1 진입
+
+            사용자->>사주라UI: 매장 정보 입력 (매장명·업종·연락처·주소·규모·운영형태)
+            사주라UI->>사주라서버: PATCH /api/store
             사주라서버->>DB: 매장 정보 저장
 
             사용자->>사주라UI: POS 연동 모드 선택 (CSV[MVP] / POS API[2단계])

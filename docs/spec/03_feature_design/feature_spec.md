@@ -49,8 +49,10 @@ Frontend → GET /api/auth/login/kakao
 
 | 구분 | 항목 |
 |---|---|
-| 입력 | email, password |
-| 출력 | JWT Access Token, JWT Refresh Token, user_id, email, onboarding_completed |
+| 입력 | 회원가입: email, password, name / 로그인: email, password |
+| 출력 | JWT Access Token, JWT Refresh Token, user_id, email, business_verified, onboarding_completed |
+
+> 이메일 회원가입(`POST /api/auth/register`)은 email·password·name만 받는다. 사업자등록번호·매장 정보는 가입 이후 사업자 검증·온보딩 단계(§1.4)에서 입력한다.
 
 ### 1.3 JWT 토큰 정책
 
@@ -60,15 +62,16 @@ Frontend → GET /api/auth/login/kakao
 - Refresh Token은 사용 시마다 새 토큰으로 교체한다(Rotation).
 - Access Token은 메모리에 저장하며 LocalStorage 저장을 금지한다.
 
-### 1.4 회원가입 초기 설정
+### 1.4 사업자 검증 및 온보딩 초기 설정
 
-온보딩 흐름은 아래 단계를 순서대로 진행한다.
+계정 생성 직후 매장 서비스 진입 전까지 아래 단계를 순서대로 진행한다. 각 단계는 직전 단계 완료 전에는 진입할 수 없다(가드).
 
 ```
-1. OAuth 계정 생성 (Google / 카카오)
-2. 사업자등록번호 입력 → 국세청 API 즉시 검증
-     ├─ 계속사업자 확인 → 다음 단계 진행 허용
-     └─ 휴업 / 폐업 / 미등록 → 진행 불가, 오류 메시지 표시
+1. 계정 생성 (Google / 카카오 OAuth 또는 이메일/비밀번호 회원가입)
+2. 사업자 검증 (온보딩과 분리된 독립 단계) — 사업자등록번호 입력 → 국세청 API 즉시 검증
+     ├─ 계속사업자 확인 → business_verified=true → 온보딩 진행 허용
+     ├─ 미등록 / 형식 오류 → 재입력 요청 (계정 유지)
+     └─ 휴업 / 폐업 → 진행 불가, 사유 안내 (계정 유지, business_verified=false)
 3. 매장 정보 입력 (매장명, 업종, 연락처, 주소)
 4. POS 연동 방식 선택
      ├─ CSV 모드 (MVP 기본 경로) → CSV 템플릿 다운로드 → 보유 POS 데이터 업로드
@@ -78,14 +81,17 @@ Frontend → GET /api/auth/login/kakao
      · 양쪽 모두 수요예측·자동발주 추천 활성화
      · 설정 화면에서 모드 전환 가능
 5. 초기 재고 / 초기 메뉴 입력
-6. 메인 화면 진입
+6. 메인 화면 진입 (onboarding_completed=true)
 ```
 
-- 초기 설정 미완료 상태에서 재접속 시 onboarding_completed: false를 로그인 응답에 포함하여 Frontend가 초기 설정 화면으로 강제 이동한다.
+- 사업자 검증(2)은 온보딩(3~5)과 분리된 단계다. 인증된 사용자라도 `business_verified=false`이면 온보딩 화면에 진입할 수 없다(가드가 검증 화면으로 강제 이동).
+- 검증 실패 시 **계정을 삭제하지 않고 유지**하며, 재검증 화면으로 안내한다. 미등록/형식은 재입력, 휴업/폐업은 사유를 표시한다.
+- 미검증·미완료 상태에서 재접속 시 `GET /api/auth/me`의 `business_verified`·`onboarding_completed` 값으로 Frontend가 검증/온보딩 화면으로 강제 이동한다.
+- 소셜·이메일 계정 모두 동일하게 사업자 검증 단계를 거친다(인증 방식 무관).
 
 | 구분 | 항목 | 비고 |
 |---|---|---|
-| 입력 | 사업자등록번호 | 필수, 국세청 API 검증 |
+| 입력 | 사업자등록번호 | 필수, 국세청 API 검증. `POST /api/store/business/verify` |
 | | 매장명 | 필수 |
 | | 업종 | 필수 |
 | | 연락처 | 필수 |
@@ -94,7 +100,10 @@ Frontend → GET /api/auth/login/kakao
 | | 운영 형태 | 필수, 선택지 제공 (홀 운영 / 배달 전용 / 홀+배달 병행) |
 | | POS 종류 및 자격증명 | [2단계] POS API 선택 시 필수. MVP는 CSV 모드 선택이 기본 |
 | 출력 | store_id | |
+| | business_verified | boolean |
 | | onboarding_completed | boolean |
+
+> 시연·테스트용 강제 패스: 입력 사업자번호가 환경변수 마스터 코드(`NTS_MASTER_BYPASS_CODE`)와 일치하면 국세청 호출 없이 검증을 통과시킨다. 상세·위험은 `security.md` §2.4.
 
 > POS 연동 상태(`CONNECTED` / `CSV_MODE` / `DISCONNECTED`)는 온보딩 완료 후 `GET /api/store/pos/status`로 별도 조회한다.
 

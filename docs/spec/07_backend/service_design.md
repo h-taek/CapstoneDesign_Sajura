@@ -124,7 +124,7 @@
 
 | 메서드 | 파라미터 | 반환 | 설명 |
 |--------|----------|------|------|
-| `register` | email, password, name, business_no, store_name | `UserDTO` | 회원가입 + 국세청 검증 (응답에 onboarding_completed: false 포함) |
+| `register` | email, password, name | `UserDTO` | 이메일 회원가입 (email·password·name만). 사업자 검증·매장 정보는 가입 후 별도 단계. 가입 시 빈 매장 행 생성(business_verified=false) |
 | `login_with_email` | email, password | `TokenDTO` | 이메일 로그인 |
 | `login_with_oauth` | provider, code, state | `TokenDTO` | Google/카카오 OAuth 로그인 |
 | `logout` | user_id, refresh_token_hash | `None` | Refresh Token 무효화 (현 디바이스) |
@@ -139,8 +139,9 @@
 
 | 메서드 | 파라미터 | 반환 | 설명 |
 |--------|----------|------|------|
+| `verify_business` | user_id, business_no | `StoreDTO` | 국세청 사업자 검증(`nts.assert_business_active`) 후 `business_no` 저장 + `business_verified=true`. 마스터 코드 일치 시 호출 생략. 실패 시 계정·상태 유지하고 도메인 에러 반환 — 온보딩 진입 게이트 |
 | `get_store` | user_id | `StoreDTO` | 매장 정보 조회 |
-| `update_store` | user_id, data | `StoreDTO` | 매장 정보 수정 (business_type, store_size, operation_type 포함) |
+| `update_store` | user_id, data | `StoreDTO` | 매장 정보 수정 (business_type, store_size, operation_type 포함). `business_verified=true` 전제 |
 | `complete_onboarding` | store_id | `None` | 온보딩 완료 처리 (onboarding_completed = true) |
 
 ### PosService
