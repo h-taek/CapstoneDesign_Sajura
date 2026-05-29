@@ -8,7 +8,7 @@
 | ID | 마일스톤 | 산출물 | 검증 |
 |---|---|---|---|
 | M3.B1 | AuthService 구현 | Authlib OAuth(카카오·구글) + python-jose JWT + passlib[bcrypt] | OAuth 흐름 302 redirect + HttpOnly Cookie 발급 |
-| M3.B2 | StoreService 구현 | 매장 등록·조회·소프트삭제 + `stores.phone` phonenumbers NATIONAL 정규화 | API 4종 (`POST/GET/PUT/DELETE /api/stores/me`) |
+| M3.B2 | StoreService 구현 | 매장 조회·수정 + `stores.phone` phonenumbers NATIONAL 정규화 | `GET`·`PATCH /api/store` (api_spec §3) |
 | M3.B3 | 국세청 사업자등록번호 검증 | 외부 API 어댑터 (httpx + tenacity + aiobreaker) | 유효·휴업·말소 분기 |
 | M3.B4 | `POST /api/auth/logout-all` | 모든 디바이스 일괄 폐기 (PROGRESS.md §3 2026-05-16 강제 로그아웃) | refresh_token_blacklist Redis 저장 |
 | M3.B5 | auth_test BE 측 | API 통합 테스트 (pytest + testcontainers + respx) | 12개 시나리오 통과 |

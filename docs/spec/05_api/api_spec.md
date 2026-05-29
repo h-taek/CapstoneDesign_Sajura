@@ -349,12 +349,13 @@ Authorization: Bearer <access_token>
   "address": "서울시 강남구 ...",
   "phone": "02-1234-5678",
   "business_status": "VERIFIED",
+  "business_reject_reason": null,
   "onboarding_completed": true,
   "created_at": "2026-01-01T00:00:00Z"
 }
 ```
 
-> 사업자 검증 전이면 `business_no`·`store_name` 등은 `null`, `business_status="UNVERIFIED"`.
+> 사업자 검증 전이면 `business_no`·`store_name` 등은 `null`, `business_status="UNVERIFIED"`. `business_reject_reason`은 `business_status="REJECTED"`일 때만 사유 문자열, 그 외 `null` — FE가 `/verify-business`에서 반려 사유를 표시하는 데 사용한다.
 
 ### PATCH /api/store
 
