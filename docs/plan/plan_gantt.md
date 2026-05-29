@@ -144,24 +144,24 @@ flowchart TD
 
 ## 6. 마일스톤
 
-각 Phase 안에 다수 마일스톤이 존재. **BE 마일스톤은 [`be/phase_XX_*.md`](be/), FE 마일스톤은 [`fe/phase_XX_*.md`](fe/)** 에서 정의·관리. 본 §6은 Phase별 파일 색인.
+각 Phase 안에 다수 마일스톤이 존재. **BE 마일스톤은 [`be/phase_XX_*.md`](be/), FE 마일스톤은 [`fe/phase_XX_*.md`](fe/), AI 마일스톤은 [`ai/phase_XX_*.md`](ai/)** 에서 정의·관리. 본 §6은 Phase별 파일 색인.
 
-| Phase | 이름 | Day | BE 파일 | FE 파일 |
-|:-:|------|:-:|------|------|
-| 0 | Research | 0~4 | [phase_00_research.md](be/phase_00_research.md) | [phase_00_research.md](fe/phase_00_research.md) |
-| 1 | Plan | 4~7 | 본 plan_gantt.md 자체 — 별도 파일 없음 | 본 plan_gantt.md 자체 — 별도 파일 없음 |
-| 2 | 인프라 | 7~12 | [phase_02_infra.md](be/phase_02_infra.md) | [phase_02_infra.md](fe/phase_02_infra.md) |
-| 3 | 인증·온보딩 | 12~21 | [phase_03_auth.md](be/phase_03_auth.md) | [phase_03_auth.md](fe/phase_03_auth.md) |
-| 4 | POS·데이터 | 21~26 | [phase_04_pos.md](be/phase_04_pos.md) | [phase_04_pos.md](fe/phase_04_pos.md) |
-| 5 | 도메인 | 21~35 | [phase_05_domain.md](be/phase_05_domain.md) | [phase_05_domain.md](fe/phase_05_domain.md) |
-| 6 | AI 모델 | 7~25 | — AI 팀 영역, 본인 작업 아님 | — |
-| 7 | AI Server API | 25~30 | — AI 팀 영역, 본인 작업 아님 | — |
-| 8 | n8n 배치 (골격) | 30~38 | [phase_08_n8n.md](be/phase_08_n8n.md) | — BE only |
-| 9 | 예측·발주 UI (골격) | 38~46 | [phase_09_order.md](be/phase_09_order.md) | [phase_09_order.md](fe/phase_09_order.md) |
-| 10 | 쿠팡 자동화 | 42~49 | [phase_10_automation.md](be/phase_10_automation.md) | [phase_10_automation.md](fe/phase_10_automation.md) |
-| 11 | 대시보드·알림 | 42~49 | [phase_11_dashboard.md](be/phase_11_dashboard.md) | [phase_11_dashboard.md](fe/phase_11_dashboard.md) |
-| 12 | AI hookup | 33~49 | [phase_12_hookup.md](be/phase_12_hookup.md) | [phase_12_hookup.md](fe/phase_12_hookup.md) |
-| 13 | 통합 검증·배포 | 49~58 | [phase_13_release.md](be/phase_13_release.md) | [phase_13_release.md](fe/phase_13_release.md) |
+| Phase | 이름 | Day | BE 파일 | FE 파일 | AI 파일 |
+|:-:|------|:-:|------|------|------|
+| 0 | Research | 0~4 | [phase_00_research.md](be/phase_00_research.md) | [phase_00_research.md](fe/phase_00_research.md) | [phase_00_research.md](ai/phase_00_research.md) |
+| 1 | Plan | 4~7 | 본 plan_gantt.md 자체 — 별도 파일 없음 | 본 plan_gantt.md 자체 — 별도 파일 없음 | 본 plan_gantt.md 자체 — 별도 파일 없음 |
+| 2 | 인프라 | 7~12 | [phase_02_infra.md](be/phase_02_infra.md) | [phase_02_infra.md](fe/phase_02_infra.md) | [phase_02_infra.md](ai/phase_02_infra.md) |
+| 3 | 인증·온보딩 | 12~21 | [phase_03_auth.md](be/phase_03_auth.md) | [phase_03_auth.md](fe/phase_03_auth.md) | — (AI 무관) |
+| 4 | POS·데이터 | 21~26 | [phase_04_pos.md](be/phase_04_pos.md) | [phase_04_pos.md](fe/phase_04_pos.md) | — (AI 무관) |
+| 5 | 도메인 | 21~35 | [phase_05_domain.md](be/phase_05_domain.md) | [phase_05_domain.md](fe/phase_05_domain.md) | — (AI 무관) |
+| 6 | AI 모델 | 7~25 | — | — | [phase_06_model.md](ai/phase_06_model.md) |
+| 7 | AI Server API | 25~30 | — (AIServerClient는 BE 작업, spec 합의 Phase 12 기준) | — | [phase_07_api.md](ai/phase_07_api.md) |
+| 8 | n8n 배치 (골격) | 30~38 | [phase_08_n8n.md](be/phase_08_n8n.md) | — BE only | — (BE 주도, AI 데이터 협의) |
+| 9 | 예측·발주 UI (골격) | 38~46 | [phase_09_order.md](be/phase_09_order.md) | [phase_09_order.md](fe/phase_09_order.md) | — |
+| 10 | 쿠팡 자동화 | 42~49 | [phase_10_automation.md](be/phase_10_automation.md) | [phase_10_automation.md](fe/phase_10_automation.md) | — |
+| 11 | 대시보드·알림 | 42~49 | [phase_11_dashboard.md](be/phase_11_dashboard.md) | [phase_11_dashboard.md](fe/phase_11_dashboard.md) | — |
+| 12 | AI hookup | 33~49 | [phase_12_hookup.md](be/phase_12_hookup.md) | [phase_12_hookup.md](fe/phase_12_hookup.md) | [phase_12_hookup.md](ai/phase_12_hookup.md) |
+| 13 | 통합 검증·배포 | 49~58 | [phase_13_release.md](be/phase_13_release.md) | [phase_13_release.md](fe/phase_13_release.md) | [phase_13_release.md](ai/phase_13_release.md) |
 
 > **시계열 흐름** (Phase 번호 ≠ 도달 순서): Day 4 → 7 → 12 → 21 → 25(AI M6) → 26 → 30(AI M7) → 35 → 38 → 46 → 49(M10·M11·M12 동시 도달) → 58
 >
@@ -171,4 +171,5 @@ flowchart TD
 
 - BE 마일스톤: `M{Phase}.B{n}` (예: M3.B1 = Phase 3 BE 1번 마일스톤)
 - FE 마일스톤: `M{Phase}.F{n}` (예: M3.F1 = Phase 3 FE 1번 마일스톤)
+- AI 마일스톤: `M{Phase}.A{n}` (예: M6.A1 = Phase 6 AI 1번 마일스톤)
 - 통합 마일스톤(BE·FE 양쪽 종착): `M{Phase}` (예: M3 = Phase 3 통합 종료)
