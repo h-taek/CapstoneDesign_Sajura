@@ -1,0 +1,280 @@
+"""Phase 4 — CSVAdapter unit + /api/sales/upload integration."""
+from __future__ import annotations
+
+import io
+from datetime import datetime
+
+import pytest
+from httpx import AsyncClient
+
+from app.adapters.pos.csv_adapter import CSVAdapter, CommonSale, SkipReason
+from tests.conftest import make_test_email
+
+
+# ----------------------------------------------------------------------
+# Unit — CSVAdapter
+# ----------------------------------------------------------------------
+
+
+def _adapter(with_ext: bool = False) -> CSVAdapter:
+    return CSVAdapter(
+        date_column="날짜",
+        menu_column="메뉴명",
+        quantity_column="수량",
+        price_column="금액",
+        external_sale_id_column="영수증번호" if with_ext else None,
+    )
+
+
+def test_csv_adapter_normalize_happy_path() -> None:
+    row = {
+        "날짜": "2026-01-15 14:30:00",
+        "메뉴명": "아메리카노",
+        "수량": "3",
+        "금액": "13500",
+        "영수증번호": "rcpt-001",
+    }
+    out = _adapter(with_ext=True).normalize(row, 1)
+    assert isinstance(out, CommonSale)
+    assert out.menu_name == "아메리카노"
+    assert out.quantity == 3
+    assert out.total_price == 13500
+    assert out.unit_price == 4500  # 13500 / 3
+    assert out.external_sale_id == "rcpt-001"
+    assert out.sold_at == datetime(2026, 1, 15, 14, 30)
+
+
+def test_csv_adapter_skip_missing_menu_name() -> None:
+    row = {"날짜": "2026-01-15", "메뉴명": "", "수량": "1", "금액": "100"}
+    out = _adapter().normalize(row, 5)
+    assert isinstance(out, SkipReason)
+    assert out.row_index == 5
+    assert "메뉴명" in out.reason
+
+
+def test_csv_adapter_skip_bad_price() -> None:
+    row = {"날짜": "2026-01-15", "메뉴명": "라떼", "수량": "1", "금액": "abc"}
+    out = _adapter().normalize(row, 7)
+    assert isinstance(out, SkipReason)
+    assert "금액" in out.reason
+
+
+def test_csv_adapter_skip_bad_date() -> None:
+    row = {"날짜": "not-a-date", "메뉴명": "라떼", "수량": "1", "금액": "100"}
+    out = _adapter().normalize(row, 9)
+    assert isinstance(out, SkipReason)
+    assert "날짜" in out.reason
+
+
+def test_csv_adapter_external_id_optional_and_null() -> None:
+    row = {"날짜": "2026-01-15", "메뉴명": "라떼", "수량": "1", "금액": "100"}
+    out = _adapter(with_ext=False).normalize(row, 1)
+    assert isinstance(out, CommonSale)
+    assert out.external_sale_id is None
+
+
+def test_csv_adapter_price_with_comma() -> None:
+    row = {"날짜": "2026-01-15", "메뉴명": "라떼", "수량": "2", "금액": "10,000"}
+    out = _adapter().normalize(row, 1)
+    assert isinstance(out, CommonSale)
+    assert out.total_price == 10000
+    assert out.unit_price == 5000
+
+
+# ----------------------------------------------------------------------
+# Integration — POST /api/sales/upload
+# ----------------------------------------------------------------------
+
+
+async def _register_verified_user(client: AsyncClient) -> tuple[str, dict]:
+    """register → master-code 통과(검증) → onboarding 완료 후 토큰 반환."""
+    from app.config import get_settings
+
+    master = get_settings().NTS_MASTER_BYPASS_CODE
+    if not master:
+        pytest.skip("NTS_MASTER_BYPASS_CODE 미설정")
+
+    email = make_test_email()
+    r = await client.post(
+        "/api/auth/register",
+        json={"email": email, "password": "Passw0rd!", "name": "테스터"},
+    )
+    assert r.status_code == 201, r.text
+    r = await client.post(
+        "/api/auth/login", json={"email": email, "password": "Passw0rd!"}
+    )
+    assert r.status_code == 200, r.text
+    tokens = r.json()
+    auth = {"Authorization": f"Bearer {tokens['access_token']}"}
+
+    r = await client.post(
+        "/api/store/business/verify", data={"business_no": master}, headers=auth
+    )
+    assert r.status_code == 200, r.text
+
+    # 매장 정보 입력 + 온보딩 완료
+    r = await client.patch(
+        "/api/store",
+        json={
+            "name": f"테스트매장-{email[:8]}",
+            "operation_type": "HALL",
+            "phone": "010-1234-5678",
+            "address": "서울특별시 강남구",
+            "size": "SMALL",
+        },
+        headers=auth,
+    )
+    assert r.status_code == 200, r.text
+    return email, auth
+
+
+async def _create_menu(client: AsyncClient, auth: dict, name: str, price: int = 4500) -> str:
+    r = await client.post(
+        "/api/menus",
+        json={"name": name, "category": "음료", "price": price, "is_active": True,
+              "use_inventory_deduction": False},
+        headers=auth,
+    )
+    assert r.status_code in (200, 201), r.text
+    return r.json()["menu_id"]
+
+
+def _csv_bytes(rows: list[str], header: str = "날짜,메뉴명,수량,금액,영수증번호") -> bytes:
+    return ("\n".join([header, *rows]) + "\n").encode("utf-8")
+
+
+@pytest.mark.asyncio
+async def test_sales_upload_happy_path(client: AsyncClient) -> None:
+    _, auth = await _register_verified_user(client)
+    await _create_menu(client, auth, "아메리카노")
+
+    csv = _csv_bytes([
+        "2026-01-15 14:30:00,아메리카노,3,13500,rcpt-001",
+        "2026-01-16 10:00:00,아메리카노,1,4500,rcpt-002",
+    ])
+    r = await client.post(
+        "/api/sales/upload",
+        files={"file": ("sales.csv", io.BytesIO(csv), "text/csv")},
+        data={
+            "date_column": "날짜", "menu_column": "메뉴명",
+            "quantity_column": "수량", "price_column": "금액",
+            "external_sale_id_column": "영수증번호",
+        },
+        headers=auth,
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["imported"] == 2
+    assert body["skipped"] == 0
+
+
+@pytest.mark.asyncio
+async def test_sales_upload_skips_unmapped_menu(client: AsyncClient) -> None:
+    _, auth = await _register_verified_user(client)
+    await _create_menu(client, auth, "아메리카노")
+
+    csv = _csv_bytes([
+        "2026-01-15,아메리카노,1,4500,r1",
+        "2026-01-15,없는메뉴,1,5000,r2",
+    ])
+    r = await client.post(
+        "/api/sales/upload",
+        files={"file": ("sales.csv", io.BytesIO(csv), "text/csv")},
+        data={
+            "date_column": "날짜", "menu_column": "메뉴명",
+            "quantity_column": "수량", "price_column": "금액",
+            "external_sale_id_column": "영수증번호",
+        },
+        headers=auth,
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["imported"] == 1
+    assert body["skipped"] == 1
+    assert any("매장 메뉴와 매핑 실패" in s for s in body["skipped_reasons"])
+
+
+@pytest.mark.asyncio
+async def test_sales_upload_idempotent_on_external_id(client: AsyncClient) -> None:
+    _, auth = await _register_verified_user(client)
+    await _create_menu(client, auth, "아메리카노")
+
+    csv = _csv_bytes([
+        "2026-01-15,아메리카노,1,4500,dup-id",
+    ])
+    # 1차 업로드 — imported 1
+    r1 = await client.post(
+        "/api/sales/upload",
+        files={"file": ("a.csv", io.BytesIO(csv), "text/csv")},
+        data={
+            "date_column": "날짜", "menu_column": "메뉴명",
+            "quantity_column": "수량", "price_column": "금액",
+            "external_sale_id_column": "영수증번호",
+        },
+        headers=auth,
+    )
+    assert r1.status_code == 201, r1.text
+    assert r1.json()["imported"] == 1
+
+    # 2차 — 같은 external_sale_id → UNIQUE 위반 자동 skip
+    r2 = await client.post(
+        "/api/sales/upload",
+        files={"file": ("b.csv", io.BytesIO(csv), "text/csv")},
+        data={
+            "date_column": "날짜", "menu_column": "메뉴명",
+            "quantity_column": "수량", "price_column": "금액",
+            "external_sale_id_column": "영수증번호",
+        },
+        headers=auth,
+    )
+    assert r2.status_code == 201, r2.text
+    body = r2.json()
+    assert body["imported"] == 0
+    assert body["skipped"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_sales_upload_missing_required_column_returns_422(client: AsyncClient) -> None:
+    _, auth = await _register_verified_user(client)
+    # 헤더에 "금액" 컬럼 누락
+    csv = ("날짜,메뉴명,수량\n2026-01-15,아메리카노,1\n").encode("utf-8")
+    r = await client.post(
+        "/api/sales/upload",
+        files={"file": ("bad.csv", io.BytesIO(csv), "text/csv")},
+        data={
+            "date_column": "날짜", "menu_column": "메뉴명",
+            "quantity_column": "수량", "price_column": "금액",
+        },
+        headers=auth,
+    )
+    assert r.status_code == 422, r.text
+    assert r.json()["error"] == "CSV_MISSING_COLUMNS"
+
+
+@pytest.mark.asyncio
+async def test_sales_upload_empty_file_returns_422(client: AsyncClient) -> None:
+    _, auth = await _register_verified_user(client)
+    r = await client.post(
+        "/api/sales/upload",
+        files={"file": ("empty.csv", io.BytesIO(b""), "text/csv")},
+        data={
+            "date_column": "날짜", "menu_column": "메뉴명",
+            "quantity_column": "수량", "price_column": "금액",
+        },
+        headers=auth,
+    )
+    assert r.status_code == 422, r.text
+
+
+@pytest.mark.asyncio
+async def test_sales_upload_unauthenticated_returns_401(client: AsyncClient) -> None:
+    csv = _csv_bytes(["2026-01-15,a,1,1,r"])
+    r = await client.post(
+        "/api/sales/upload",
+        files={"file": ("a.csv", io.BytesIO(csv), "text/csv")},
+        data={
+            "date_column": "날짜", "menu_column": "메뉴명",
+            "quantity_column": "수량", "price_column": "금액",
+        },
+    )
+    assert r.status_code == 401, r.text
