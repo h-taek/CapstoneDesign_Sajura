@@ -1,4 +1,5 @@
 // 임시 홈 — Phase 3 종료 조건 "메인 화면 도달" 확인용. 본격 홈은 Phase 11에서.
+import { Link } from "react-router";
 import { useAuthStore } from "../stores/auth-store";
 import { Button } from "../components/ui/button";
 import { logout } from "../api/endpoints/auth";
@@ -34,6 +35,20 @@ export default function HomePage() {
         <p className="mt-2 text-sm text-slate-600">
           이어지는 대시보드·재고·예측 화면은 후속 Phase에서 합류합니다.
         </p>
+        <nav className="mt-4 flex flex-wrap gap-2">
+          <Link
+            to="/settings/pos"
+            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800"
+          >
+            POS 연동 설정
+          </Link>
+          <Link
+            to="/sales/upload"
+            className="rounded-md bg-white px-3 py-1.5 text-sm text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
+          >
+            매출 CSV 업로드
+          </Link>
+        </nav>
       </section>
     </main>
   );

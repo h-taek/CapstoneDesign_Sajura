@@ -10,6 +10,8 @@ import MenusStep from "./onboarding/step-menus";
 import PosStep from "./onboarding/step-pos";
 import StoreStep from "./onboarding/step-store";
 import RegisterPage from "./register";
+import SalesUploadPage from "./sales/upload";
+import PosSettingsPage from "./settings/pos";
 import VerifyBusinessPage from "./verify-business";
 
 export const router = createBrowserRouter([
@@ -58,6 +60,22 @@ export const router = createBrowserRouter([
       <RequireAdmin>
         <AdminVerificationsPage />
       </RequireAdmin>
+    ),
+  },
+  {
+    path: "/settings/pos",
+    element: (
+      <RequireStage stage="app">
+        <PosSettingsPage />
+      </RequireStage>
+    ),
+  },
+  {
+    path: "/sales/upload",
+    element: (
+      <RequireStage stage="app">
+        <SalesUploadPage />
+      </RequireStage>
     ),
   },
   {
