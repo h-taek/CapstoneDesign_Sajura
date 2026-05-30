@@ -7,14 +7,14 @@
 
 | ID | 마일스톤 | 산출물 | 검증 |
 |---|---|---|---|
-| M4.B1 | POS 어댑터 (BARO V2) | `app/adapters/pos/baro.py` — POS API 호출 + 매핑 | 샘플 응답 → `sales` 테이블 INSERT |
-| M4.B2 | CSV 업로드 엔드포인트 | `POST /api/sales/upload` (multipart + pandas 파싱) — MVP 유일 데이터 경로. **CSV 포맷·필수 컬럼: `spec/03_feature_design/feature_spec.md` §4.4** | 10만 행 업로드 성공 |
+| M4.B1 | CSVAdapter 구조 정리 | `app/adapters/pos/csv_adapter.py` — CSV 행 → 공통 판매 스키마(`feature_spec.md` §4.2·§4.5) 매핑 함수. M3.B6 POS stub(`/api/store/pos/status` `CSV_MODE` 응답)은 **2단계 진입 전까지 유지**. 외부 POS API 어댑터(TossPlace·Kiwoom·OKPOS)는 **[2단계]** — 본 Phase 범위 외 | 단위 테스트: CSV 행 → 공통 스키마 변환 성공 + 매핑 실패 행 `skipped` 반환 |
+| M4.B2 | CSV 업로드 엔드포인트 | `POST /api/sales/upload` (multipart + pandas 파싱) — MVP 유일 데이터 적재 경로. **CSV 포맷·필수 컬럼: `spec/03_feature_design/feature_spec.md` §4.4** | 10만 행 업로드 성공 |
 | M4.B3 | 이상치 탐지 모듈 (placeholder) | 탐지 함수 시그니처만 존재, 내부는 통과 — 방법론은 Phase 12 hookup | unit test (입력 = 출력) |
 
 ## 외부 의존
 
-- AI 팀의 이상치 탐지 방법(IQR/Z-score 등) 미정 — `ai/02_ml_pipeline_open_items.md` §3.2 확정 시 M12.B1에서 실제 로직 반영
-- BARO V2 어댑터 조사 완료 전제 (`docs/research/backend/13_pos_adapter.md`) — 미완 시 M3.B6 stub 유지
+- AI 팀의 이상치 탐지 방법(IQR/Z-score 등) 미정 — AI 팀 확정 시 M12.B1에서 실제 로직 반영
+- 외부 POS사 API 연동(TossPlace·Kiwoom·OKPOS)은 [2단계] 작업 — `docs/research/backend/13_pos_adapter.md`는 2단계 진입 가이드(외부 probe 의존). 본 Phase에서는 갱신·참조 불필요
 
 ## 참조
 

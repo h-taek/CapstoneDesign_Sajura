@@ -99,7 +99,8 @@
 | 클래스 | 담당 도메인 |
 |--------|------------|
 | `AuthService` | 로그인, 회원가입, JWT 발급, OAuth 처리 |
-| `StoreService` | 매장 정보 CRUD, 온보딩 완료 처리 |
+| `StoreService` | 매장 정보 CRUD, 사업자 검증(NTS+등록증 업로드), 온보딩 완료 처리 |
+| `AdminVerificationService` | (role=ADMIN) 사업자 검증 심사 큐 조회, 등록증 파일 조회, 승인/반려 [최소 — 종합 관리도구는 후속] |
 | `PosService` | POS API 연동·동기화·상태 관리 [`get_pos_status` MVP·나머지 2단계, `mvp_scope.md` §4] |
 | `MenuService` | 메뉴 CRUD, 레시피 관리 |
 | `InventoryService` | 재고 품목, 로트, 폐기, 경고, FIFO 차감 |
@@ -124,7 +125,7 @@
 
 | 메서드 | 파라미터 | 반환 | 설명 |
 |--------|----------|------|------|
-| `register` | email, password, name, business_no, store_name | `UserDTO` | 회원가입 + 국세청 검증 (응답에 onboarding_completed: false 포함) |
+| `register` | email, password, name | `UserDTO` | 이메일 회원가입 (email·password·name만). 사업자 검증·매장 정보는 가입 후 별도 단계. 가입 시 빈 매장 행 생성(business_status=UNVERIFIED, role=OWNER) |
 | `login_with_email` | email, password | `TokenDTO` | 이메일 로그인 |
 | `login_with_oauth` | provider, code, state | `TokenDTO` | Google/카카오 OAuth 로그인 |
 | `logout` | user_id, refresh_token_hash | `None` | Refresh Token 무효화 (현 디바이스) |
@@ -139,8 +140,18 @@
 
 | 메서드 | 파라미터 | 반환 | 설명 |
 |--------|----------|------|------|
+| `verify_business` | user_id, business_no, cert_file | `StoreDTO` | NTS 검증(`nts.assert_business_active`) 통과 시 등록증 파일 저장(서버 볼륨, 경로만 DB) + `business_no` 저장 + `business_status=PENDING`. 마스터 코드면 호출·파일 없이 `VERIFIED`. 실패 시 계정·상태 유지하고 도메인 에러 반환 — 온보딩 진입 게이트 |
 | `get_store` | user_id | `StoreDTO` | 매장 정보 조회 |
-| `update_store` | user_id, data | `StoreDTO` | 매장 정보 수정 (business_type, store_size, operation_type 포함) |
+| `update_store` | user_id, data | `StoreDTO` | 매장 정보 수정 (business_type, store_size, operation_type 포함). `business_status` ∈ {PENDING, VERIFIED} 전제 |
+
+### AdminVerificationService (role=ADMIN)
+
+| 메서드 | 파라미터 | 반환 | 설명 |
+|--------|----------|------|------|
+| `list_pending` | page, size | `PaginatedDTO[VerificationDTO]` | `business_status=PENDING` 매장 심사 큐 조회 |
+| `get_cert_file` | store_id | `FileResponse` | 업로드된 사업자등록증 파일 반환 (ADMIN 가드) |
+| `approve` | store_id, admin_user_id | `StoreDTO` | `business_status=VERIFIED` + `business_reviewed_by` 기록 |
+| `reject` | store_id, admin_user_id, reason | `StoreDTO` | `business_status=REJECTED` + `business_reject_reason`·`business_reviewed_by` 기록 |
 | `complete_onboarding` | store_id | `None` | 온보딩 완료 처리 (onboarding_completed = true) |
 
 ### PosService
@@ -206,7 +217,7 @@
 |--------|----------|------|------|
 | `get_forecast` | store_id, target_date | `ForecastDTO` | 저장된 예측 결과 조회 |
 | `run_forecast` | store_id, target_date | `ForecastDTO` | 점주/관리자 수동 예측 실행 보조 |
-<!-- 예측 근거 조회 메서드는 산출 방법·출력 형태 확정(`docs/research/ai/01_model_selection.md` §3) 후 추가 -->
+<!-- 예측 근거 조회 메서드는 산출 방법·출력 형태 확정 후 추가 -->
 
 ### OrderService
 
@@ -238,7 +249,7 @@
 | 메서드 | 파라미터 | 반환 | 단계 | 설명 |
 |--------|----------|------|------|------|
 | `get_dashboard` | store_id | `DashboardDTO` | [MVP] | 전체 요약 집계 |
-| `get_roi` | store_id, start_month, end_month | `RoiDTO` | [2단계] | 기간별 ROI 집계 (폐기 비용·폐기율·재고 회전율·예측 정확도 지표) 및 월별 추세 반환. 예측 정확도 지표 선정·산식은 `docs/research/ai/01_model_selection.md` §3 확정. 재고 회전율 = 기간 내 총 소모량 / 평균 재고 수량. 총 소모량은 `sale_records × recipe_ingredients`로 파생, 평균 재고 수량은 (기간 시작 재고 + 기간 종료 재고) / 2로 근사 (시작 재고 = 종료 재고 + 소모량 + 폐기량 - 입고량으로 역산). 누적 데이터 부족으로 MVP 기간 동안 의미 없음 (`mvp_scope.md` §4) |
+| `get_roi` | store_id, start_month, end_month | `RoiDTO` | [2단계] | 기간별 ROI 집계 (폐기 비용·폐기율·재고 회전율·예측 정확도 지표) 및 월별 추세 반환. 예측 정확도 지표 선정·산식은 별도 확정 예정. 재고 회전율 = 기간 내 총 소모량 / 평균 재고 수량. 총 소모량은 `sale_records × recipe_ingredients`로 파생, 평균 재고 수량은 (기간 시작 재고 + 기간 종료 재고) / 2로 근사 (시작 재고 = 종료 재고 + 소모량 + 폐기량 - 입고량으로 역산). 누적 데이터 부족으로 MVP 기간 동안 의미 없음 (`mvp_scope.md` §4) |
 | `get_waste` | store_id, start_date, end_date | `WasteDTO` | [MVP] | 기간별 폐기 현황 |
 
 ### PipelineService
@@ -284,7 +295,7 @@
 | `recommend_order` | store_id, target_date, forecast_results, recipes, inventory | `RecommendationResultDTO` | [MVP] 추천발주 생성 요청 |
 | `train` | store_id, training_data | `TrainJobDTO` | [2단계] 모델 재학습 요청 (`mvp_scope.md` §4) |
 | `get_job_status` | job_id | `JobStatusDTO` | [MVP] 작업 상태 조회 |
-<!-- 예측 근거 조회 메서드(get_shap 등)는 산출 방법·출력 형태 확정(`docs/research/ai/01_model_selection.md` §3) 후 추가 -->
+<!-- 예측 근거 조회 메서드(get_shap 등)는 산출 방법·출력 형태 확정 후 추가 -->
 | `health_check` | - | `HealthDTO` | [MVP] AI Server 상태 확인 |
 
 ---
