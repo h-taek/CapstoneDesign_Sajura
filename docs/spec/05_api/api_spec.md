@@ -959,6 +959,9 @@ Authorization: Bearer <access_token>
 // - quantity_column: "수량"
 // - price_column: "금액"
 // - external_sale_id_column: "영수증번호" (선택)
+// - auto_create_menus: "true" (선택, 기본 false) — CSV에 있는 미등록 메뉴명을
+//   매장 메뉴에 즉시 추가(카테고리="자동등록", 단가=price/quantity,
+//   use_inventory_deduction=false). 그 행은 imported로 처리됨.
 // external_sale_id가 없으면 NULL로 저장하며, 이 경우 원본 ID 기반 중복 방지는 적용되지 않음
 
 // Response 201
@@ -968,10 +971,18 @@ Authorization: Bearer <access_token>
   "skipped_reasons": [
     "3행: 메뉴명 없음",
     "17행: 금액 형식 오류",
-    "22행: 매장 메뉴와 매핑 실패"
-  ]
+    "매장 메뉴와 매핑 실패: 페페로니피자 (12행), 로제파스타 (7행)",
+    "이미 저장된 영수증번호와 중복: 3건"
+  ],
+  "anomaly_count": 0,
+  "auto_created_menus": 0
 }
 ```
+
+> **그룹화 정책**: `매장 메뉴와 매핑 실패`·`같은 파일 안에서 영수증번호 중복`·
+> `이미 저장된 영수증번호와 중복`은 행 단위가 아닌 메뉴·ID·총건수 그룹으로
+> 반환한다(대량 업로드 시 결과 화면 가독성). adapter 변환 실패(메뉴명 없음
+> /형식 오류 등)는 기존대로 `{행번호}행: {사유}` 형식.
 
 ### GET /api/sales/{sale_id}
 
