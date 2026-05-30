@@ -306,16 +306,22 @@ Frontend → GET /api/auth/login/kakao
 ### 4.4 CSV 업로드 [MVP]
 
 - 사주라가 제공하는 고정 템플릿 형식만 허용한다.
-- 템플릿 다운로드 링크를 업로드 화면에서 제공한다.
+- 템플릿 다운로드는 **POS 연동 설정 화면(M4.F1)**에서 제공한다. 업로드 화면(M4.F2)은 실제 파일 업로드만 담당한다. 온보딩 Step 2는 모드 선택만 수행한다. (35차 SSOT)
 - 지원 포맷: CSV(UTF-8) 단일. Excel(.xlsx) 미지원 (MVP는 의존성 최소화).
+- 업로드 시 컬럼명을 동적으로 매핑한다(`date_column`·`menu_column`·`quantity_column`·`price_column`, 선택: `external_sale_id_column`).
+- **메뉴 자동 등록 옵션**(`auto_create_menus=true`): CSV에 있는 미등록 메뉴명을 매장 메뉴에 즉시 추가한다. 카테고리는 `"자동등록"`, 단가는 `total_price / quantity`, `use_inventory_deduction=false`. 점주가 메뉴 화면에서 사후 수정 가능. 기본값은 `false`(미등록 행은 skip).
+- 결과의 그룹화 사유: §6 API 응답 정의 참조.
 
 | 구분 | 항목 | 비고 |
 |---|---|---|
-| 입력 | CSV 파일 (고정 템플릿 형식, UTF-8) | |
+| 입력 | CSV 파일 (UTF-8) | |
+| | 컬럼명 매핑 (필수 4종 + 영수증번호 선택) | api_spec §6 |
+| | auto_create_menus (선택, 기본 false) | 미등록 메뉴 즉시 등록 |
 | | store_id | |
-| 출력 | 파싱 성공 건수 | |
-| | 이상치 탐지 건수 및 비율 | |
-| | 저장 완료 여부 | |
+| 출력 | 파싱 성공 건수 (`imported`) | |
+| | 제외 건수·사유 (`skipped`, `skipped_reasons` 그룹화) | |
+| | 자동 등록된 메뉴 수 (`auto_created_menus`) | |
+| | 이상치 탐지 건수 (`anomaly_count`, placeholder) | Phase 12 실 로직 |
 
 ### 4.5 공통 스키마 변환 (어댑터)
 
