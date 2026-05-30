@@ -203,7 +203,9 @@ HANDOFF.md E단계 9개 검증 시나리오 수행 + 발견된 결함 일괄 정
 
 **OAuth 더블클릭 회귀 픽스(36차 후반)**: 34차 `redirect_uri` proxy 픽스 이후 `cd7c02f`(refresh `SELECT FOR UPDATE`) 들어가면서 React StrictMode 이중 effect로 `refreshAccessToken` 동시 2회 호출 → 두 번째가 옛 토큰 revoke 후 401 → 부트스트랩 토큰 없는 상태로 종료 → 로그인 화면 재진입(=재클릭 증상)로 재발. `Front/src/api/endpoints/auth.ts`에 module-scope in-flight Promise 공유 추가 → 동일 탭 동시 호출 BE 1회로 합쳐짐. Vitest 가드 2개 추가.
 
-**테스트**: BE pytest 34(기존 20 + 신규 14) / FE Vitest 29(기존 19 + 신규 10) / Playwright 8(기존 7 + 신규 1) — **전체 71개 통과**.
+**/review 후속 픽스(8abb2b9)**: ① pandas sync 호출 → `asyncio.to_thread`로 워커 스레드 위임(이벤트 루프 블록 해소). ② `auto_create_menus` 업로드당 200개 + 매장 1,000개 상한. ③ 메뉴명 100자 초과 행 `SkipReason` 처리. **/qa 검증**: 실 BE/FE 라이브 업로드 `imported=3,000 / auto_created=96`.
+
+**테스트**: BE pytest 36(기존 20 + 신규 16) / FE Vitest 29(기존 19 + 신규 10) / Playwright 8(기존 7 + 신규 1) — **전체 73개 통과**.
 
 **브랜치 통합**: 본 작업은 모두 `dev` 단일 라인. main에는 35차 plan 정정 + 36차 spec/PROGRESS 갱신만 들어감. **be/fe 정렬·dev → main 릴리즈는 전체 phase 완료 후 1회 정책 유지**(33·34차와 동일).
 
@@ -238,15 +240,19 @@ HANDOFF.md E단계 9개 검증 시나리오 수행 + 발견된 결함 일괄 정
 
 차수별 상세 변경. 최근 항목을 위로, 옛 항목은 추상화한다. 1~27차 audit 상세는 git log + spec/research 본문 참조.
 
-### 2026-05-30 (36차) — Phase 4 BE+FE 본구현 + UX 정정 + OAuth 회귀 픽스
+### 2026-05-30 (36차) — Phase 4 BE+FE 본구현 + UX 정정 + OAuth 회귀 픽스 + /review·/qa
 
-본 회차 문서 작업: ① §4 개발 이력에 **Phase 4 — POS·CSV 데이터 적재 구현** 항목 추가(BE M4.B1~B3 + FE M4.F1~F3 + 골든패스 + 10만 행 실측 + OAuth 회귀 픽스 포함). ② `feature_spec.md §4.4` + `api_spec.md §6` POST `/api/sales/upload`에 `auto_create_menus` 옵션·`auto_created_menus` 응답 필드·`skipped_reasons` 그룹화 정책 명시.
+본 회차 문서 작업: ① §4 개발 이력에 **Phase 4 — POS·CSV 데이터 적재 구현** 항목 추가(BE M4.B1~B3 + FE M4.F1~F3 + 골든패스 + 10만 행 실측 + OAuth 회귀 픽스 + /review 픽스 포함). ② `feature_spec.md §4.4` + `api_spec.md §6` POST `/api/sales/upload`에 `auto_create_menus` 옵션·`auto_created_menus` 응답 필드·`skipped_reasons` 그룹화 정책 명시.
 
 **UX 픽스 배경**: 매장 메뉴 미등록 상태에서 데모 CSV(3,000행) 업로드 시 모든 행이 매핑 실패로 빠져 `imported=0`이 되어 점주가 "업로드가 막힌다"고 체감. spec 정합 자체는 문제 없으나 시연 UX 결함. **A) auto_create_menus 옵션**(기본 `false`, true 시 카테고리 `"자동등록"`/단가 `total_price÷quantity`/`use_inventory_deduction=false`로 즉시 추가) + **C) skipped_reasons 그룹화**(메뉴별·ID별·DB 총건수) 적용.
 
 **OAuth 회귀 픽스 배경**: 34차 `redirect_uri` proxy 통일 이후 `cd7c02f`(refresh `SELECT FOR UPDATE` race 픽스) 들어가면서 React StrictMode 이중 effect로 `refreshAccessToken` 동시 2회 호출 → 두 번째가 옛 토큰 revoke 후 401 → 부트스트랩 실패 → 로그인 화면 재진입(=재클릭 증상)로 재발. `Front/src/api/endpoints/auth.ts`에 module-scope in-flight Promise 공유 추가로 동일 탭 동시 호출 BE 1회로 합쳐짐. BE의 `SELECT FOR UPDATE`는 다른 디바이스/탭 보호용으로 그대로 유지. Vitest 가드(in-flight 공유 + 완료 후 새 promise) 2개 추가.
 
-**테스트**: BE pytest 34 / FE Vitest 29 / Playwright 8 — **전체 71개 통과**. dev 누계 11 커밋.
+**/review 발견 P1·P2 픽스(8abb2b9)**: ① pandas `read_csv` + 청크 iteration + 행 정규화를 `asyncio.to_thread` 위임 — 10만 행 ~12s 동안 BE 워커 1개 다른 요청 못 받던 이벤트 루프 블록 해소(처리 시간 동일, 동시 사용자 보호). ② `auto_create_menus` 업로드당 200개 + 매장 전체 1,000개 상한 + 초과 안내 메시지. Menu 테이블에 `(store_id, name)` UNIQUE가 없는 상태에서 DoS·DB 부풀림 방지. ③ `CSVAdapter.normalize`에 메뉴명 100자(VARCHAR(100)) 초과 시 `SkipReason` 반환 — DB INSERT 시 청크 전체 롤백 방지.
+
+**/qa 검증**: 실 브라우저 CDP + 실 BE/FE로 Phase 4 화면 동작 확인. M4.F1 설정 화면(`CSV 업로드 모드` 배지·템플릿/업로드 진입·[2단계] 안내), M4.F2 업로드 화면(드롭존·매핑 5인풋·체크박스·버튼 비활성) 정상. Live 업로드 `04_Demo_Data/sales_demo_30d.csv` + auto_create_menus=true → `imported=3,000 / skipped=0 / auto_created_menus=96`. 콘솔 401 1건은 부트스트랩 me 첫 호출 → ky 인터셉터가 refresh 후 재시도하는 정상 흐름.
+
+**테스트**: BE pytest 36 / FE Vitest 29 / Playwright 8 — **전체 73개 통과**. dev 누계 13 커밋.
 
 ### 2026-05-30 (35차) — Phase 4 plan ↔ spec(CSV-only) 정합 + 화면 책임 분리 SSOT
 
