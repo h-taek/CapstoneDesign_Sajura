@@ -110,21 +110,23 @@ export default function AdminVerificationsPage() {
                 </div>
               </div>
 
-              {certs[it.store_id] ? (
-                certs[it.store_id].mime === "application/pdf" ? (
+              {(() => {
+                const cert = certs[it.store_id];
+                if (!cert) return null;
+                return cert.mime === "application/pdf" ? (
                   <iframe
-                    src={certs[it.store_id].url}
+                    src={cert.url}
                     title="사업자등록증 PDF"
                     className="mt-3 h-96 w-full rounded border border-slate-200"
                   />
                 ) : (
                   <img
-                    src={certs[it.store_id].url}
+                    src={cert.url}
                     alt="사업자등록증"
                     className="mt-3 max-h-64 rounded border border-slate-200"
                   />
-                )
-              ) : null}
+                );
+              })()}
 
               {rejectId === it.store_id ? (
                 <div className="mt-3 flex gap-2">
