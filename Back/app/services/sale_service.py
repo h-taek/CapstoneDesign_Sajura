@@ -5,12 +5,15 @@
 - 트랜잭션 단위 = 청크 1개 (부분 실패 시 청크 단위 롤백 → 그 이전 청크는 보존)
 - UNIQUE(store_id, source, external_sale_id) 위반 행은 자동 skip
 - menu_name → menu_id 매핑은 매장 메뉴 캐시 1회 조회 후 in-memory dict 매핑
+- auto_create_menus=True 시 미등록 메뉴를 카테고리='자동등록', use_inventory_deduction=False
+  로 즉시 생성하여 menu_map 갱신 (feature_spec §2.2 + §4.4 옵션).
+- skipped_reasons: 같은 사유(메뉴 매핑 실패/청크내 중복 영수증/DB 중복)는 메뉴명·
+  카운트로 그룹 단위로 반환하여 결과 화면 가독성 확보.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from io import BytesIO
-from typing import IO
 
 import pandas as pd
 from sqlalchemy import select
@@ -24,14 +27,34 @@ from app.models.sale_record import SaleRecord, SaleSource
 from app.services.anomaly_detector import AnomalyDetector
 
 CHUNK_SIZE = 10_000
+AUTO_CATEGORY = "자동등록"
 
 
 @dataclass
 class UploadResult:
     imported: int = 0
     skipped: int = 0
-    skipped_reasons: list[str] = field(default_factory=list)
+    auto_created_menus: int = 0
     anomaly_count: int = 0
+    # 행 단위 사유(adapter 변환 실패 등): "3행: 메뉴명 없음" 형태 그대로.
+    _row_reasons: list[str] = field(default_factory=list)
+    # 그룹 단위 사유: 메뉴명별 카운트.
+    _unmapped_counts: dict[str, int] = field(default_factory=dict)
+    _dup_in_chunk_counts: dict[str, int] = field(default_factory=dict)
+    _dup_in_db_total: int = 0
+
+    @property
+    def skipped_reasons(self) -> list[str]:
+        out = list(self._row_reasons)
+        if self._unmapped_counts:
+            parts = [f"{name} ({cnt}행)" for name, cnt in sorted(self._unmapped_counts.items())]
+            out.append(f"매장 메뉴와 매핑 실패: {', '.join(parts)}")
+        if self._dup_in_chunk_counts:
+            parts = [f"{name} ({cnt}회)" for name, cnt in sorted(self._dup_in_chunk_counts.items())]
+            out.append(f"같은 파일 안에서 영수증번호 중복: {', '.join(parts)}")
+        if self._dup_in_db_total > 0:
+            out.append(f"이미 저장된 영수증번호와 중복: {self._dup_in_db_total}건")
+        return out
 
 
 class SaleService:
@@ -44,6 +67,7 @@ class SaleService:
         store_id: str,
         file_bytes: bytes,
         adapter: CSVAdapter,
+        auto_create_menus: bool = False,
         anomaly_detector: AnomalyDetector | None = None,
     ) -> UploadResult:
         detector = anomaly_detector or AnomalyDetector()
@@ -87,10 +111,16 @@ class SaleService:
                 normalized = adapter.normalize(row.to_dict(), global_row_index)
                 if isinstance(normalized, SkipReason):
                     result.skipped += 1
-                    result.skipped_reasons.append(normalized.format())
+                    result._row_reasons.append(normalized.format())
                     continue
                 sales.append(normalized)
                 sale_row_indices.append(global_row_index)
+
+            if auto_create_menus:
+                created = await self._auto_create_missing_menus(
+                    store_id=store_id, sales=sales, menu_map=menu_map
+                )
+                result.auto_created_menus += created
 
             anomalies = detector.detect(sales)
             result.anomaly_count += len(anomalies)
@@ -113,6 +143,45 @@ class SaleService:
         ).all()
         return {m.name: m.menu_id for m in rows}
 
+    async def _auto_create_missing_menus(
+        self,
+        *,
+        store_id: str,
+        sales: list[CommonSale],
+        menu_map: dict[str, str],
+    ) -> int:
+        """청크 안에서 매장 메뉴에 없는 이름들을 한 번에 등록.
+
+        - 한 메뉴명에 여러 행이 있을 경우 첫 행의 unit_price로 등록.
+        - 카테고리='자동등록', is_active=True, use_inventory_deduction=False.
+        - 등록 직후 menu_map에 즉시 반영하여 같은 청크 내 행이 imported로 진입.
+        """
+        first_unit_price: dict[str, int] = {}
+        for s in sales:
+            if s.menu_name in menu_map:
+                continue
+            first_unit_price.setdefault(s.menu_name, s.unit_price)
+
+        if not first_unit_price:
+            return 0
+
+        new_menus = [
+            Menu(
+                store_id=store_id,
+                name=name,
+                category=AUTO_CATEGORY,
+                price=price,
+                is_active=True,
+                use_inventory_deduction=False,
+            )
+            for name, price in first_unit_price.items()
+        ]
+        self.session.add_all(new_menus)
+        await self.session.flush()
+        for m in new_menus:
+            menu_map[m.name] = m.menu_id
+        return len(new_menus)
+
     async def _insert_chunk(
         self,
         *,
@@ -125,18 +194,22 @@ class SaleService:
         rows_to_insert: list[dict] = []
         seen_external: set[str] = set()  # 같은 청크 내 중복 external_sale_id 미리 차단
 
-        for sale, row_index in zip(sales, row_indices, strict=True):
+        for sale, _row_index in zip(sales, row_indices, strict=True):
             menu_id = menu_map.get(sale.menu_name)
             if menu_id is None:
                 result.skipped += 1
-                result.skipped_reasons.append(f"{row_index}행: 매장 메뉴와 매핑 실패")
+                result._unmapped_counts[sale.menu_name] = (
+                    result._unmapped_counts.get(sale.menu_name, 0) + 1
+                )
                 continue
 
             if sale.external_sale_id is not None:
                 key = sale.external_sale_id
                 if key in seen_external:
                     result.skipped += 1
-                    result.skipped_reasons.append(f"{row_index}행: 중복 영수증번호")
+                    result._dup_in_chunk_counts[key] = (
+                        result._dup_in_chunk_counts.get(key, 0) + 1
+                    )
                     continue
                 seen_external.add(key)
 
@@ -152,6 +225,7 @@ class SaleService:
             })
 
         if not rows_to_insert:
+            await self.session.commit()  # auto_create_menus 트랜잭션 마무리
             return
 
         # MySQL INSERT IGNORE — UNIQUE(store_id, source, external_sale_id)
@@ -166,4 +240,4 @@ class SaleService:
         result.imported += inserted
         if ignored > 0:
             result.skipped += ignored
-            result.skipped_reasons.append(f"DB 중복(외부 영수증번호 기존 존재): {ignored}건")
+            result._dup_in_db_total += ignored

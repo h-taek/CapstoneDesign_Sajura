@@ -9,3 +9,4 @@ class CSVUploadResponse(BaseModel):
     skipped: int
     skipped_reasons: list[str] = Field(default_factory=list)
     anomaly_count: int = 0
+    auto_created_menus: int = 0

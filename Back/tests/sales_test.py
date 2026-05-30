@@ -169,13 +169,14 @@ async def test_sales_upload_happy_path(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_sales_upload_skips_unmapped_menu(client: AsyncClient) -> None:
+async def test_sales_upload_skips_unmapped_menu_grouped(client: AsyncClient) -> None:
     _, auth = await _register_verified_user(client)
     await _create_menu(client, auth, "아메리카노")
 
     csv = _csv_bytes([
         "2026-01-15,아메리카노,1,4500,r1",
         "2026-01-15,없는메뉴,1,5000,r2",
+        "2026-01-16,없는메뉴,2,10000,r3",
     ])
     r = await client.post(
         "/api/sales/upload",
@@ -190,8 +191,66 @@ async def test_sales_upload_skips_unmapped_menu(client: AsyncClient) -> None:
     assert r.status_code == 201, r.text
     body = r.json()
     assert body["imported"] == 1
+    assert body["skipped"] == 2
+    # 그룹화 — 같은 메뉴는 한 줄로, 카운트 포함.
+    grouped = next((s for s in body["skipped_reasons"] if "매장 메뉴와 매핑 실패" in s), None)
+    assert grouped is not None
+    assert "없는메뉴" in grouped and "2행" in grouped
+
+
+@pytest.mark.asyncio
+async def test_sales_upload_auto_creates_menus(client: AsyncClient) -> None:
+    _, auth = await _register_verified_user(client)
+    # 메뉴 미등록 상태에서 업로드 (auto_create_menus=True).
+    csv = _csv_bytes([
+        "2026-01-15,페페로니피자,1,18000,r1",
+        "2026-01-16,로제파스타,2,22000,r2",
+        "2026-01-17,페페로니피자,3,54000,r3",  # 첫 행 단가로 등록됐으므로 OK
+    ])
+    r = await client.post(
+        "/api/sales/upload",
+        files={"file": ("sales.csv", io.BytesIO(csv), "text/csv")},
+        data={
+            "date_column": "날짜", "menu_column": "메뉴명",
+            "quantity_column": "수량", "price_column": "금액",
+            "external_sale_id_column": "영수증번호",
+            "auto_create_menus": "true",
+        },
+        headers=auth,
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["imported"] == 3
+    assert body["skipped"] == 0
+    assert body["auto_created_menus"] == 2  # 페페로니피자 / 로제파스타
+
+    # 진짜로 매장 메뉴에 등록됐는지 확인.
+    r2 = await client.get("/api/menus", headers=auth)
+    assert r2.status_code == 200
+    names = {m["name"] for m in r2.json()["items"]}
+    assert {"페페로니피자", "로제파스타"}.issubset(names)
+
+
+@pytest.mark.asyncio
+async def test_sales_upload_auto_create_off_keeps_skipping(client: AsyncClient) -> None:
+    _, auth = await _register_verified_user(client)
+    # auto_create_menus 미지정(기본 false) → 미등록 메뉴는 skip.
+    csv = _csv_bytes(["2026-01-15,없는메뉴,1,5000,r1"])
+    r = await client.post(
+        "/api/sales/upload",
+        files={"file": ("sales.csv", io.BytesIO(csv), "text/csv")},
+        data={
+            "date_column": "날짜", "menu_column": "메뉴명",
+            "quantity_column": "수량", "price_column": "금액",
+            "external_sale_id_column": "영수증번호",
+        },
+        headers=auth,
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["imported"] == 0
     assert body["skipped"] == 1
-    assert any("매장 메뉴와 매핑 실패" in s for s in body["skipped_reasons"])
+    assert body["auto_created_menus"] == 0
 
 
 @pytest.mark.asyncio

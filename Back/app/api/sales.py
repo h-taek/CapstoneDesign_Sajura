@@ -28,6 +28,7 @@ async def upload_sales_csv(
     quantity_column: Annotated[str, Form(...)],
     price_column: Annotated[str, Form(...)],
     external_sale_id_column: Annotated[str | None, Form()] = None,
+    auto_create_menus: Annotated[bool, Form()] = False,
 ) -> CSVUploadResponse:
     """CSV 업로드 — feature_spec §4.4 + api_spec §6 POST /api/sales/upload."""
     store_id = (await StoreService(session).get_store(current.user_id)).store_id
@@ -53,11 +54,15 @@ async def upload_sales_csv(
     )
 
     result = await SaleService(session).upload_csv(
-        store_id=store_id, file_bytes=file_bytes, adapter=adapter
+        store_id=store_id,
+        file_bytes=file_bytes,
+        adapter=adapter,
+        auto_create_menus=auto_create_menus,
     )
     return CSVUploadResponse(
         imported=result.imported,
         skipped=result.skipped,
         skipped_reasons=result.skipped_reasons,
         anomaly_count=result.anomaly_count,
+        auto_created_menus=result.auto_created_menus,
     )
