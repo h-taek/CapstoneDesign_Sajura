@@ -58,8 +58,8 @@
 
 ### 2.6 AI/예측 근거
 
-- 이동평균, ARIMA/Prophet, XGBoost/LightGBM, LSTM, TimExer 순서로 베이스라인을 비교한다 (초기 모델 선정은 `docs/research/ai/01_model_selection.md` §2).
-- 예측 결과에 대한 근거를 제공한다 (산출 방법·출력 형태는 `docs/research/ai/01_model_selection.md` §3 확정).
+- 이동평균, ARIMA/Prophet, XGBoost/LightGBM, LSTM, TimExer 순서로 베이스라인을 비교한다 (초기 모델은 베이스라인 비교 후 선정).
+- 예측 결과에 대한 근거를 제공한다 (산출 방법·출력 형태는 별도 확정).
 
 ### 2.7 자동화 파이프라인
 
@@ -71,14 +71,16 @@
 
 ### 인증/회원
 - Google / 카카오 로그인 모두 Backend가 자체 JWT 발급 (Access Token 1시간, Refresh Token 30일 HttpOnly Cookie, Rotation 적용)
-- 사업자등록번호 입력 즉시 국세청 API 검증, 계속사업자만 가입 허용
-- 온보딩 미완료 시 재접속해도 초기 설정 화면으로 강제 이동 (onboarding_completed 필드 관리)
+- 이메일 회원가입은 email·password·name만 받고, 소셜·이메일 계정 모두 가입 직후 사업자 검증 단계로 진입 (계정은 항상 생성됨)
+- 사업자 검증은 온보딩과 분리된 2단계 게이트(NTS 자동 + 관리자 승인 병행): ① 사업자번호 국세청 즉시 검증 ② 사업자등록증 업로드 → `PENDING` → 관리자 승인 → `VERIFIED`. `business_status`(UNVERIFIED/PENDING/VERIFIED/REJECTED)로 관리. **PENDING부터 온보딩 진입 허용**(1-B), 검증 실패·반려 시 계정 유지 + 재검증, 마스터 코드로 강제 패스 가능 (`security.md` §2.4)
+- 관리자(`users.role=ADMIN`)는 `/admin` 심사 큐에서 등록증을 보고 승인/반려 (최소 기능, 사용자·매장 종합 관리도구는 [후속])
+- 미검증·온보딩 미완료 시 재접속해도 검증/초기 설정 화면으로 강제 이동 (`business_status`·`onboarding_completed` 관리)
 - 매장 정보 입력 항목: 사업자등록번호, 매장명, 업종, 연락처, 주소, 매장 규모 구간, 운영 형태 (전체 필수)
 - POS 연동 실패 시 CSV 임시 모드 허용, 수요예측/자동발주 비활성화 + "POS 연동 미완료" 배지 표시
 
 ### POS 연동
 - CSV 업로드는 사주라 제공 고정 템플릿 형식만 허용
-- 이상치 처리 방식(자동 분리·점주 알림·복구·폐기 분기 조건)은 `docs/research/ai/02_ml_pipeline_open_items.md` §3에서 확정
+- 이상치 처리 방식(자동 분리·점주 알림·복구·폐기 분기 조건)은 별도 확정 예정
 - POS사별 API 자격증명 형식은 `docs/research/backend/13_pos_adapter.md`에서 조사·정의
 
 ### 메뉴 관리
@@ -97,7 +99,7 @@
 
 ### 수요예측
 - 전체 메뉴 대상 예측 (재고 차감 여부 무관)
-- 신뢰도 낮음 경고 기준: 예측 정확도·학습 데이터 기간·결측값 비율 기반 (지표 선정·정량 임계값 모두 AI probe 후 확정, `docs/research/ai/01_model_selection.md` §3·§4 참조)
+- 신뢰도 낮음 경고 기준: 예측 정확도·학습 데이터 기간·결측값 비율 기반 (지표 선정·정량 임계값 모두 AI probe 후 확정)
 - Cold-start: 자체 데이터 30일 전까지 동일 업종 + 유사 상권 + 매장 규모 기준 유사 매장 예측 활용
 
 ### 추천발주
