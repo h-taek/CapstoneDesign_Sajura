@@ -1,9 +1,10 @@
 // M3.F10 — 관리자 사업자 검증 심사 큐 (role=ADMIN, api_spec §3).
 // PENDING 목록 + 등록증 미리보기 + 승인/반려. 종합 관리도구는 [후속].
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   approveVerification,
+  type CertObject,
   fetchCertObjectUrl,
   listVerifications,
   rejectVerification,
@@ -13,9 +14,18 @@ import { Input } from "../../components/ui/field";
 
 export default function AdminVerificationsPage() {
   const qc = useQueryClient();
-  const [certs, setCerts] = useState<Record<string, string>>({});
+  const [certs, setCerts] = useState<Record<string, CertObject>>({});
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [reason, setReason] = useState("");
+
+  // unmount 시 모든 ObjectURL 해제 — ref로 최신 certs를 추적해 stale closure 회피.
+  const certsRef = useRef(certs);
+  certsRef.current = certs;
+  useEffect(() => {
+    return () => {
+      for (const c of Object.values(certsRef.current)) URL.revokeObjectURL(c.url);
+    };
+  }, []);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "verifications"],
@@ -39,8 +49,13 @@ export default function AdminVerificationsPage() {
   });
 
   const showCert = async (storeId: string) => {
-    const url = await fetchCertObjectUrl(storeId);
-    setCerts((c) => ({ ...c, [storeId]: url }));
+    const cert = await fetchCertObjectUrl(storeId);
+    setCerts((c) => {
+      // 같은 항목을 다시 열면 기존 URL은 해제하고 새 것으로 교체.
+      const prev = c[storeId];
+      if (prev) URL.revokeObjectURL(prev.url);
+      return { ...c, [storeId]: cert };
+    });
   };
 
   const items = data?.items ?? [];
@@ -96,11 +111,19 @@ export default function AdminVerificationsPage() {
               </div>
 
               {certs[it.store_id] ? (
-                <img
-                  src={certs[it.store_id]}
-                  alt="사업자등록증"
-                  className="mt-3 max-h-64 rounded border border-slate-200"
-                />
+                certs[it.store_id].mime === "application/pdf" ? (
+                  <iframe
+                    src={certs[it.store_id].url}
+                    title="사업자등록증 PDF"
+                    className="mt-3 h-96 w-full rounded border border-slate-200"
+                  />
+                ) : (
+                  <img
+                    src={certs[it.store_id].url}
+                    alt="사업자등록증"
+                    className="mt-3 max-h-64 rounded border border-slate-200"
+                  />
+                )
               ) : null}
 
               {rejectId === it.store_id ? (

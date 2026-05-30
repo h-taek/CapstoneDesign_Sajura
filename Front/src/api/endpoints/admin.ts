@@ -30,8 +30,14 @@ export async function rejectVerification(storeId: string, reason: string): Promi
   await api.post(`admin/verifications/${storeId}/reject`, { json: { reason } });
 }
 
-/** 등록증 파일 — Bearer 인증이 필요하므로 blob으로 받아 objectURL을 만든다(img src용). */
-export async function fetchCertObjectUrl(storeId: string): Promise<string> {
+export interface CertObject {
+  url: string;
+  mime: string;
+}
+
+/** 등록증 파일 — Bearer 인증이 필요하므로 blob으로 받아 objectURL을 만든다.
+ * 호출자는 unmount 시 URL.revokeObjectURL(url)로 반드시 해제해야 한다. */
+export async function fetchCertObjectUrl(storeId: string): Promise<CertObject> {
   const blob = await api.get(`admin/verifications/${storeId}/cert`).blob();
-  return URL.createObjectURL(blob);
+  return { url: URL.createObjectURL(blob), mime: blob.type || "application/octet-stream" };
 }
