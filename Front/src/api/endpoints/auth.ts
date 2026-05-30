@@ -47,12 +47,25 @@ export async function loginWithEmail(email: string, password: string): Promise<L
   return api.post("auth/login", { json: { email, password } }).json<LoginResponse>();
 }
 
+// 동일 탭 내 동시 호출(StrictMode 이중 effect·HMR·라우트 가드 동시 진입)이
+// 같은 in-flight Promise를 공유하도록 한다. BE refresh가 SELECT FOR UPDATE로
+// 옛 토큰을 즉시 revoke 처리하기 때문에, FE에서 동시 2회가 떠나면 두 번째가
+// "이미 revoke됨" 401을 받으면서 OAuth 직후 진입이 막혀 더블클릭처럼 보이는
+// 회귀(34차 픽스 이후 cd7c02f race fix로 재발)를 막는다.
+let inflightRefresh: Promise<RefreshResponse | null> | null = null;
+
 export async function refreshAccessToken(): Promise<RefreshResponse | null> {
-  try {
-    return await api.post("auth/refresh").json<RefreshResponse>();
-  } catch {
-    return null;
-  }
+  if (inflightRefresh) return inflightRefresh;
+  inflightRefresh = (async () => {
+    try {
+      return await api.post("auth/refresh").json<RefreshResponse>();
+    } catch {
+      return null;
+    } finally {
+      inflightRefresh = null;
+    }
+  })();
+  return inflightRefresh;
 }
 
 export async function fetchMe(): Promise<AuthUser> {
