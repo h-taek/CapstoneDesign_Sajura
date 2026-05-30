@@ -69,6 +69,8 @@ class AdminVerificationService:
 
     async def approve(self, *, store_id: str, admin_user_id: str) -> Store:
         store = await self._get_store(store_id)
+        if store.business_status != BusinessStatus.PENDING:
+            raise errors.state_conflict("PENDING 상태의 매장만 승인할 수 있습니다.")
         store.business_status = BusinessStatus.VERIFIED
         store.business_reject_reason = None
         store.business_reviewed_by = admin_user_id
@@ -78,6 +80,8 @@ class AdminVerificationService:
 
     async def reject(self, *, store_id: str, admin_user_id: str, reason: str) -> Store:
         store = await self._get_store(store_id)
+        if store.business_status != BusinessStatus.PENDING:
+            raise errors.state_conflict("PENDING 상태의 매장만 반려할 수 있습니다.")
         store.business_status = BusinessStatus.REJECTED
         store.business_reject_reason = reason
         store.business_reviewed_by = admin_user_id

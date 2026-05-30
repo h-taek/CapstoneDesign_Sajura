@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+import mimetypes
 from typing import Annotated
 
 from fastapi import APIRouter, Query
@@ -39,7 +40,12 @@ async def get_verification_cert(
     store_id: str, session: SessionDep, _admin: AdminUserDep
 ) -> FileResponse:
     path = await AdminVerificationService(session).get_cert_path(store_id)
-    return FileResponse(path)
+    media_type, _ = mimetypes.guess_type(path.name)
+    return FileResponse(
+        path,
+        media_type=media_type or "application/octet-stream",
+        filename=f"cert_{store_id}{path.suffix}",
+    )
 
 
 @router.post("/verifications/{store_id}/approve", response_model=VerificationActionResponse)
