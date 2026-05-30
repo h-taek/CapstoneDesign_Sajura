@@ -14,7 +14,7 @@
 
 ## 외부 의존
 
-- **AI 팀 결정 대기 (Phase 12 hookup)**: 예측 정확도 지표 종류(MAPE? RMSE?) — `ai/01_model_selection.md` §3
+- **AI 팀 결정 대기 (Phase 12 hookup)**: 예측 정확도 지표 종류(MAPE? RMSE?)
 - **ROI 대시보드는 `[2단계]`** — MVP 범위 밖
 
 ## 참조

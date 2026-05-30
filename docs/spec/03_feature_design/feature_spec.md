@@ -49,8 +49,10 @@ Frontend → GET /api/auth/login/kakao
 
 | 구분 | 항목 |
 |---|---|
-| 입력 | email, password |
-| 출력 | JWT Access Token, JWT Refresh Token, user_id, email, onboarding_completed |
+| 입력 | 회원가입: email, password, name / 로그인: email, password |
+| 출력 | JWT Access Token, JWT Refresh Token, user_id, email, business_status, onboarding_completed |
+
+> 이메일 회원가입(`POST /api/auth/register`)은 email·password·name만 받는다. 사업자등록번호·매장 정보는 가입 이후 사업자 검증·온보딩 단계(§1.4)에서 입력한다.
 
 ### 1.3 JWT 토큰 정책
 
@@ -60,15 +62,19 @@ Frontend → GET /api/auth/login/kakao
 - Refresh Token은 사용 시마다 새 토큰으로 교체한다(Rotation).
 - Access Token은 메모리에 저장하며 LocalStorage 저장을 금지한다.
 
-### 1.4 회원가입 초기 설정
+### 1.4 사업자 검증 및 온보딩 초기 설정
 
-온보딩 흐름은 아래 단계를 순서대로 진행한다.
+계정 생성 직후 매장 서비스 진입 전까지 아래 단계를 순서대로 진행한다. 각 단계는 직전 단계 완료 전에는 진입할 수 없다(가드).
 
 ```
-1. OAuth 계정 생성 (Google / 카카오)
-2. 사업자등록번호 입력 → 국세청 API 즉시 검증
-     ├─ 계속사업자 확인 → 다음 단계 진행 허용
-     └─ 휴업 / 폐업 / 미등록 → 진행 불가, 오류 메시지 표시
+1. 계정 생성 (Google / 카카오 OAuth 또는 이메일/비밀번호 회원가입) → business_status=UNVERIFIED
+2. 사업자 검증 (온보딩과 분리된 독립 단계) — 사업자등록번호 입력 + 사업자등록증 업로드
+     ├─ ① 국세청 API 즉시 검증 (존재·영업 여부)
+     │      ├─ 미등록 / 형식 오류 → 재입력 요청 (상태 유지)
+     │      └─ 휴업 / 폐업 → 진행 불가, 사유 안내 (상태 유지)
+     └─ ② 계속사업자 통과 시 사업자등록증 업로드 → business_status=PENDING (관리자 심사 대기)
+            · PENDING부터 온보딩 진행 허용 (관리자 승인을 기다리지 않음)
+            · 관리자 승인 → VERIFIED / 반려 → REJECTED(사유) → 재검증
 3. 매장 정보 입력 (매장명, 업종, 연락처, 주소)
 4. POS 연동 방식 선택
      ├─ CSV 모드 (MVP 기본 경로) → CSV 템플릿 다운로드 → 보유 POS 데이터 업로드
@@ -78,14 +84,21 @@ Frontend → GET /api/auth/login/kakao
      · 양쪽 모두 수요예측·자동발주 추천 활성화
      · 설정 화면에서 모드 전환 가능
 5. 초기 재고 / 초기 메뉴 입력
-6. 메인 화면 진입
+6. 메인 화면 진입 (onboarding_completed=true)
 ```
 
-- 초기 설정 미완료 상태에서 재접속 시 onboarding_completed: false를 로그인 응답에 포함하여 Frontend가 초기 설정 화면으로 강제 이동한다.
+**사업자 검증 = 2단계 (NTS 자동 + 관리자 승인 병행).** NTS 조회는 "그 사업자가 실재·영업 중"인지만 보장하고 **소유권(본인 사업자인지)은 증명하지 못하므로**, 사업자등록증 업로드 + 관리자 심사로 소유권을 확인한다.
+
+- **상태 모델** `business_status`: `UNVERIFIED` → (NTS 통과 + 등록증 업로드) `PENDING` → (관리자 승인) `VERIFIED` / (반려) `REJECTED`.
+- **온보딩 진입 가드(1-B)**: `PENDING` 또는 `VERIFIED`면 온보딩 진입 허용. `UNVERIFIED`·`REJECTED`면 검증 화면으로 강제 이동. 즉 등록증을 올려 PENDING이 되면 관리자 승인 전이라도 온보딩·서비스 사용이 가능하고, 관리자는 사후 반려로 차단할 수 있다.
+- 검증 실패 시 **계정을 삭제하지 않고 유지**한다. 미등록/형식은 재입력, 휴업/폐업·반려는 사유를 표시하고 재검증을 안내한다.
+- 재접속 시 `GET /api/auth/me`의 `business_status`·`onboarding_completed`로 Frontend가 검증/온보딩 화면으로 강제 이동한다.
+- 소셜·이메일 계정 모두 동일하게 사업자 검증 단계를 거친다(인증 방식 무관).
+- **관리자 심사(최소)**: 관리자(`users.role=ADMIN`)가 `/admin` 심사 큐에서 PENDING 목록·업로드 등록증을 보고 승인/반려한다. 사용자·매장 종합 관리도구는 [후속 phase].
 
 | 구분 | 항목 | 비고 |
 |---|---|---|
-| 입력 | 사업자등록번호 | 필수, 국세청 API 검증 |
+| 입력 | 사업자등록번호 + 사업자등록증 파일 | 필수, NTS 검증 + 업로드. `POST /api/store/business/verify` (multipart) |
 | | 매장명 | 필수 |
 | | 업종 | 필수 |
 | | 연락처 | 필수 |
@@ -94,7 +107,10 @@ Frontend → GET /api/auth/login/kakao
 | | 운영 형태 | 필수, 선택지 제공 (홀 운영 / 배달 전용 / 홀+배달 병행) |
 | | POS 종류 및 자격증명 | [2단계] POS API 선택 시 필수. MVP는 CSV 모드 선택이 기본 |
 | 출력 | store_id | |
+| | business_status | UNVERIFIED / PENDING / VERIFIED / REJECTED |
 | | onboarding_completed | boolean |
+
+> 시연·테스트용 강제 패스: 입력 사업자번호가 환경변수 마스터 코드(`NTS_MASTER_BYPASS_CODE`)와 일치하면 국세청 호출·등록증 업로드 없이 곧바로 `VERIFIED` 처리한다. 상세·위험은 `security.md` §2.4.
 
 > POS 연동 상태(`CONNECTED` / `CSV_MODE` / `DISCONNECTED`)는 온보딩 완료 후 `GET /api/store/pos/status`로 별도 조회한다.
 
@@ -312,7 +328,7 @@ Frontend → GET /api/auth/login/kakao
 
 - JSON Schema 또는 Pydantic으로 공통 판매 스키마를 검증한다.
 - 이상치 탐지를 수행한다.
-- 탐지 방법(IQR/Z-score 적용 조건)·임계값·이상 데이터 처리 정책(분리/수정·알림 트리거 조건)은 `docs/research/ai/02_ml_pipeline_open_items.md` §3에서 확정한다.
+- 탐지 방법(IQR/Z-score 적용 조건)·임계값·이상 데이터 처리 정책(분리/수정·알림 트리거 조건)은 별도 확정 예정.
 
 | 구분 | 항목 | 비고 |
 |---|---|---|
@@ -368,13 +384,13 @@ Frontend → GET /api/auth/login/kakao
 |---|---|---|
 | 입력 | store_id, menu_id (선택) | |
 | 출력 | 메뉴별 1~3일 예상 수요 | |
-| | 예측 근거 | 산출 방법·출력 형태는 `docs/research/ai/01_model_selection.md` §3 확정 |
+| | 예측 근거 | 산출 방법·출력 형태는 별도 확정 |
 | | 신뢰도 낮음 경고 배지 | 아래 조건 중 하나라도 해당 시 표시 |
 
 ### 5.3 신뢰도 경고 기준
 
 - 예측 결과가 정량 기준에 못 미치면 "신뢰도 낮음" 경고 배지를 표시한다.
-- 정량 기준(임계값)은 AI probe(초기 모델 학습·평가) 후 확정한다. 현재 잠정 기준은 `docs/research/ai/01_model_selection.md` §4 참조.
+- 정량 기준(임계값)은 AI probe(초기 모델 학습·평가) 후 확정한다.
 - 판정 결과는 `forecast_results.is_low_confidence` / `low_confidence_reason` 컬럼에 저장한다(`schema.md` §3.15).
 
 ### 5.4 Cold-start 처리 [2단계]
@@ -385,7 +401,7 @@ Frontend → GET /api/auth/login/kakao
 - 유사 매장 기준은 동일 업종, 유사 상권, 매장 규모 구간 및 운영 형태를 모두 적용한다.
 - 유사 매장 기반 예측 결과에는 "신뢰도 낮음" 경고 배지를 필수 표시한다.
 - 자체 데이터 30일 축적 후 자체 예측으로 자동 전환한다.
-- 파이프라인 분기 로직(분기 판정 위치·유사 매장 매칭 알고리즘·매칭 결과 0개 대응·전환 트리거)은 `docs/research/ai/01_model_selection.md` §3에서 확정한다.
+- 파이프라인 분기 로직(분기 판정 위치·유사 매장 매칭 알고리즘·매칭 결과 0개 대응·전환 트리거)은 별도 확정 예정.
 
 ### 5.5 데이터 소스별 동작
 
@@ -528,7 +544,7 @@ Frontend → GET /api/auth/login/kakao
 |---|---|---|
 | 폐기율 | 폐기 수량 / (입고 수량 + 초기 재고) × 100 | 재고 폐기 처리 기록 |
 | 재고 회전율 | 기간 내 총 소모량 / 평균 재고 수량 | 재고 차감 + 수정 기록 |
-| 예측 정확도 지표 | 지표 선정·산식은 `docs/research/ai/01_model_selection.md` §3 확정 | 예측 결과 DB vs 실제 판매량 |
+| 예측 정확도 지표 | 지표 선정·산식은 별도 확정 예정 | 예측 결과 DB vs 실제 판매량 |
 | 월별 폐기 비용 | 해당 월 폐기량 × 단가 | 폐기 기록 + 재료별 단가 |
 | 전월 대비 폐기 비용 변화율 | (전월 폐기 비용 - 당월 폐기 비용) / 전월 폐기 비용 × 100 | 동일 |
 
@@ -543,7 +559,7 @@ Frontend → GET /api/auth/login/kakao
 ### 9.1 예측 근거 생성
 
 - 예측 결과와 함께 점주가 이해할 수 있는 근거를 생성한다.
-- 산출 방법·출력 형태는 `docs/research/ai/01_model_selection.md` §3 확정.
+- 산출 방법·출력 형태는 별도 확정 예정.
 - 출력 형태가 확정되면 (a) DB 저장 컬럼, (b) AI Server API 응답 필드, (c) 별도 상세 조회 API 필요 여부가 함께 정의된다.
 - 예측 결과 화면에서 메뉴별로 펼쳐서 확인할 수 있다.
 

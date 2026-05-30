@@ -8,11 +8,12 @@
 
 ---
 
-## 핵심 3규칙
+## 핵심 4규칙
 
 1. **사실은 한 곳에만 정의** — `docs/README.md` 섹션 2-1 SSOT 테이블에서 정의 위치 확인 후 재기술 금지
 2. **한 파일 수정 시 연동 파일 즉시 함께 수정** — "나중에" 없음
 3. **세션 종료 전** `PROGRESS.md` 섹션 4 문서 수정 이력 업데이트
+4. **main 전용 문서(PROGRESS·docs/spec·docs/plan·루트 README·CLAUDE·AGENTS) 작업 시작 전 반드시 최신 main 동기화** — 작업 직전에 `git checkout main && git fetch origin && git pull --ff-only origin main`을 수행하고, admin이 아니면 그 위에서 `docs/<주제>` 브랜치를 따 PR로 머지한다. 옛 main 상태에서 곧장 수정 금지. 상세 절차는 `README.md` §5 "문서 작업 시작 전 필수 절차"
 
 ---
 
