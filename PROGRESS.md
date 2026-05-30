@@ -204,6 +204,10 @@ HANDOFF.md E단계 9개 검증 시나리오 수행 + 발견된 결함 일괄 정
 
 차수별 상세 변경. 최근 항목을 위로, 옛 항목은 추상화한다. 1~27차 audit 상세는 git log + spec/research 본문 참조.
 
+### 2026-05-30 (36차) — CSV 업로드 UX 정정: 메뉴 자동 등록 옵션 + skipped_reasons 그룹화
+
+사용자 골든패스 검증 직전 발견: 매장 메뉴를 거의 등록하지 않은 상태에서 데모 CSV(3,000행)를 업로드하면 모든 행이 매핑 실패로 빠져 `imported=0`이 되어 점주가 "업로드가 막힌다"고 체감. spec 정합 자체는 문제 없으나 시연 UX 결함. ① **`auto_create_menus` 옵션 신설**(기본 `false`): `true` 지정 시 CSV의 미등록 메뉴명을 카테고리 `"자동등록"`, 단가 = `total_price ÷ quantity`, `use_inventory_deduction=false`로 즉시 매장 메뉴에 추가하고 그 행은 `imported`로 진입. 응답에 `auto_created_menus` 카운트 신규. ② **`skipped_reasons` 그룹화**: 매장 메뉴 매핑 실패는 메뉴별, 청크 내 중복 영수증은 ID별, DB 중복은 총건수로 그룹 단위 반환(대량 업로드 시 결과 화면 가독성). adapter 변환 실패(메뉴명 없음/형식 오류)는 행 단위 그대로. ③ **FE 업로드 화면**: 3섹션 상단에 amber 안내 체크박스 + 결과 화면에 `auto_created_menus > 0`일 때 '자동 등록된 메뉴' 카드 추가. ④ **spec 갱신**: `feature_spec.md §4.4` + `api_spec.md §6` POST `/api/sales/upload` 요청·응답 정의에 옵션·그룹화 사유 명시. **테스트**: BE pytest 34(+2), FE Vitest 27(+1), Playwright 8(응답 모양 갱신). dev 누계 10 커밋.
+
 ### 2026-05-30 (35차) — Phase 4 plan ↔ spec(CSV-only) 정합 + 화면 책임 분리 SSOT
 
 Phase 4 진입 전 일관성 검토(plan-eng-review)에서 BE/FE plan이 CSV-only MVP 정책(`mvp_scope.md` §3·§4, `feature_spec.md` §4, `api_spec.md` §3, `research/backend/13_pos_adapter.md`, 19차 결정)과 충돌하는 것을 확인 — plan을 spec 기준으로 정정. ① **BE M4.B1**: `BARO V2 어댑터 실구현` → `CSVAdapter 구조 정리 + M3.B6 stub 유지(2단계 진입 전까지)`. 외부 POS API 어댑터(TossPlace·Kiwoom·OKPOS)는 [2단계] 명시. ② **FE M4.F1**: `자격증명 수정·연결 테스트 화면` → `연동 상태 표시 + CSV 템플릿 다운로드 + 업로드 화면 진입`(CSV 액션 허브). 자격증명 UI는 [2단계]로 이동. ③ **화면 책임 분리 SSOT**: 온보딩 Step 2 = 모드 선택만 / M4.F1 = CSV 액션 허브 / M4.F2 = 실제 업로드 — `feature_spec.md` §4.4의 "업로드 화면에서 템플릿 제공" 기존 문구는 본 35차로 일원화(중복·빈틈 방지). ④ **plan_gantt §4 `pos_be`/`pos_fe`** 행 문구를 위 정합에 맞춰 정정. **미해결**: M3.B6 stub 응답 스키마(dev 브랜치)와 `api_spec §3 GET /api/store/pos/status` 응답 정의 간 키/타입 대조 필요 — Phase 4 BE 본작업 첫 단계로 dev에서 확인.
