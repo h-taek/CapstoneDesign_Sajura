@@ -97,8 +97,9 @@ class AuthService:
 
     async def refresh(self, *, raw_refresh: str) -> IssuedTokens:
         token_hash = security.hash_refresh_token(raw_refresh)
+        # 행 잠금: 같은 refresh_token으로 동시 요청이 와도 한 쪽만 회전에 성공하도록 한다.
         existing = await self.session.scalar(
-            select(RefreshToken).where(RefreshToken.token_hash == token_hash)
+            select(RefreshToken).where(RefreshToken.token_hash == token_hash).with_for_update()
         )
         if existing is None or existing.is_revoked:
             raise errors.auth_refresh_token_invalid()
