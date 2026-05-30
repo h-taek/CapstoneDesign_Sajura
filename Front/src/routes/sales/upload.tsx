@@ -50,6 +50,7 @@ export default function SalesUploadPage() {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [columns, setColumns] = useState<CSVUploadColumns>(DEFAULT_COLUMNS);
+  const [autoCreateMenus, setAutoCreateMenus] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -58,7 +59,7 @@ export default function SalesUploadPage() {
   const mutation = useMutation<CSVUploadResponse, unknown, void>({
     mutationFn: async () => {
       if (!file) throw new Error("파일을 선택하세요.");
-      return uploadSalesCsv(file, columns);
+      return uploadSalesCsv(file, columns, { auto_create_menus: autoCreateMenus });
     },
     onError: async (err) => {
       setServerError(await extractApiMessage(err));
@@ -216,6 +217,27 @@ export default function SalesUploadPage() {
         {/* 3) 업로드 실행 */}
         <article className="rounded-xl bg-white p-6 shadow-sm">
           <h2 className="text-base font-semibold text-slate-900">3. 업로드</h2>
+
+          <label className="mt-3 flex items-start gap-2 rounded-md bg-amber-50 p-3 text-sm">
+            <input
+              type="checkbox"
+              checked={autoCreateMenus}
+              onChange={(e) => setAutoCreateMenus(e.target.checked)}
+              className="mt-0.5 h-4 w-4"
+              data-testid="auto-create-menus"
+            />
+            <span>
+              <span className="font-medium text-slate-900">
+                매장 메뉴에 없는 항목 자동 등록
+              </span>
+              <span className="block text-xs text-slate-600">
+                체크하면 CSV에 있는 새 메뉴를 카테고리 <strong>"자동등록"</strong>으로
+                즉시 매장 메뉴에 추가합니다. 단가는 CSV의 금액÷수량으로 자동 산정됩니다.
+                나중에 메뉴 화면에서 수정할 수 있습니다.
+              </span>
+            </span>
+          </label>
+
           <div className="mt-3 flex items-center gap-2">
             <Button
               onClick={() => mutation.mutate()}
@@ -249,12 +271,25 @@ export default function SalesUploadPage() {
 }
 
 function UploadResult({ result }: { result: CSVUploadResponse }) {
+  const showAuto = result.auto_created_menus > 0;
   return (
     <article className="rounded-xl bg-white p-6 shadow-sm" data-testid="upload-result">
       <h2 className="text-base font-semibold text-slate-900">업로드 결과</h2>
-      <div className="mt-3 grid grid-cols-3 gap-3 text-center text-sm">
+      <div
+        className={`mt-3 grid gap-3 text-center text-sm ${
+          showAuto ? "grid-cols-4" : "grid-cols-3"
+        }`}
+      >
         <Metric label="저장" value={result.imported} tone="text-green-700" />
         <Metric label="제외" value={result.skipped} tone="text-amber-700" />
+        {showAuto && (
+          <Metric
+            label="자동 등록된 메뉴"
+            value={result.auto_created_menus}
+            tone="text-blue-700"
+            hint="* 카테고리 '자동등록'으로 추가됨"
+          />
+        )}
         <Metric
           label="이상치 감지"
           value={result.anomaly_count}

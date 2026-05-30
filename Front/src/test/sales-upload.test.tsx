@@ -48,6 +48,7 @@ describe("SalesUploadPage", () => {
       skipped: 3,
       skipped_reasons: ["3행: 메뉴명 없음", "7행: 매장 메뉴와 매핑 실패"],
       anomaly_count: 0,
+      auto_created_menus: 0,
     });
     renderPage();
     fireEvent.change(screen.getByTestId<HTMLInputElement>("file-input"), {
@@ -65,5 +66,32 @@ describe("SalesUploadPage", () => {
   it("파일 미선택 시 업로드 버튼은 비활성화된다", async () => {
     renderPage();
     expect(screen.getByRole("button", { name: "업로드 시작" })).toBeDisabled();
+  });
+
+  it("자동 등록 체크 시 auto_create_menus=true가 전달되고 결과에 표시된다", async () => {
+    const spy = vi.spyOn(salesApi, "uploadSalesCsv").mockResolvedValue({
+      imported: 5,
+      skipped: 0,
+      skipped_reasons: [],
+      anomaly_count: 0,
+      auto_created_menus: 3,
+    });
+    renderPage();
+    fireEvent.change(screen.getByTestId<HTMLInputElement>("file-input"), {
+      target: { files: [csvFile()] },
+    });
+    await waitFor(() => expect(screen.getByText("sales.csv")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("auto-create-menus"));
+    fireEvent.click(screen.getByRole("button", { name: "업로드 시작" }));
+
+    await screen.findByTestId("upload-result");
+    expect(spy).toHaveBeenCalledWith(
+      expect.any(File),
+      expect.any(Object),
+      { auto_create_menus: true },
+    );
+    expect(screen.getByText("자동 등록된 메뉴")).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
   });
 });

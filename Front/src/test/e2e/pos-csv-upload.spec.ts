@@ -51,8 +51,9 @@ test.describe("POS 설정 → CSV 업로드", () => {
         body: JSON.stringify({
           imported: 2,
           skipped: 1,
-          skipped_reasons: ["3행: 매장 메뉴와 매핑 실패"],
+          skipped_reasons: ["매장 메뉴와 매핑 실패: 없는메뉴 (1행)"],
           anomaly_count: 0,
+          auto_created_menus: 0,
         }),
       });
     });
