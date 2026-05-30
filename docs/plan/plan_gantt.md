@@ -97,8 +97,8 @@ flowchart TD
 | `auth_be` | AuthService(Authlib OAuth+JWT) + StoreService + 국세청 검증 | 3 | 7 | inf | BE |
 | `auth_fe` | 로그인 + 온보딩 4스텝 화면 | 3 | 6 | inf | FE |
 | `auth_test` | 인증·온보딩 통합 검증 | 3 | 2 | auth_be, auth_fe | ALL |
-| `pos_be` | POS 어댑터 + CSV 업로드 + 이상치 탐지 모듈 | 4 | 5 | auth_test | BE |
-| `pos_fe` | POS 연동·CSV 업로드 화면 | 4 | 4 | auth_test | FE |
+| `pos_be` | CSVAdapter + CSV 업로드 + 이상치 placeholder (외부 POS API는 [2단계]) | 4 | 5 | auth_test | BE |
+| `pos_fe` | POS 연동 상태/CSV 액션 허브(M4.F1) + CSV 업로드 화면 | 4 | 4 | auth_test | FE |
 | `dom_be` | MenuService(레시피·소프트삭제) + InventoryService(로트·FIFO·폐기·단가) + SaleService 조회 | 5 | 8 | auth_test | BE |
 | `dom_fe` | 메뉴·재고·판매 데이터 화면 | 5 | 6 | dom_be | FE |
 | `ai_data` | 데이터 전처리 모듈 (결측·이상치·표준화·단위통일) | 6 | 4 | plan | AI |
