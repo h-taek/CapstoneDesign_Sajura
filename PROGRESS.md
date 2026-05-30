@@ -204,6 +204,10 @@ HANDOFF.md E단계 9개 검증 시나리오 수행 + 발견된 결함 일괄 정
 
 차수별 상세 변경. 최근 항목을 위로, 옛 항목은 추상화한다. 1~27차 audit 상세는 git log + spec/research 본문 참조.
 
+### 2026-05-30 (35차) — Phase 4 plan ↔ spec(CSV-only) 정합 + 화면 책임 분리 SSOT
+
+Phase 4 진입 전 일관성 검토(plan-eng-review)에서 BE/FE plan이 CSV-only MVP 정책(`mvp_scope.md` §3·§4, `feature_spec.md` §4, `api_spec.md` §3, `research/backend/13_pos_adapter.md`, 19차 결정)과 충돌하는 것을 확인 — plan을 spec 기준으로 정정. ① **BE M4.B1**: `BARO V2 어댑터 실구현` → `CSVAdapter 구조 정리 + M3.B6 stub 유지(2단계 진입 전까지)`. 외부 POS API 어댑터(TossPlace·Kiwoom·OKPOS)는 [2단계] 명시. ② **FE M4.F1**: `자격증명 수정·연결 테스트 화면` → `연동 상태 표시 + CSV 템플릿 다운로드 + 업로드 화면 진입`(CSV 액션 허브). 자격증명 UI는 [2단계]로 이동. ③ **화면 책임 분리 SSOT**: 온보딩 Step 2 = 모드 선택만 / M4.F1 = CSV 액션 허브 / M4.F2 = 실제 업로드 — `feature_spec.md` §4.4의 "업로드 화면에서 템플릿 제공" 기존 문구는 본 35차로 일원화(중복·빈틈 방지). ④ **plan_gantt §4 `pos_be`/`pos_fe`** 행 문구를 위 정합에 맞춰 정정. **미해결**: M3.B6 stub 응답 스키마(dev 브랜치)와 `api_spec §3 GET /api/store/pos/status` 응답 정의 간 키/타입 대조 필요 — Phase 4 BE 본작업 첫 단계로 dev에서 확인.
+
 ### 2026-05-29 (34차) — 사업자 검증 게이트 구현·dev 통합 + OAuth redirect_uri 픽스
 
 32·33차 문서 확정분을 코드로 구현(§4 34차 참조). 본 회차 문서 작업: ① §3 OAuth dev 운영 (d) 행에 `redirect_uri` proxy 경유(5173) 통일 + 콘솔 등록 의무 추가 ② §4 개발 이력에 34차(구현·통합·OAuth 픽스·수동 테스트) 추가 ③ `HANDOFF.md`를 검증 게이트 완료 상태로 갱신(다음 우선순위 = Phase 4 POS). `.env.example`의 OAuth redirect 기본값(5173)·설명 주석은 dev 브랜치에 커밋(코드 변경이라 main 릴리즈 때 동반).
