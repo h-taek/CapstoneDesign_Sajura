@@ -81,6 +81,15 @@ def test_csv_adapter_price_with_comma() -> None:
     assert out.unit_price == 5000
 
 
+def test_csv_adapter_skip_menu_name_over_100_chars() -> None:
+    long_name = "메" * 101
+    row = {"날짜": "2026-01-15", "메뉴명": long_name, "수량": "1", "금액": "1000"}
+    out = _adapter().normalize(row, 12)
+    assert isinstance(out, SkipReason)
+    assert out.row_index == 12
+    assert "메뉴명" in out.reason and "100" in out.reason
+
+
 # ----------------------------------------------------------------------
 # Integration — POST /api/sales/upload
 # ----------------------------------------------------------------------
@@ -251,6 +260,39 @@ async def test_sales_upload_auto_create_off_keeps_skipping(client: AsyncClient) 
     assert body["imported"] == 0
     assert body["skipped"] == 1
     assert body["auto_created_menus"] == 0
+
+
+@pytest.mark.asyncio
+async def test_sales_upload_auto_create_respects_per_upload_limit(
+    client: AsyncClient,
+) -> None:
+    """업로드당 자동 등록 200개 상한을 넘는 행은 매핑 실패로 skip 되어야 한다."""
+    from app.services.sale_service import AUTO_CREATE_PER_UPLOAD_LIMIT
+
+    _, auth = await _register_verified_user(client)
+    # 201개 unique 메뉴 → 200개만 등록되고 1개는 skip 되어야 함.
+    n = AUTO_CREATE_PER_UPLOAD_LIMIT + 1
+    lines = [
+        f"2026-01-15,메뉴{i:04d},1,1000,r{i:04d}" for i in range(n)
+    ]
+    csv = _csv_bytes(lines)
+    r = await client.post(
+        "/api/sales/upload",
+        files={"file": ("sales.csv", io.BytesIO(csv), "text/csv")},
+        data={
+            "date_column": "날짜", "menu_column": "메뉴명",
+            "quantity_column": "수량", "price_column": "금액",
+            "external_sale_id_column": "영수증번호",
+            "auto_create_menus": "true",
+        },
+        headers=auth,
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["auto_created_menus"] == AUTO_CREATE_PER_UPLOAD_LIMIT
+    assert body["imported"] == AUTO_CREATE_PER_UPLOAD_LIMIT
+    assert body["skipped"] == 1
+    assert any("자동 등록 상한" in s for s in body["skipped_reasons"])
 
 
 @pytest.mark.asyncio

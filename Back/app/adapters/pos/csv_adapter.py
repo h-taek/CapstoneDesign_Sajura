@@ -16,6 +16,10 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+# schema.md §3 menus.name = VARCHAR(100). 초과 시 INSERT가 청크 전체를 굴려뜨릴 수
+# 있으므로 adapter 단에서 행 단위로 미리 거른다.
+MENU_NAME_MAX_LENGTH = 100
+
 
 class CommonSale(BaseModel):
     """공통 판매 스키마 — feature_spec.md §4.2."""
@@ -66,6 +70,11 @@ class CSVAdapter:
         menu_name = _clean_str(row.get(self.menu_column))
         if not menu_name:
             return SkipReason(row_index, "메뉴명 없음")
+        if len(menu_name) > MENU_NAME_MAX_LENGTH:
+            return SkipReason(
+                row_index,
+                f"메뉴명이 너무 깁니다 ({MENU_NAME_MAX_LENGTH}자 초과)",
+            )
 
         sold_at = _parse_datetime(row.get(self.date_column))
         if sold_at is None:
