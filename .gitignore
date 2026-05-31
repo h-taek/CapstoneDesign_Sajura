@@ -59,3 +59,4 @@ HANDOFF.md
 # dev-up.sh runtime artifacts
 .dev-fe.log
 .dev-fe.pid
+.gstack/
