@@ -67,7 +67,7 @@ docs/plan/       → 구현 계획 (단계별 작업, 순서, 역할 분담)
 | FE 자체 로그인·회원가입 (29차) | spec(`feature_spec.md` §1.2)·BE(9개 라우터 + auth_test 12개)는 정상이나 27차 phase_03 작성 시 FE 마일스톤이 누락되어 OAuth 화면만 노출. `docs/plan/fe/phase_03_auth.md` M3.F8로 명시화하고 **다음 단계로 즉시 진행**. `dev` 위에서 `feat/fe-register` → `fe` → `dev` 머지 흐름. **main 릴리즈는 전체 phase 완료 후 1회**로 유보 | `docs/plan/fe/phase_03_auth.md` M3.F8, `feature_spec.md` §1.2, `HANDOFF.md` |
 | 사업자 검증 = 온보딩 前 독립 게이트 (32차) | 사업자 검증을 회원가입에 묶지 않고 **인증 후·온보딩 진입 전 독립 단계(`/verify-business`, `POST /api/store/business/verify`)**로 분리 — 소셜·이메일 계정 공통 적용(기존엔 이메일 register에만 있어 OAuth 갭). `register`는 email·password·name만 받고 매장 행은 빈 상태로 생성. `stores.business_verified` 플래그 + `business_no`/매장필드 nullable. 검증 실패 시 **계정 유지 + 재검증**(미등록/형식 재입력·휴폐업 안내), 가드가 미검증자 온보딩 차단. 시연용 마스터 코드(`NTS_MASTER_BYPASS_CODE`)로 강제 통과 가능. **33차에서 상태 모델·소유권 검증으로 확장됨** | `feature_spec.md` §1.4, `api_spec.md` §3 등 |
 | 사업자 소유권 검증 = NTS + 등록증 + 관리자 승인 (33차) | NTS 조회는 사업자 실재·영업만 확인하고 **소유권은 증명 못 하는 공백**을 보완. ① NTS 즉시 조회 ② **사업자등록증 업로드** → `PENDING` ③ **관리자 승인**(`/admin` 심사) → `VERIFIED`/반려 `REJECTED`. `business_verified`(boolean) → **`business_status` 4단계 enum**. **PENDING부터 온보딩 진입 허용(1-B)**. `users.role`(OWNER/ADMIN) 신설, 관리자 최소 심사(`/api/admin/*`)는 Phase 3 포함·종합 관리도구는 Phase 11로. 등록증 파일은 서버 볼륨 저장(DB엔 경로), ADMIN 가드 하에서만 조회. 마스터 코드→곧바로 VERIFIED | `feature_spec.md` §1.4, `api_spec.md` §2·§3, `schema.md`(users.role·stores.business_status·cert), `service_design.md`(AdminVerificationService), `security.md` §2.4·§4.2·§5.1, `frontend_design.md` §3, `plan/be·fe/phase_03_auth.md`(M3.B8·B9·F9·F10), `plan_gantt.md` |
-| AI 학습 데이터 수집 경로 (37차) | **모델링(Phase 6) 학습용 수집은 오프라인 우선**: 날씨=기상자료개방포털 **다운로드 CSV**(세종 AWS 4관측소 2020~2026.05, API 미사용) / 공휴일=`holidays` 패키지 오프라인 생성+수동 보정 / 학사일정=수동 정리 CSV(검수제) / 판매=실매장 매출리포트 복호화. **API(기상청 단기예보·KASI 등)는 운영 배치(Phase 8 n8n) 전용**. 유동인구(세담터)는 1차 모델링부터 포함(이용신청 병행). 원본·가공 데이터는 git 제외(`AI/data/raw·processed`), 수동 소스만 추적 | `AI/data/README.md`, `docs/research/ai/03_external_data_sources.md`, `ml_pipeline.md` §4 |
+| AI 학습 데이터 수집 경로 (37차) | **모델링(Phase 6) 학습용 수집은 오프라인 우선**: 날씨=기상자료개방포털 **다운로드 CSV**(세종 AWS 4관측소 2020~2026.05, API 미사용) / 공휴일=`holidays` 패키지 오프라인 생성+수동 보정 / 학사일정=수동 정리 CSV(검수제) / 판매=실매장 매출리포트 복호화(2025-04~2026-04 확보). **API(기상청 단기예보·KASI 등)는 운영 배치(Phase 8 n8n) 전용**. **유동인구는 세담터에서 시간대별 데이터셋 미확보 → 세종시 행정동별 월간 생활·유동인구 리포트로 대체**(조치원읍, 월 단위 — 일별 조인 시 전월 lag, 누락 월 보간은 M6.A4). 원본·가공 데이터는 git 제외(`AI/data/raw·processed`), 수동 소스만 추적 | `AI/data/README.md`, `docs/research/ai/03_external_data_sources.md`, `ml_pipeline.md` §4 |
 
 ---
 
@@ -249,8 +249,9 @@ Phase 6 첫 마일스톤 M6.A1 착수. 입력 데이터 전 소스를 당일 기
 - **적재 실측**: 기상 4관측소 9,352행(2020-01-01~2026-05-27, 조치원 최근접=세종연서 611, 결측일 1) / 공휴일 133건(holidays 0.101 + 2025-10-10 임시공휴일 수동 보정 — 검수 필요)
 - **소스 검증**: 기상청 단기예보·KASI 특일·상가정보(2026-04-27판, 차기 8/1)·배달상권 페이지 유효 / 세담터 정상 운영(2025-12 개편) 단 TLS 체인 이슈 / 홍익대 구 세종캠 학사일정 URL은 통합 사이트로 리다이렉트·JS 동적이라 단순 파싱 불가 → 수동 정리 CSV로 전환
 - **결정**(§3 행 신설): 모델링 학습용 수집은 오프라인 우선(다운로드 CSV·패키지 생성·수동 정리), API는 운영 배치 전용
-- **대기**: 매출리포트 복호화 비밀번호 / 세담터 회원가입·이용신청 / 상가정보 8월 갱신판 다운로드
-- 문서: `research/ai/03` 상태 갱신(홍익대 URL·세담터 개편·날씨 확보) + `ml_pipeline.md` §4 수집 경로 주석 + 본 §3·§5
+- **M6.A1 완료(동일 회차 후속)**: ① 매출리포트 3개 복호화 → canonical 변환 — **판매 2025-04-03~2026-04-16**(영업일 258, 메뉴-일 3,471행, 고유 메뉴 137). ⚠️ 2025-12~2026-02 장기 휴업 구간 발견(매장 확인 필요) ② 학사일정 2020~2026 초안 60행(겹침 구간 confirmed·시험주간 추정) ③ **유동인구: 세담터 미확보 → 세종시 월간 생활·유동인구 리포트 대체**(조치원읍 10개월, 학기 효과 뚜렷 3월 351K↔1월 227K, 누락 7개월) ④ 커버리지: 기상·공휴일·학사일정 전체 커버 → **M6.A2 EDA 진입 가능**. ai 브랜치 3커밋(`a5dde81`·`b5924ad`·`73e0d8f`)
+- **대기**: 상가정보 8월 갱신판 다운로드(비차단) / 학사일정·휴업 사유·유동인구 누락 월 검수(`AI/data/README.md` 검수 항목)
+- 문서: `research/ai/03` 상태 갱신(홍익대 URL·세담터 개편·날씨 확보·유동인구 대체) + `ml_pipeline.md` §4·§5 유동인구 정정 + `model_spec.md` §5 + 본 §3·§5
 
 ### 2026-05-30 (36차) — Phase 4 BE+FE 본구현 + UX 정정 + OAuth 회귀 픽스 + /review·/qa
 
