@@ -5,9 +5,10 @@ sales_decrypt.py가 복호화한 매출리포트 3개(2025-04-01~2026-04-16)에�
 - '결제 합계'     → 일별 매출 총계 (검증·보조 지표)
 를 뽑아 processed/sales_daily_menu.{csv,parquet} / sales_daily_total.csv로 저장한다.
 
-메뉴명 정규화는 1차 규칙(장식 문구 제거)만 적용하고 원본명(menu_raw)을 보존한다 —
-메뉴 통합 매핑 확정은 EDA(M6.A2)·피처 설계(M6.A3)에서 수행.
-결측 보간·이상치 처리는 하지 않는다(M6.A4, 누수 방지).
+메뉴명 정규화: 1차 규칙(장식 문구 제거) + EDA(M6.A2 — notebooks/01_eda.ipynb §3) 확정 매핑
+① 표기 이형 병합(마라전골→마라 전골) ② 대괄호 사이드 품목([쌈무] 등) 이름 복원·category 사이드
+③ 카테고리 표준화는 category_std 컬럼으로 추가 제공(원본 category 보존).
+원본명(menu_raw)은 항상 보존한다. 결측 보간·이상치 처리는 하지 않는다(M6.A4, 누수 방지).
 
 실행: python AI/data_prep/sales_transform.py
 """
@@ -27,6 +28,19 @@ DECRYPTED_DIR = PROCESSED_DIR / "sales_decrypted"
 SERVICE_ITEM_PATTERN = re.compile(r"배달료|포장비|리뷰|이벤트|서비스")
 # 메뉴명 장식: ◤파격sale◢·[꼬소한]·【】 등 괄호 세그먼트
 DECOR_PATTERN = re.compile(r"◤[^◢]*◢|\[[^\]]*\]|【[^】]*】|\([^)]*추가[^)]*\)")
+# 이름 전체가 대괄호인 배달채널 사이드 품목 — [쌈무]·[파김치]·[공깃밥]
+BRACKET_ONLY_PATTERN = re.compile(r"^\[[^\]]*\]$")
+# EDA(M6.A2) 확정 — 동일 메뉴 표기 이형 병합
+MENU_MERGE_MAP = {"마라전골": "마라 전골"}
+# EDA(M6.A2) 확정 — 카테고리 표준화(재개장 후 POS 개편으로 생긴 비일관 흡수).
+# 원본 category는 보존하고 category_std로 추가 제공. 화룡점정=볶음밥 마무리 → 식사.
+CATEGORY_STD_MAP = {
+    "안주류": "안주",
+    "식사류": "식사",
+    "시원한거": "음료",
+    "화룡점정": "식사",
+    "사리 및 추가재료": "사이드",
+}
 
 
 def clean_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -36,7 +50,10 @@ def clean_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 def clean_menu_name(raw: str) -> str:
     name = DECOR_PATTERN.sub(" ", str(raw))
-    return re.sub(r"\s+", " ", name).strip()
+    name = re.sub(r"\s+", " ", name).strip()
+    if not name:  # 이름 전체가 괄호 세그먼트([쌈무] 등)면 괄호만 벗겨 이름을 살린다
+        name = re.sub(r"[\[\]【】◤◢]", "", str(raw)).strip()
+    return MENU_MERGE_MAP.get(name, name)
 
 
 def load_menu_sheet(path) -> pd.DataFrame:
@@ -57,6 +74,10 @@ def load_menu_sheet(path) -> pd.DataFrame:
         }
     )
     out["menu_clean"] = out["menu_raw"].map(clean_menu_name)
+    # 대괄호 사이드 품목은 원본 category가 비어 있다 — 사이드로 채운다 (유상 판매라 서비스 아님)
+    bracket_side = out["menu_raw"].str.match(BRACKET_ONLY_PATTERN) & out["category"].isna()
+    out.loc[bracket_side, "category"] = "사이드"
+    out["category_std"] = out["category"].map(lambda c: CATEGORY_STD_MAP.get(c, c))
     out["is_service_item"] = out["menu_raw"].str.contains(SERVICE_ITEM_PATTERN)
     return out
 
