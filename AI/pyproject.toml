@@ -2,8 +2,8 @@
 name = "sajura-ai"
 version = "0.1.0"
 description = "사주라 AI Server (FastAPI) — Phase 2 skeleton"
-# 모델·전처리 라이브러리는 Phase 6 ai_model 확정 후 추가.
-# 본 Phase 2는 빈 FastAPI 골격 + /ai/health 만 둔다.
+# 런타임(dependencies)은 AI Server 이미지 전용. 모델링 작업은 [ml] extra 사용.
+# 최종 모델 라이브러리의 runtime 승격·버전 고정은 M6.A6(초기 모델 선정)에서 수행.
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "fastapi==0.115.6",
@@ -16,6 +16,22 @@ dependencies = [
 dev = [
     "pytest==8.3.4",
     "ruff==0.8.4",
+]
+# Phase 6 모델링(EDA·데이터 적재) 전용 — Docker 런타임 이미지에는 설치하지 않는다
+ml = [
+    "pandas>=2.2,<3",
+    "numpy>=2,<3",
+    "pyarrow>=17",
+    "matplotlib>=3.9",
+    "seaborn>=0.13",
+    "scikit-learn>=1.5",
+    "lightgbm>=4.5",
+    "holidays>=0.60",
+    "msoffcrypto-tool>=5.4",
+    "openpyxl>=3.1",
+    "xlrd>=2.0",
+    "jupyterlab>=4.2",
+    "ipykernel>=6.29",
 ]
 
 [tool.ruff]
