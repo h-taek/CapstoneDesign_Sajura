@@ -28,6 +28,7 @@ python weather_load.py    # 기상 CSV 병합 → processed/weather_daily.*
 python holidays_gen.py    # 공휴일 2020~2026 → processed/holidays.csv
 python sales_decrypt.py   # 매출리포트 복호화 (비밀번호 필요)
 python sales_transform.py # 복호화본 → canonical 판매 데이터 + 커버리지 검사
+python people_load.py     # 월간 생활·유동인구(조치원읍) → processed/population_monthly.*
 ```
 
 ## 배포
