@@ -14,13 +14,16 @@
 | 2 | ARIMA / Prophet | baseline 2단계 |
 | 3 | XGBoost / LightGBM | baseline 3단계 |
 
-> baseline 4단계(LSTM/RNN)·5단계(TimExer)는 조사 중.
+> **비교 완료 (M6.A5)** — 나이브 2·이동평균·SARIMA·XGBoost·LightGBM + 하이브리드 변형·CatBoost까지 12개 후보를 월 단위 walk-forward로 비교. 결과·근거: `AI/notebooks/04_baselines.ipynb`. 4단계(LSTM/RNN)·5단계(TimExer)는 M6.A9 AutoGluon-TS probe로 판단(현재 보류 권고 — 표본 256일, GBM 우위 근소).
 
 ## 3. 초기 모델
 
-- 초기 AI 모델 및 ML Server 사용 라이브러리는 미확정 (베이스라인 비교 후보 중 선정).
+- **초기 모델 확정 (M6.A6): LightGBM 비율 타깃 하이브리드** — 타깃 `log1p(일 매출) − log1p(직전 7영업일 평균)`, 예측 복원 `ŷ = expm1(pred + log1p(roll7))`. 수준(level)은 이동평균이 추적하고 모델은 편차(요일·학사·공휴일·기상·regime)만 학습 — 순정 GBM·SARIMA가 못 이긴 MA-7 대비 유일하게 유의미 우위(봉인 test sMAPE 30.0%, MA-7 대비 MAE -19.6%).
+- 라이브러리: `lightgbm>=4.5` (AI `[ml]` extra). 하이퍼파라미터·모델 카드: `AI/notebooks/05_model_selection.ipynb` (Optuna 튜닝 확정값 + fallback 스크리닝 설정).
+- **보조 baseline: MA-7**(직전 7영업일 평균) — 서빙 fallback + drift 감시 기준선.
+- 1차 타깃은 **매장 일 매출(1일 선행)** — §4의 메뉴별 1~3일 수요·발주량 분해는 Phase 7에서 별도 설계(메뉴 레벨 이력 부족: 재개장 후 신규 메뉴 49일 이하, EDA §3).
 - **예측 문제 유형: Regression 확정** (수량 직접 예측 — 연속값 출력).
-- DNN 계열 도입 여부 및 전환 기준은 AutoGluon 베이스라인 probe 후 결정.
+- DNN 계열 도입 여부 및 전환 기준은 AutoGluon 베이스라인 probe 후 결정 (M6.A9).
 
 ## 4. 예측 대상
 
@@ -39,6 +42,8 @@
 | 지역 | 유동인구(세종시 월간 리포트 — 전월 lag), 상권 상가정보 |
 | 기타 외부 변수 [2단계] | 방문인구(SK 지오비전), 경제지표(ECOS), 검색량(네이버 데이터랩) |
 
+> MVP 확정 피처는 **20열(keep)** — 산출: `AI/data_prep/features_build.py`, 선별 근거: `AI/notebooks/02_features.ipynb` §7 (강수·유동인구 등은 데이터 근거로 1차 제외 — 유동인구는 월간 대체 데이터 한계, 세담터 일별 확보 시 재평가).
+
 ## 6. 출력
 
 - 메뉴별 1-3일 예상 수요
@@ -51,7 +56,8 @@
 - n8n을 통해 데이터를 주기적으로 수집한다.
 - 배치 학습 방식을 사용한다.
 - 주간 단위 정기 재학습을 수행한다.
-- **교차 검증 방식: Walk-forward CV (TimeSeriesSplit)** — 매장별 단일 시계열이므로 무작위 K-fold 금지.
+- **교차 검증 방식: 월 단위 Walk-forward** (검증 fold = 영업일 10일 이상 월, 최종 fold는 test 봉인 — M6.A4 확정, `ml_pipeline.md` §6). 매장별 단일 시계열이므로 무작위 K-fold 금지.
+- **평가 지표 (M6.A6 확정): MAE(주 지표·모델 선정 기준) + sMAPE(보고용).** MAPE는 소액 매출일의 분모 왜곡으로 제외(구 후보 MAE+MAPE+R²에서 정정). 운영 목표(상대 기준): **naive-요일 대비 skill ≥ +15%, MA-7 우위 유지** — 미달 시 drift 경보(`ml_pipeline.md` §10 연계).
 - 학습 데이터 사용 방식(윈도우 크기 등)은 별도 확정 예정.
 - 판매 결과 및 폐기 데이터를 모델 업데이트에 반영한다.
 - 점주 수정 이력을 재학습에 반영한다.
@@ -71,4 +77,5 @@
 
 ---
 
-> 미확정 항목(데이터 분리·평가 지표·전환 기준·Cold-start·예측 근거 산출 방법 및 출력 형태)은 별도 확정 예정.
+> 미확정 항목(DNN 전환 기준 — M6.A9 · Cold-start · 예측 근거 출력 형태 — M6.A7 · 메뉴별 수요 분해 설계 — Phase 7)은 별도 확정 예정.
+> 데이터 분리(월 단위 walk-forward)·평가 지표(MAE+sMAPE)는 M6.A4·A6에서 확정 완료 — §7 참조.
