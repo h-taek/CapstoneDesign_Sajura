@@ -58,7 +58,7 @@ docs/plan/       → 구현 계획 (단계별 작업, 순서, 역할 분담)
 | Frontend 스택 | React 19 + Vite 6 + TS strict + React Router v7 + Zustand 5(auth 메모리·prefs persist 분리) + TanStack Query v5 + ky 1.x(401 단일 refresh 인터셉터) + openapi-typescript + Tailwind v4 + shadcn/ui + RHF + zod + Recharts + vite-plugin-pwa(injectManifest) + @sentry/react | `frontend_design.md` |
 | Git 브랜치 전략 | 장수 5개(`main`·`dev`·`be`·`fe`·`ai`). be+fe → `feat/*` → be/fe → dev → main, AI는 ai → main 직행. main 보호(직접 푸시 금지·PR 필수). 통합 후 5브랜치 동일 commit 정렬 | `README.md` §5 |
 | 문서 작업 main 동기화 | main 전용 문서(PROGRESS·docs/spec·docs/plan·루트 README·CLAUDE·AGENTS) 수정 전 `git pull --ff-only origin main` 의무 | `README.md` §5, `CLAUDE.md` 규칙 ④ |
-| AI 미확정 항목 | 평가 지표·예측 근거 산출 방법·DNN 도입 여부·학습 데이터 사용 방식·결측 보간·이상치 임계값·신뢰도 임계값·재학습 교체 기준 — AI 팀 확정 시 spec에 직접 반영. spec/plan은 "별도 확정 예정"으로 표기 (30차 research 위임 폐기) | 각 spec 본문 (`08_ai/model_spec.md`, `ml_pipeline.md` 등) |
+| AI 미확정 항목 | 평가 지표·예측 근거 산출 방법·DNN 도입 여부·학습 데이터 사용 방식·신뢰도 임계값·재학습 교체 기준 — AI 팀 확정 시 spec에 직접 반영. spec/plan은 "별도 확정 예정"으로 표기 (30차 research 위임 폐기). ~~결측 보간·이상치 임계값~~은 38차 확정 → 아래 행 | 각 spec 본문 (`08_ai/model_spec.md`, `ml_pipeline.md` 등) |
 | AI 일부 확정 (22차) | Regression 방식 + Walk-forward CV + IQR 우선/Z-score 보조(임계 계수 probe 후) + 데이터 누수 방지 원칙. 모델 자체는 미확정 유지 | `08_ai/model_spec.md` §3·§7, `08_ai/ml_pipeline.md` §6 |
 | MVP 외부 데이터 (30차 확정) | 03 조사로 확정 — 기상청 단기예보·과거 기상·공휴일·홍익대 학사일정 [필수]; 세담터 유동인구·소상공인 상가정보 [권장]; 배달상권 [선택]. [2단계]: SK 지오비전·ECOS·네이버 데이터랩. 세종 조치원 홍익대 상권 기준 | `08_ai/ml_pipeline.md` §4 + `research/ai/03_external_data_sources.md` |
 | 보안 정책 | RBAC MVP 단일 역할 점주 / 감사 로그 1년 보관·`ops_readonly` 조회·append-only / 다중 디바이스 자체 토큰 / 강제 로그아웃 `POST /api/auth/logout-all` 채택 / 결제는 쿠팡 자체 수행(사주라 미경유·미저장) | `security.md` §2·§5, `research/backend/14_security_open_items.md` |
@@ -67,6 +67,7 @@ docs/plan/       → 구현 계획 (단계별 작업, 순서, 역할 분담)
 | FE 자체 로그인·회원가입 (29차) | spec(`feature_spec.md` §1.2)·BE(9개 라우터 + auth_test 12개)는 정상이나 27차 phase_03 작성 시 FE 마일스톤이 누락되어 OAuth 화면만 노출. `docs/plan/fe/phase_03_auth.md` M3.F8로 명시화하고 **다음 단계로 즉시 진행**. `dev` 위에서 `feat/fe-register` → `fe` → `dev` 머지 흐름. **main 릴리즈는 전체 phase 완료 후 1회**로 유보 | `docs/plan/fe/phase_03_auth.md` M3.F8, `feature_spec.md` §1.2, `HANDOFF.md` |
 | 사업자 검증 = 온보딩 前 독립 게이트 (32차) | 사업자 검증을 회원가입에 묶지 않고 **인증 후·온보딩 진입 전 독립 단계(`/verify-business`, `POST /api/store/business/verify`)**로 분리 — 소셜·이메일 계정 공통 적용(기존엔 이메일 register에만 있어 OAuth 갭). `register`는 email·password·name만 받고 매장 행은 빈 상태로 생성. `stores.business_verified` 플래그 + `business_no`/매장필드 nullable. 검증 실패 시 **계정 유지 + 재검증**(미등록/형식 재입력·휴폐업 안내), 가드가 미검증자 온보딩 차단. 시연용 마스터 코드(`NTS_MASTER_BYPASS_CODE`)로 강제 통과 가능. **33차에서 상태 모델·소유권 검증으로 확장됨** | `feature_spec.md` §1.4, `api_spec.md` §3 등 |
 | 사업자 소유권 검증 = NTS + 등록증 + 관리자 승인 (33차) | NTS 조회는 사업자 실재·영업만 확인하고 **소유권은 증명 못 하는 공백**을 보완. ① NTS 즉시 조회 ② **사업자등록증 업로드** → `PENDING` ③ **관리자 승인**(`/admin` 심사) → `VERIFIED`/반려 `REJECTED`. `business_verified`(boolean) → **`business_status` 4단계 enum**. **PENDING부터 온보딩 진입 허용(1-B)**. `users.role`(OWNER/ADMIN) 신설, 관리자 최소 심사(`/api/admin/*`)는 Phase 3 포함·종합 관리도구는 Phase 11로. 등록증 파일은 서버 볼륨 저장(DB엔 경로), ADMIN 가드 하에서만 조회. 마스터 코드→곧바로 VERIFIED | `feature_spec.md` §1.4, `api_spec.md` §2·§3, `schema.md`(users.role·stores.business_status·cert), `service_design.md`(AdminVerificationService), `security.md` §2.4·§4.2·§5.1, `frontend_design.md` §3, `plan/be·fe/phase_03_auth.md`(M3.B8·B9·F9·F10), `plan_gantt.md` |
+| AI 전처리 규칙 확정 (38차) | 타깃 이상치 = **log1p IQR k=3.0** train-fit winsorize(파일럿 개입 0건 — raw·k1.5·P1/P99는 실수요 오탐으로 기각) · 결측 = 기상 선형 보간 / 유동인구 전월 **ffill+staleness**(선형 보간은 미래 월 참조라 금지) / lag 워밍업 NaN은 트리=네이티브·선형계=완비 행만 · 검증 분할 = **월 단위 walk-forward**(검증 fold=영업일 ≥10일 월, 최종 fold test 봉인, 휴업 월 자동 배제). 유동인구 피처는 ablation 악화(+1.2%)로 모델 1군 제외 | `08_ai/ml_pipeline.md` §6 + `AI/notebooks/03_preprocessing.ipynb` + `AI/data_prep/preprocess.py` (ai 브랜치) |
 
 ---
 
@@ -239,6 +240,10 @@ HANDOFF.md E단계 9개 검증 시나리오 수행 + 발견된 결함 일괄 정
 ## 5. 문서 수정 이력
 
 차수별 상세 변경. 최근 항목을 위로, 옛 항목은 추상화한다. 1~27차 audit 상세는 git log + spec/research 본문 참조.
+
+### 2026-07-27 (38차) — AI M6.A2~A4 완료(ai 브랜치) + ml_pipeline §6 전처리 규칙 확정 반영
+
+본 회차 문서 작업: ① `ml_pipeline.md` §6의 "별도 확정 예정" 2건(이상치 임계값·결측 보간)을 M6.A4 확정 규칙으로 치환 + 검증 분할(월 단위 walk-forward) 명문화 + 말미 미확정 목록 정리. ② §3 정책 표에 "AI 전처리 규칙 확정(38차)" 행 추가, "AI 미확정 항목" 행에서 확정분 제거. 모델링 산출물 본체는 ai 브랜치 커밋(`e774a87` M6.A2 EDA · `e12fd98` M6.A3 피처 선별 · `4d63b36` M6.A4 규칙 — 노트북 01~03 + `features_build.py`·`preprocess.py`)에 있으며 정책대로 Phase 6 마무리에 ai → main PR로 합류. EDA 핵심 발견(장기 휴업 후 낙곱새 업종 개편 = regime 변화)과 검수 대기 항목은 `AI/data/README.md` 참조.
 
 ### 2026-05-30 (36차) — Phase 4 BE+FE 본구현 + UX 정정 + OAuth 회귀 픽스 + /review·/qa
 
