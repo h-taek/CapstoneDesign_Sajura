@@ -30,6 +30,7 @@ ml = [
     "catboost>=1.2",      # M6.A5 GBM 3사 비교용 (§3b)
     "statsmodels>=0.14",  # M6.A5 SARIMA 베이스라인용
     "optuna>=4",          # M6.A6 하이퍼파라미터 튜닝용
+    "shap>=0.52",         # M6.A7 XAI (TreeSHAP) — 서빙 이미지 포함 여부는 Phase 7 결정
     "holidays>=0.60",
     "msoffcrypto-tool>=5.4",
     "openpyxl>=3.1",
