@@ -4,10 +4,12 @@
 
 ## 현재 상태
 - Phase 2: 빈 FastAPI 골격 + `GET /ai/health`
-- Phase 6 (진행 중): M6.A1 데이터 수집 ✅ → M6.A2 EDA ✅ → M6.A3 피처 ✅ → 다음 M6.A4 결측·이상치 규칙
+- Phase 6 (진행 중): M6.A1 수집 ✅ → M6.A2 EDA ✅ → M6.A3 피처 ✅ → M6.A4 전처리 규칙 ✅ → 다음 M6.A5 베이스라인 비교
   - 데이터 카탈로그·검증 결과: [`data/README.md`](data/README.md)
   - EDA 보고서(분포·결측·이상치·관계): [`notebooks/01_eda.ipynb`](notebooks/01_eda.ipynb)
   - 피처 1차 선별(keep 14/hold 7/drop 16): [`notebooks/02_features.ipynb`](notebooks/02_features.ipynb) — 정의 SSOT는 `data_prep/features_build.py`
+  - 전처리 규칙(보간·이상치·fold 확정): [`notebooks/03_preprocessing.ipynb`](notebooks/03_preprocessing.ipynb) — 규칙 SSOT는 `data_prep/preprocess.py`
+  - **공개 저장소 데이터 정책**: 실매장 매출 절대액·노트북 실행 출력은 커밋 금지 — 노트북은 출력 제거 상태로 추적하고, 수치·그림은 로컬 재실행으로 전량 재현한다 (원본 데이터는 `data/raw/`·`data/processed/` gitignore)
   - 런타임 의존성과 분리된 `[ml]` extra로 모델링 라이브러리 관리 (Docker 이미지 미포함)
 
 ## 실행 — AI Server
@@ -32,10 +34,12 @@ python sales_decrypt.py   # 매출리포트 복호화 (비밀번호 필요)
 python sales_transform.py # 복호화본 → canonical 판매 데이터 + 커버리지 검사
 python people_load.py     # 월간 생활·유동인구(조치원읍) → processed/population_monthly.*
 python features_build.py  # 일별 피처 테이블(37열) → processed/features_daily.*
+python preprocess.py      # (선택) 전처리 규칙 자가 점검 — 학습 시엔 import로 사용
 
-# 노트북 재실행 (산출물 커밋 포함이라 열람만이면 실행 불필요)
+# 노트북 실행 — 커밋본은 출력 제거 상태(매출 비공개 정책), 수치·그림은 실행해서 확인
 cd ../notebooks
-jupyter nbconvert --to notebook --execute --inplace 01_eda.ipynb 02_features.ipynb
+jupyter nbconvert --to notebook --execute --inplace 01_eda.ipynb 02_features.ipynb 03_preprocessing.ipynb
+# ⚠️ 실행 후 커밋하려면 출력을 다시 비워야 한다: jupyter nbconvert --clear-output --inplace *.ipynb
 ```
 
 ## 배포

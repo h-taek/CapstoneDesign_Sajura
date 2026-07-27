@@ -51,6 +51,8 @@
 > **M6.A2 종료 판정**: EDA 보고서 `../notebooks/01_eda.ipynb` (2026-07-27) — 전 변수 분포·결측·이상치 정량 + 타깃-피처 관계 확인 완료. 핵심 발견: 장기 휴업 후 업종 개편(regime 변화), 학기 효과 최대(휴업 전 2.2배), 주간 주기(lag7 0.47), 기온 상관은 방학과 교란. → **M6.A3 피처 엔지니어링 진입 가능** (학습 구간 확정은 휴업 사유 검수 후).
 >
 > **M6.A3 종료 판정**: 피처 후보 37열 생성(`features_build.py`) + 1차 선별 완료(`../notebooks/02_features.ipynb`, 2026-07-27) — keep 14열(모델 행렬 20열)/hold 7/drop 16, 선별 셋 5-fold MAE -3.5% 검증. lag7≡lag_dow 병합, 강수 무기여 재확인, floating·술비중은 프록시 의심으로 보류. → **M6.A4 결측·이상치 규칙 확정 진입 가능** (hold 재평가 트리거: 검수·보간·ablation).
+>
+> **M6.A4 종료 판정**: 전처리 규칙 확정(`../data_prep/preprocess.py` SSOT + `../notebooks/03_preprocessing.ipynb` 근거, 2026-07-27) — ① 월 단위 walk-forward 6 fold(휴업 월 자동 배제, 최종 fold test 봉인) ② 유동인구 ffill+staleness(선형 보간은 누수라 금지)·기상 1건 선형 보간·워밍업 NaN 이원화 ③ 타깃 이상치 log1p IQR k=3.0 train-fit winsorize(현 데이터 개입 0건) ④ floating은 보간 후 ablation +1.2% 악화로 **모델 1군 제외 확정**(원본 확인 검수는 여전히 유효 — 재평가 트리거). spec `ml_pipeline.md` §6 반영은 docs PR로 진행. → **M6.A5 베이스라인 비교 진입 가능** (참조점: keep 20열 fold별 MAE — 03 노트북 로컬 출력).
 
 ## 전처리 원칙 (spec)
 
