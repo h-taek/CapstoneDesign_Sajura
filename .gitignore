@@ -60,3 +60,5 @@ HANDOFF.md
 AI/data/raw/
 AI/data/processed/
 AI/notebooks/.ipynb_checkpoints/
+# CatBoost 학습 잔여물 (M6.A5 §3b 실행 시 생성)
+catboost_info/
