@@ -52,6 +52,8 @@
 >
 > **M6.A3 종료 판정**: 피처 후보 37열 생성(`features_build.py`) + 1차 선별 완료(`../notebooks/02_features.ipynb`, 2026-07-27) — keep 14열(모델 행렬 20열)/hold 7/drop 16, 선별 셋 5-fold MAE -3.5% 검증. lag7≡lag_dow 병합, 강수 무기여 재확인, floating·술비중은 프록시 의심으로 보류. → **M6.A4 결측·이상치 규칙 확정 진입 가능** (hold 재평가 트리거: 검수·보간·ablation).
 >
+> **M6.A6 종료 판정**: 초기 모델 확정(`../notebooks/05_model_selection.ipynb`, 2026-07-27) — 주 모델 **V1-t** = LightGBM 비율 타깃 하이브리드 + Optuna 60 trials 튜닝(-2.6%·3/5 fold, 사전 기준 충족 채택, test 재개봉 없음), 보조 baseline MA-7. 평가 지표 확정: MAE(주)+sMAPE(보고), MAPE 제외 정정. 운영 목표(상대): naive-요일 skill ≥ +15%·MA-7 우위 유지(drift 경보선). 타깃 = 매장 일 매출(1일 선행) — spec "메뉴별 1~3일"과의 분해 설계는 Phase 7 확정 필요. → **M6.A7 XAI 진입 가능** (model_spec 갱신은 docs PR).
+>
 > **M6.A5 종료 판정**: 베이스라인 12개 후보 비교 완료(`../notebooks/04_baselines.ipynb`, 2026-07-27) — 승자 **LightGBM 비율 타깃 하이브리드**(log1p(y)−log1p(roll7) 편차 학습, 워밍업 NaN 라벨 명시 제거): 선택 5-fold에서 MA-7 대비 MAE -8.8%·naive-요일 대비 skill +23.1%, 봉인 test(2026-04) sMAPE 30.0%·MA-7 대비 -19.6%. 발견 ① 순정 GBM·SARIMA는 단순 7영업일 평균(MA-7)을 못 이김(일 매출 노이즈 지배) ② 같은 하이브리드 구조에서 GBM 3사 비교 — XGBoost +7.9%·CatBoost +9.9% 열세(둘 다 regime fold 취약) → LightGBM 확정. hold 3종(month·술비중·gap) 무익 → keep 20열 최종 확정. → **M6.A6 모델 선정 + model_spec §3 갱신(docs PR) 진입 가능**.
 >
 > **M6.A4 종료 판정**: 전처리 규칙 확정(`../data_prep/preprocess.py` SSOT + `../notebooks/03_preprocessing.ipynb` 근거, 2026-07-27) — ① 월 단위 walk-forward 6 fold(휴업 월 자동 배제, 최종 fold test 봉인) ② 유동인구 ffill+staleness(선형 보간은 누수라 금지)·기상 1건 선형 보간·워밍업 NaN 이원화 ③ 타깃 이상치 log1p IQR k=3.0 train-fit winsorize(현 데이터 개입 0건) ④ floating은 보간 후 ablation +1.2% 악화로 **모델 1군 제외 확정**(원본 확인 검수는 여전히 유효 — 재평가 트리거). spec `ml_pipeline.md` §6 반영은 docs PR로 진행. → **M6.A5 베이스라인 비교 진입 가능** (참조점: keep 20열 fold별 MAE — 03 노트북 로컬 출력).
