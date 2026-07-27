@@ -75,7 +75,8 @@
 
 - 예측 결과의 근거를 점주가 이해할 수 있도록 제공한다.
 - **예측 근거 산출: LightGBM `gain` (1차 스크리닝) → TreeSHAP (`shap.TreeExplainer`) 확정.**
-- 출력 형태(top-3 기여 피처, 자연어 변환 여부)는 probe 후 결정.
+- **출력 형태 확정 (38차, M6.A7)**: **top-3 기여 요인**(방향 + 상대 기여 %) + **rule-based 자연어 1문장** — "평소(직전 7영업일 평균) 대비 ±X%" 프레임. 편차 모델(§3)의 SHAP 합이 곧 예측 편차라 문장과 수학이 일치. **자연어 변환은 LLM 미사용**(템플릿 — 결정론·무비용). 응답 스키마 `{date, deviation_vs_baseline, baseline, top_factors[{feature,label,pct}], sentence}` — 근거·prototype: `AI/notebooks/07_xai.ipynb`.
+- 예측 근거는 신뢰도 배지·P10/P90 구간과 **항상 동반 노출**(단독 금지) — 공휴일 등 특수일은 학습 표본이 적어 설명 신뢰가 낮음(M6.A7 실측).
 - 신뢰도 경고 기준은 `feature_spec.md` §5.3 참조.
 
 ---
