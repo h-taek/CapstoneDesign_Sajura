@@ -14,19 +14,25 @@
 | 2 | ARIMA / Prophet | baseline 2단계 |
 | 3 | XGBoost / LightGBM | baseline 3단계 |
 
-> baseline 4단계(LSTM/RNN)·5단계(TimExer)는 조사 중.
+> **비교 완료 (M6.A5 + M6.A9)** — 나이브 2·이동평균·SARIMA·XGBoost·LightGBM + 하이브리드 변형·CatBoost 12개 후보(`AI/notebooks/04_baselines.ipynb`) + DNN 계열 4종(SeasonalNaive·Chronos-bolt·DeepAR·PatchTST, `09_dnn_probe.ipynb`). 4·5단계(LSTM/RNN·TimExer)는 동급 계열이 나이브 이하로 판명되어 별도 실험 불요 — **DNN 보류 확정(§3)**.
 
 ## 3. 초기 모델
 
-- 초기 AI 모델 및 ML Server 사용 라이브러리는 미확정 (베이스라인 비교 후보 중 선정).
+- **초기 모델 확정 (M6.A6): LightGBM 비율 타깃 하이브리드** — 타깃 `log1p(일 매출) − log1p(직전 7영업일 평균)`, 예측 복원 `ŷ = expm1(pred + log1p(roll7))`. 수준(level)은 이동평균이 추적하고 모델은 편차(요일·학사·공휴일·기상·regime)만 학습 — 순정 GBM·SARIMA가 못 이긴 MA-7 대비 유일하게 유의미 우위(봉인 test sMAPE 30.0%, MA-7 대비 MAE -19.6%).
+- 라이브러리: `lightgbm>=4.5` (AI `[ml]` extra). 하이퍼파라미터·모델 카드: `AI/notebooks/05_model_selection.ipynb` (Optuna 튜닝 확정값 + fallback 스크리닝 설정).
+- **보조 baseline: MA-7**(직전 7영업일 평균) — 서빙 fallback + drift 감시 기준선.
+- 1차 타깃은 **매장 일 매출** — **AI 산출 범위 확정(38차, 담당자)**: AI 모델의 책임은 매출 예측(과 그 고도화)까지다. 메뉴별 수요 분해는 매장별 믹스가 상이해 **공통 분해 모델을 두지 않고**(매장별 접근·표시 방식은 Phase 7에서 결정), **재료 리스트업은 점주(사용자) 관리**로 확정 — 시스템 자동 산출 아님. 메뉴 레벨 직접 예측은 이력 부족으로 기각(재개장 후 신규 메뉴 49일 이하, EDA §3).
+- **다일 선행·예측 구간 (38차 고도화)**: 모델 우위는 D+1 -10.2% / D+2 -3.0% / D+3 +0.4%(vs MA-7)로 계단식 소멸 — 1~3일 제공 시 **선행일별 신뢰도 차등**(구간 확대·배지) 적용, D+2·3은 익일 배치에서 자동 갱신됨을 안내. **예측 구간 = LightGBM quantile P10/P90**(커버리지 78%) 채택 — 발주 안전범위·신뢰도(feature_spec §5.3) 입력. 점 예측은 l2 유지(P50 대체·앙상블 기각). 근거: `AI/notebooks/06_enhancement.ipynb`.
 - **예측 문제 유형: Regression 확정** (수량 직접 예측 — 연속값 출력).
-- DNN 계열 도입 여부 및 전환 기준은 AutoGluon 베이스라인 probe 후 결정.
+- **DNN 도입 보류 확정 (38차, M6.A9)** — AutoGluon-TS 실전 probe(동일 하네스 1-step): 최고 DNN 계열 Chronos-bolt(zero-shot)가 V1-t 대비 +8.9%(사전 기준 -5% 미달), 학습형 DeepAR·PatchTST는 계절 나이브 이하. 재평가 트리거: ① 데이터 2년+ 축적 ② 다매장 확장 ③ V1-t의 MA-7 대비 skill 지속 상실(drift) ④ Chronos 계열 fine-tuning·covariates 지원 릴리스. Chronos zero-shot은 **신규 매장 cold-start 후보**로 별도 메모. 근거: `AI/notebooks/09_dnn_probe.ipynb`.
 
 ## 4. 예측 대상
 
 - 메뉴별 1-3일 예상 수요
 - 품목별 권장 발주 수량
 - 예상 소진 시점
+
+> **산출 구조 (38차 확정)**: ① **매장 일 매출 예측(AI 책임 범위 — §3 초기 모델 + 고도화)** ② 메뉴별 수요 — 매장별 믹스 상이로 공통 분해 모델 없음(접근 방식 Phase 7 결정) ③ 재료 리스트업 — **점주 관리**(시스템 자동 산출 아님). §4~§6의 "메뉴별 수요·추천발주" 표현은 이 범위 확정에 맞춰 제품 spec(feature_spec 등) 차원의 정리가 필요 — 담당자 검토 항목.
 
 ## 5. 입력 피처
 
@@ -38,6 +44,8 @@
 | 캘린더 | 공휴일, 요일, 시간대, 학사일정(학기·방학·시험기간) |
 | 지역 | 유동인구(세종시 월간 리포트 — 전월 lag), 상권 상가정보 |
 | 기타 외부 변수 [2단계] | 방문인구(SK 지오비전), 경제지표(ECOS), 검색량(네이버 데이터랩) |
+
+> MVP 확정 피처는 **20열(keep)** — 산출: `AI/data_prep/features_build.py`, 선별 근거: `AI/notebooks/02_features.ipynb` §7 (강수·유동인구 등은 데이터 근거로 1차 제외 — 유동인구는 월간 대체 데이터 한계, 세담터 일별 확보 시 재평가).
 
 ## 6. 출력
 
@@ -51,7 +59,8 @@
 - n8n을 통해 데이터를 주기적으로 수집한다.
 - 배치 학습 방식을 사용한다.
 - 주간 단위 정기 재학습을 수행한다.
-- **교차 검증 방식: Walk-forward CV (TimeSeriesSplit)** — 매장별 단일 시계열이므로 무작위 K-fold 금지.
+- **교차 검증 방식: 월 단위 Walk-forward** (검증 fold = 영업일 10일 이상 월, 최종 fold는 test 봉인 — M6.A4 확정, `ml_pipeline.md` §6). 매장별 단일 시계열이므로 무작위 K-fold 금지.
+- **평가 지표 (M6.A6 확정): MAE(주 지표·모델 선정 기준) + sMAPE(보고용).** MAPE는 소액 매출일의 분모 왜곡으로 제외(구 후보 MAE+MAPE+R²에서 정정). 운영 목표(상대 기준): **naive-요일 대비 skill ≥ +15%, MA-7 우위 유지** — 미달 시 drift 경보(`ml_pipeline.md` §10 연계).
 - 학습 데이터 사용 방식(윈도우 크기 등)은 별도 확정 예정.
 - 판매 결과 및 폐기 데이터를 모델 업데이트에 반영한다.
 - 점주 수정 이력을 재학습에 반영한다.
@@ -66,9 +75,11 @@
 
 - 예측 결과의 근거를 점주가 이해할 수 있도록 제공한다.
 - **예측 근거 산출: LightGBM `gain` (1차 스크리닝) → TreeSHAP (`shap.TreeExplainer`) 확정.**
-- 출력 형태(top-3 기여 피처, 자연어 변환 여부)는 probe 후 결정.
+- **출력 형태 확정 (38차, M6.A7)**: **top-3 기여 요인**(방향 + 상대 기여 %) + **rule-based 자연어 1문장** — "평소(직전 7영업일 평균) 대비 ±X%" 프레임. 편차 모델(§3)의 SHAP 합이 곧 예측 편차라 문장과 수학이 일치. **자연어 변환은 LLM 미사용**(템플릿 — 결정론·무비용). 응답 스키마 `{date, deviation_vs_baseline, baseline, top_factors[{feature,label,pct}], sentence}` — 근거·prototype: `AI/notebooks/07_xai.ipynb`.
+- 예측 근거는 신뢰도 배지·P10/P90 구간과 **항상 동반 노출**(단독 금지) — 공휴일 등 특수일은 학습 표본이 적어 설명 신뢰가 낮음(M6.A7 실측).
 - 신뢰도 경고 기준은 `feature_spec.md` §5.3 참조.
 
 ---
 
-> 미확정 항목(데이터 분리·평가 지표·전환 기준·Cold-start·예측 근거 산출 방법 및 출력 형태)은 별도 확정 예정.
+> 미확정 항목(DNN 전환 기준 — M6.A9 · Cold-start · 예측 근거 출력 형태 — M6.A7 · 메뉴별 수요 분해 설계 — Phase 7)은 별도 확정 예정.
+> 데이터 분리(월 단위 walk-forward)·평가 지표(MAE+sMAPE)는 M6.A4·A6에서 확정 완료 — §7 참조.

@@ -395,9 +395,21 @@ Frontend → GET /api/auth/login/kakao
 
 ### 5.3 신뢰도 경고 기준
 
-- 예측 결과가 정량 기준에 못 미치면 "신뢰도 낮음" 경고 배지를 표시한다.
-- 정량 기준(임계값)은 AI probe(초기 모델 학습·평가) 후 확정한다.
+- 예측 결과가 아래 트리거 중 **하나라도 해당하면** "신뢰도 낮음" 경고 배지를 표시한다(M6.A8 확정, 38차).
+- `low_confidence_reason`은 우선순위(표의 위→아래)가 가장 높은 트리거의 코드.
+
+| 우선순위 | reason 코드 | 조건 |
+|---|---|---|
+| 1 | `SHORT_HISTORY` | 매장 학습 영업일 < 60일 |
+| 2 | `MISSING_FEATURES` | core lag 피처(직전 매출·7일 평균·같은 요일) 결측 |
+| 3 | `SPECIAL_DAY` | 공휴일(대체공휴일 포함) — 학습 표본 희소 |
+| 4 | `LONG_HORIZON` | 선행 D+3 이상 — 모델 우위 소멸 구간 |
+| 5 | `WIDE_INTERVAL` | 상대 예측 구간 폭 (P90−P10)/기준선 > θ — θ는 재학습 시 train 구간 in-sample 폭의 P80로 재산정(파일럿 실측 1.6~1.8) |
+| 6 | `DRIFT` (운영) | 직전 4주 rolling에서 모델 MAE > MA-7 MAE — 해당 기간 전 예측에 배지(`ml_pipeline.md` §10) |
+
+- 검증 실측(파일럿, 선택 fold): 배지율 18%, 배지 ON일의 상대 오차가 OFF일의 **1.85배**(lift), 공휴일 오예측 케이스 포착 — 근거: `AI/notebooks/08_confidence.ipynb`.
 - 판정 결과는 `forecast_results.is_low_confidence` / `low_confidence_reason` 컬럼에 저장한다(`schema.md` §3.15).
+- 예측 근거 문구(`model_spec.md` §9)는 본 배지·P10/P90 구간과 **항상 동반 노출**한다.
 
 ### 5.4 Cold-start 처리 [2단계]
 
@@ -412,7 +424,7 @@ Frontend → GET /api/auth/login/kakao
 ### 5.5 데이터 소스별 동작
 
 - 수요예측은 데이터 소스(CSV 업로드 / POS API)와 무관하게 동일하게 동작한다.
-- 학습 데이터가 부족하면 신뢰도 낮음 배지를 표시한다(§5.3, 정량 기준은 probe 후 확정).
+- 학습 데이터가 부족하면 신뢰도 낮음 배지를 표시한다(§5.3 `SHORT_HISTORY` — 60 영업일 미만, 38차 확정).
 
 ## 6. 추천발주
 
