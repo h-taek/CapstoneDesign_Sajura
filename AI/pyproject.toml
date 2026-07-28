@@ -16,6 +16,7 @@ dependencies = [
 dev = [
     "pytest==8.3.4",
     "ruff==0.8.4",
+    "httpx==0.28.1",  # fastapi TestClient용 (M7.A1 골격 테스트)
 ]
 # Phase 6 모델링(EDA·데이터 적재) 전용 — Docker 런타임 이미지에는 설치하지 않는다
 ml = [
