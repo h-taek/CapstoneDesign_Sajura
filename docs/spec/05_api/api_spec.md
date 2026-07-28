@@ -1394,14 +1394,23 @@ Authorization: Bearer <access_token>
 
 ### GET /ai/health
 
+> **M7.A6 확장(additive)** — stateless 서빙(M7.A2) 기준 의미: `model_loaded` = 자가 점검(합성 미니
+> 학습·예측 스모크) 통과, `last_trained_at` = null 고정([2단계] 주간 재학습 도입 시 채움).
+> DB 연결 점검은 해당 없음 — AI Server는 DB에 접근하지 않는다(n8n이 조회해 payload 전달, feature_spec §5.1).
+
 ```json
 // Response 200
 {
-  "status": "ok",
+  "status": "ok",                    // ok | degraded — 컴포넌트 하나라도 비정상이면 degraded
   "model_loaded": true,
-  "last_trained_at": "2026-05-04T02:00:00Z"
+  "last_trained_at": null,
+  "components": {
+    "serving_stack":     { "status": "ok", "elapsed_ms": 117, "lightgbm_version": "4.7.0" },
+    "academic_calendar": { "status": "ok", "coverage_until": "2027-01-14", "stale": false },
+    "holidays":          { "status": "ok" }
+  }
 }
-// AI Server 다운 시 호출 주체(Backend 또는 n8n)가 실패 처리
+// AI Server 다운 시 호출 주체(Backend 또는 n8n)가 실패 처리, degraded는 운영 알림(ml_pipeline §10)
 ```
 
 ---
