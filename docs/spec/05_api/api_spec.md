@@ -1253,74 +1253,51 @@ Authorization: Bearer <access_token>
 
 ### POST /ai/forecast/predict
 
+> **계약 v2 (38차)** — AI 산출 범위 재확정(`08_ai/model_spec.md` §3·§4: 타깃 = 매장 일 매출, 메뉴 분해 없음)에 따라
+> 메뉴별 입력·출력을 제거하고 매출 중심으로 재설계. 다일 D+1~D+3(선행일별 신뢰도 차등)·P10/P90 예측 구간·
+> 예측 근거(§9 확정 형태)·신뢰도 배지(`feature_spec.md` §5.3)를 포함한다.
+> 공휴일·학사일정은 AI Server 내장 지식이라 payload로 받지 않는다. 기상은 과거 관측 + 대상일 예보를
+> 함께 전달한다(단기예보의 TMN/TMX — 평균기온은 (min+max)/2 근사). 구현: `AI/app/api/forecast.py` (M7.A2).
+
 ```json
 // Request
 {
   "store_id": "uuid",
-  "target_date": "2026-05-07",
-  "store_profile": {
-    "business_type": "카페",
-    "store_size": "SMALL",
-    "operation_type": "HALL"
-  },
-  "menus": [
-    {
-      "menu_id": "uuid",
-      "name": "아메리카노",
-      "category": "음료"
-    }
+  "target_dates": ["2026-07-28", "2026-07-29", "2026-07-30"],  // 1~3개 (D+1~D+3)
+  "sales_history": [                                            // 일계 이력 — 무매출일은 생략 가능
+    { "date": "2026-07-27", "total_amount": 512000, "order_count": 9 }
   ],
-  "sales_data": [
-    {
-      "date": "2026-04-01",
-      "menu_id": "uuid",
-      "quantity": 45
-    }
+  "weather": [                                                  // sales_history 기간 + target_dates 커버
+    { "date": "2026-07-28", "temp_min": 22.1, "temp_max": 29.4, "rainfall_mm": 0.0 }
   ],
-  "weather_data": [
-    {
-      "date": "2026-05-07",
-      "temperature": 22.4,
-      "rainfall": 0.0,
-      "humidity": 55
-    }
-  ],
-  "foot_traffic_data": [
-    {
-      "date": "2026-05-07",
-      "estimated_count": 12000
-    }
-  ],
-  "search_trend_data": [  // [조사 중]
-    {
-      "date": "2026-05-07",
-      "keyword": "아메리카노",
-      "score": 78.2
-    }
-  ],
-  "event_data": [  // [조사 중]
-    {
-      "date": "2026-05-07",
-      "event_name": "지역 축제",
-      "distance_km": 1.2
-    }
-  ]
+  "store_config": { "reopen_date": "2026-02-26" }               // 리뉴얼 재개장일(없으면 null) — regime 피처
 }
 
 // Response 200
 {
-  "target_date": "2026-05-07",
-  "is_low_confidence": false,
-  "low_confidence_reason": null,
+  "store_id": "uuid",
   "predictions": [
     {
-      "menu_id": "uuid",
-      "predicted_quantity": 52,
-      "confidence_score": 0.87
-      // 예측 근거 필드는 산출 방법·출력 형태 확정 후 추가
+      "target_date": "2026-07-28",
+      "horizon_days": 1,
+      "predicted_sales": 850000,
+      "interval_p10": 520000,          // 80% 예측 구간 (LightGBM quantile — 커버리지 실측 78%)
+      "interval_p90": 1310000,
+      "is_low_confidence": false,
+      "low_confidence_reason": null,   // SHORT_HISTORY | MISSING_FEATURES | SPECIAL_DAY | LONG_HORIZON | WIDE_INTERVAL | DRIFT
+      "explanation": {                 // model_spec §9 — SHAP 합 = 편차, rule-based 문장(LLM 미사용)
+        "baseline": "직전 7영업일 평균",
+        "deviation_vs_baseline": 0.12,
+        "top_factors": [
+          { "feature": "dow_3", "label": "목요일 효과", "pct": 0.18 }
+        ],
+        "sentence": "07월 28일(화)은 평소보다 약 12% 높을 것으로 예상됩니다 — 주요 요인: ..."
+      }
     }
   ]
 }
+// 422: 영업일 이력 < 10일, 또는 target_dates가 이력 마지막 영업일 이전
+// 예측은 "영업일 전제" — 영업 여부는 예측하지 않고 입력 조건으로 취급 (EDA §2.3)
 ```
 
 ### POST /ai/orders/recommend
