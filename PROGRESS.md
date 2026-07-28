@@ -255,6 +255,8 @@ HANDOFF.md E단계 9개 검증 시나리오 수행 + 발견된 결함 일괄 정
 
 **M6.A8 신뢰도 기준(2026-07-28, `08_confidence.ipynb`)**: 트리거 6종 확정 — SHORT_HISTORY(<60일)·MISSING_FEATURES·SPECIAL_DAY(공휴일)·LONG_HORIZON(D+3↑)·WIDE_INTERVAL(폭>θ=train P80)·DRIFT(운영). 실증: 폭→오차 Spearman 0.31·단조, 배지율 18%·lift 1.85×·삼일절 포착 → feature_spec §5.3 "probe 후 확정" 해소(본 PR). 잔여: M6.A9.
 
+**M6.A9 DNN probe(2026-07-28, `09_dnn_probe.ipynb` — 별도 sajura-ag env)**: AutoGluon-TS 1.5 실측, 동일 하네스 1-step rolling — Chronos-bolt(zero-shot) V1-t 대비 +8.9%(regime fold +44% 붕괴가 결정적), DeepAR·PatchTST는 나이브 이하 → **DNN 도입 보류 확정**(model_spec §2·§3 반영, 본 PR). Chronos는 신규 매장 cold-start 후보 메모. **→ Phase 6 모델링 마일스톤(M6.A1~A9) 전체 완료 — ai → main 머지 PR로 이관.**
+
 ### 2026-07-27 (37차) — Phase 6 M6.A1 데이터 수집 착수 (ai 브랜치) + 수집 경로 결정
 
 Phase 6 첫 마일스톤 M6.A1 착수. 입력 데이터 전 소스를 당일 기준 전수 검증(웹 페이지 유효성 + 로컬 보유분 실측)하고 적재 파이프라인 구축.

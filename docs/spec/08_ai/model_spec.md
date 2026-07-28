@@ -14,7 +14,7 @@
 | 2 | ARIMA / Prophet | baseline 2단계 |
 | 3 | XGBoost / LightGBM | baseline 3단계 |
 
-> **비교 완료 (M6.A5)** — 나이브 2·이동평균·SARIMA·XGBoost·LightGBM + 하이브리드 변형·CatBoost까지 12개 후보를 월 단위 walk-forward로 비교. 결과·근거: `AI/notebooks/04_baselines.ipynb`. 4단계(LSTM/RNN)·5단계(TimExer)는 M6.A9 AutoGluon-TS probe로 판단(현재 보류 권고 — 표본 256일, GBM 우위 근소).
+> **비교 완료 (M6.A5 + M6.A9)** — 나이브 2·이동평균·SARIMA·XGBoost·LightGBM + 하이브리드 변형·CatBoost 12개 후보(`AI/notebooks/04_baselines.ipynb`) + DNN 계열 4종(SeasonalNaive·Chronos-bolt·DeepAR·PatchTST, `09_dnn_probe.ipynb`). 4·5단계(LSTM/RNN·TimExer)는 동급 계열이 나이브 이하로 판명되어 별도 실험 불요 — **DNN 보류 확정(§3)**.
 
 ## 3. 초기 모델
 
@@ -24,7 +24,7 @@
 - 1차 타깃은 **매장 일 매출** — **AI 산출 범위 확정(38차, 담당자)**: AI 모델의 책임은 매출 예측(과 그 고도화)까지다. 메뉴별 수요 분해는 매장별 믹스가 상이해 **공통 분해 모델을 두지 않고**(매장별 접근·표시 방식은 Phase 7에서 결정), **재료 리스트업은 점주(사용자) 관리**로 확정 — 시스템 자동 산출 아님. 메뉴 레벨 직접 예측은 이력 부족으로 기각(재개장 후 신규 메뉴 49일 이하, EDA §3).
 - **다일 선행·예측 구간 (38차 고도화)**: 모델 우위는 D+1 -10.2% / D+2 -3.0% / D+3 +0.4%(vs MA-7)로 계단식 소멸 — 1~3일 제공 시 **선행일별 신뢰도 차등**(구간 확대·배지) 적용, D+2·3은 익일 배치에서 자동 갱신됨을 안내. **예측 구간 = LightGBM quantile P10/P90**(커버리지 78%) 채택 — 발주 안전범위·신뢰도(feature_spec §5.3) 입력. 점 예측은 l2 유지(P50 대체·앙상블 기각). 근거: `AI/notebooks/06_enhancement.ipynb`.
 - **예측 문제 유형: Regression 확정** (수량 직접 예측 — 연속값 출력).
-- DNN 계열 도입 여부 및 전환 기준은 AutoGluon 베이스라인 probe 후 결정 (M6.A9).
+- **DNN 도입 보류 확정 (38차, M6.A9)** — AutoGluon-TS 실전 probe(동일 하네스 1-step): 최고 DNN 계열 Chronos-bolt(zero-shot)가 V1-t 대비 +8.9%(사전 기준 -5% 미달), 학습형 DeepAR·PatchTST는 계절 나이브 이하. 재평가 트리거: ① 데이터 2년+ 축적 ② 다매장 확장 ③ V1-t의 MA-7 대비 skill 지속 상실(drift) ④ Chronos 계열 fine-tuning·covariates 지원 릴리스. Chronos zero-shot은 **신규 매장 cold-start 후보**로 별도 메모. 근거: `AI/notebooks/09_dnn_probe.ipynb`.
 
 ## 4. 예측 대상
 
