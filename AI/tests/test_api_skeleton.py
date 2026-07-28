@@ -27,7 +27,14 @@ def test_health_matches_spec_shape():
     r = client.get("/ai/health")
     assert r.status_code == 200
     body = r.json()
-    assert body == {"status": "ok", "model_loaded": False, "last_trained_at": None}
+    assert body["status"] == "ok"
+    assert body["model_loaded"] is True  # M7.A6 — 서빙 스택 자가 점검 통과
+    assert body["last_trained_at"] is None  # stateless MVP — M7.A5 [2단계]에서 채움
+    comps = body["components"]
+    assert set(comps) == {"serving_stack", "academic_calendar", "holidays"}
+    assert comps["serving_stack"]["status"] == "ok"
+    assert comps["academic_calendar"]["stale"] is False  # 내장 학사 지식 커버리지 유효
+    assert comps["holidays"]["status"] == "ok"
 
 
 def test_unimplemented_endpoints_return_501():

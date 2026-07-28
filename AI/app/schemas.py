@@ -151,6 +151,8 @@ class JobStatusResponse(BaseModel):
 
 # ── GET /ai/health ───────────────────────────────────────────
 class HealthResponse(BaseModel):
-    status: str
+    status: str  # ok | degraded
     model_loaded: bool
     last_trained_at: dt.datetime | None = None
+    # M7.A6 확장(additive): serving_stack·academic_calendar·holidays 컴포넌트별 상태
+    components: dict[str, dict[str, object]] = Field(default_factory=dict)
