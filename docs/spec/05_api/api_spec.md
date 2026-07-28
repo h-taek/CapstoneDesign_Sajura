@@ -1302,56 +1302,63 @@ Authorization: Bearer <access_token>
 
 ### POST /ai/orders/recommend
 
+> **계약 v2 (39차, M7.A3 — A안: 단일 호출)** — 구 계약의 `forecast_results`(메뉴별 예측 *입력*)는 폐기.
+> 산출 구조 확정(`08_ai/model_spec.md` §3: 2모델)에 따라 서버가 내부에서
+> **① V1-t 매출 예측 × ② 매장별 메뉴 비중 분해**(최근 28영업일 합산 비중 — `AI/notebooks/11_menu_decomposition.ipynb` 검증)
+> → **점주 레시피(BOM) 전개 → 재고·리드타임·안전재고 반영 발주 참고치**까지 수행한다.
+> 레시피(`recipes`)는 점주 관리 데이터(재료 리스트업 = 사용자 몫, 38차 확정)를 BE가 전달.
+> 메뉴별 예상 수량은 서버 산출물(`menu_forecast`)로 응답에 포함되며, ①의 신뢰도 배지가
+> 응답에 동반 전파된다(참고치 원칙 — 배지 없이 단독 노출 금지, model_spec §9).
+> 구현: `AI/app/api/orders.py` + `AI/app/model/decompose.py`.
+
 ```json
 // Request
 {
   "store_id": "uuid",
-  "target_date": "2026-05-07",
-  "forecast_results": [
-    {
-      "menu_id": "uuid",
-      "predicted_quantity": 52,
-      "confidence_score": 0.87
-    }
+  "target_dates": ["2026-07-28", "2026-07-29", "2026-07-30"],  // 1~3개 — predict와 동일
+  "sales_history": [                                            // ① 학습용 일계 이력 (predict와 동일 형식)
+    { "date": "2026-07-27", "total_amount": 512000, "order_count": 9 }
   ],
-  "recipes": [
-    {
-      "menu_id": "uuid",
-      "item_id": "uuid",
-      "quantity_per_menu": 18.0,
-      "unit": "g"
-    }
+  "menu_sales_history": [                                       // ② 분해용 메뉴×일 이력 (판매일만)
+    { "date": "2026-07-27", "menu_id": "uuid", "quantity": 12 }
+  ],
+  "weather": [
+    { "date": "2026-07-28", "temp_min": 22.1, "temp_max": 29.4, "rainfall_mm": 0.0 }
+  ],
+  "store_config": { "reopen_date": "2026-02-26" },
+  "recipes": [                                                  // 점주 관리 레시피 — 메뉴 1개당 재료 소모량
+    { "menu_id": "uuid", "item_id": "uuid", "quantity_per_menu": 18.0, "unit": "g" }
   ],
   "inventory": [
-    {
-      "item_id": "uuid",
-      "current_quantity": 2400.0,
-      "unit": "g",
-      "lead_time_days": 2,
-      "safety_stock": 1000.0,
-      "last_price": 28000
-    }
+    { "item_id": "uuid", "current_quantity": 2400.0, "unit": "g",
+      "lead_time_days": 2, "safety_stock": 1000.0, "last_price": 28000 }
   ]
 }
 
 // Response 200
 {
   "store_id": "uuid",
-  "target_date": "2026-05-07",
+  "target_dates": ["2026-07-28", "2026-07-29", "2026-07-30"],
+  "is_low_confidence": true,               // ① 예측 신뢰도 전파 — UI는 배지와 함께 노출
+  "low_confidence_reason": "LONG_HORIZON", // feature_spec §5.3 코드
+  "menu_forecast": [                       // ② 산출물 — 대상 기간 합계 메뉴별 예상 수량(참고치), 내림차순
+    { "menu_id": "uuid", "expected_quantity": 37.5 }
+  ],
   "recommendations": [
     {
       "item_id": "uuid",
-      "recommended_quantity": 5000.0,
-      "expected_stockout_date": "2026-05-09",
+      "recommended_quantity": 5000.0,      // max(0, 대상기간+리드타임 예상 소모 + 안전재고 − 현재고)
+      "expected_stockout_date": "2026-07-30",
       "lead_time_days": 2,
       "safety_stock": 1000.0,
-      "config_status": "USER_CONFIGURED",
+      "config_status": "OK",
       "defaults_used": null,
-      "recommendation_reason": "예측 판매량과 현재 재고 기준으로 2일 내 재고 부족이 예상됩니다."
-      // 추가 근거 필드(영향 변수 등)는 산출 방법·출력 형태 확정 후 추가
+      "recommendation_reason": "향후 3일+리드타임 2일 예상 소모 6.4kg + 안전재고 1 − 현재고 2.4"
     }
   ]
 }
+// 422: 영업일 이력 < 10일 · target_dates가 이력 마지막 영업일 이전 · 메뉴 판매 이력 < 10영업일
+// 레시피 미연결 재료는 recommended_quantity 0 + "예상 소모 없음" 사유로 응답
 ```
 
 ### POST /ai/forecast/train
