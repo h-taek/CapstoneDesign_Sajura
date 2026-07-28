@@ -39,9 +39,6 @@ def test_health_matches_spec_shape():
 
 def test_unimplemented_endpoints_return_501():
     assert client.get("/ai/forecast/status", params={"job_id": "u"}).status_code == 501
-    recommend_body = {"store_id": "u", "target_date": "2026-05-07",
-                      "forecast_results": [], "recipes": [], "inventory": []}
-    assert client.post("/ai/orders/recommend", json=recommend_body).status_code == 501
     train_body = {"store_id": "u", "training_data": []}
     assert client.post("/ai/forecast/train", json=train_body).status_code == 501
 
@@ -49,3 +46,10 @@ def test_unimplemented_endpoints_return_501():
 def test_predict_validates_request_schema():
     r = client.post("/ai/forecast/predict", json={"store_id": "u"})  # 필수 필드 누락
     assert r.status_code == 422
+
+
+def test_recommend_validates_request_schema():
+    # 구 계약(forecast_results 입력)은 v2에서 폐기 — 필수 필드 누락 시 422
+    old_body = {"store_id": "u", "target_date": "2026-05-07",
+                "forecast_results": [], "recipes": [], "inventory": []}
+    assert client.post("/ai/orders/recommend", json=old_body).status_code == 422

@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 # ── 공통 ──────────────────────────────────────────────────────
 class SalesRecord(BaseModel):
-    """메뉴-일 판매 레코드 — train[2단계]·recommend 계약용 (구 predict 계약 잔재 아님)."""
+    """메뉴-일 판매 레코드 — train[2단계] 계약용."""
 
     date: dt.date
     menu_id: str
@@ -80,14 +80,19 @@ class PredictResponse(BaseModel):
     predictions: list[Prediction]
 
 
-# ── POST /ai/orders/recommend ────────────────────────────────
-class ForecastResultIn(BaseModel):
+# ── POST /ai/orders/recommend — 계약 v2 (M7.A3 A안: 단일 호출) ──
+# 서버 내부에서 ①(V1-t 매출 예측) × ②(메뉴 비중 분해, notebooks/11) → 점주 레시피(BOM) 전개
+# → 재고·리드타임·안전재고 반영 발주 참고치까지 수행. 구 계약의 forecast_results(메뉴별 예측
+# 입력)는 폐기 — 메뉴별 예상 수량은 서버 산출물(menu_forecast)로 응답에 포함.
+class MenuDailySales(BaseModel):
+    date: dt.date
     menu_id: str
-    predicted_quantity: int
-    confidence_score: float
+    quantity: int = Field(ge=0)
 
 
 class RecipeIn(BaseModel):
+    """점주 관리 레시피(재료 리스트업 = 사용자 몫, 38차 확정) — 메뉴 1개당 재료 소모량."""
+
     menu_id: str
     item_id: str
     quantity_per_menu: float
@@ -105,10 +110,18 @@ class InventoryIn(BaseModel):
 
 class RecommendRequest(BaseModel):
     store_id: str
-    target_date: dt.date
-    forecast_results: list[ForecastResultIn]
-    recipes: list[RecipeIn]
-    inventory: list[InventoryIn]
+    target_dates: list[dt.date] = Field(min_length=1, max_length=3)  # predict와 동일 D+1~3
+    sales_history: list[DailySales] = Field(min_length=1)            # ① 학습용 일계 이력
+    menu_sales_history: list[MenuDailySales] = Field(min_length=1)   # ② 분해용 메뉴×일 이력
+    weather: list[WeatherDay] = Field(default_factory=list)
+    store_config: StoreConfig | None = None
+    recipes: list[RecipeIn] = Field(default_factory=list)
+    inventory: list[InventoryIn] = Field(default_factory=list)
+
+
+class MenuForecastItem(BaseModel):
+    menu_id: str
+    expected_quantity: float  # 대상 기간 합계 예상 수량 (참고치)
 
 
 class Recommendation(BaseModel):
@@ -124,7 +137,10 @@ class Recommendation(BaseModel):
 
 class RecommendResponse(BaseModel):
     store_id: str
-    target_date: dt.date
+    target_dates: list[dt.date]
+    is_low_confidence: bool          # ① 예측 신뢰도 전파 — 참고치는 배지와 동반 노출(§9 원칙)
+    low_confidence_reason: str | None = None
+    menu_forecast: list[MenuForecastItem]
     recommendations: list[Recommendation]
 
 
