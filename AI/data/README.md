@@ -52,6 +52,8 @@
 >
 > **M6.A3 종료 판정**: 피처 후보 37열 생성(`features_build.py`) + 1차 선별 완료(`../notebooks/02_features.ipynb`, 2026-07-27) — keep 14열(모델 행렬 20열)/hold 7/drop 16, 선별 셋 5-fold MAE -3.5% 검증. lag7≡lag_dow 병합, 강수 무기여 재확인, floating·술비중은 프록시 의심으로 보류. → **M6.A4 결측·이상치 규칙 확정 진입 가능** (hold 재평가 트리거: 검수·보간·ablation).
 >
+> **M6.A9 종료 판정 (DNN probe)**: AutoGluon-TS 1.5 실전 probe(`../notebooks/09_dnn_probe.ipynb`, 2026-07-28, 별도 sajura-ag env) — 동일 하네스 1-step rolling에서 최고 DNN 계열 **Chronos-bolt zero-shot이 V1-t 대비 +8.9%**(사전 기준 -5% 미달), 학습형 DeepAR +34%·PatchTST +37%는 SeasonalNaive(+28%)보다도 열세 → **DNN 도입 보류 확정**. 부가 발견: Chronos는 안정 fold에선 V1-t 동급(2025-12 -19% 우세)·regime fold에서만 +44% 붕괴 → 재평가 트리거(fine-tuning·covariates 지원 릴리스) + **신규 매장 cold-start 후보** 메모. **→ Phase 6 모델링 마일스톤 전체 완료(M6.A1~A9).**
+>
 > **M6.A8 종료 판정 (신뢰도 기준)**: 트리거 6종 확정(`../notebooks/08_confidence.ipynb`, 2026-07-28) — SHORT_HISTORY(<60 영업일)·MISSING_FEATURES(core lag NaN)·SPECIAL_DAY(공휴일)·LONG_HORIZON(D+3↑)·WIDE_INTERVAL(상대 폭>θ, θ=재학습 시 train in-sample 폭 P80≈1.6~1.8)·DRIFT(운영, 4주 rolling 모델<MA-7). 실증: 폭→오차 Spearman 0.31·3분위 단조(0.37→0.65), **배지율 18%·lift 1.85×**, 삼일절 케이스 T3 포착. reason 코드는 `forecast_results.low_confidence_reason` 값. → **M6.A9(마지막) 진입 가능**.
 >
 > **M6.A7 종료 판정 (XAI)**: TreeSHAP 통합 + 출력 형태 확정(`../notebooks/07_xai.ipynb`, 2026-07-27) — top-3 기여 요인(방향·%) + **rule-based 자연어 1문장**("평소=직전 7영업일 평균 대비 ±X%" 프레임, LLM 미사용), API 응답 JSON 스키마 포함(Phase 7 입력). 글로벌 SHAP은 gain 순위와 정합. 한계 실측: 공휴일 특수(삼일절 -9% 예상 vs +96% 실측 — 영업 표본 7일) → **신뢰도 배지·P10/P90 구간과 동반 노출 필수**. → **M6.A8 신뢰도 기준 진입 가능** (입력 3종 확보: 구간 폭·선행일 차등·특수일 케이스).
