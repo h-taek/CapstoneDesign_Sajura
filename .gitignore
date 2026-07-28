@@ -54,3 +54,11 @@ Thumbs.db
 
 # personal (개인용 작업 컨텍스트, 외부 공유 X)
 HANDOFF.md
+
+# AI 모델링 데이터 — 원본·가공 산출물 커밋 금지 (실매장 매출 등 민감 데이터 포함)
+# 수동 정리 소스(AI/data/manual/)만 추적한다
+AI/data/raw/
+AI/data/processed/
+AI/notebooks/.ipynb_checkpoints/
+# CatBoost 학습 잔여물 (M6.A5 §3b 실행 시 생성)
+catboost_info/
