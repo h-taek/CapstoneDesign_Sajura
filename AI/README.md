@@ -4,7 +4,7 @@
 
 ## 현재 상태
 - Phase 2: 빈 FastAPI 골격 + `GET /ai/health`
-- Phase 6 (진행 중): M6.A1 수집 ✅ → … → 매출 예측 고도화 ✅ → M6.A7 XAI ✅ → 다음 M6.A8 신뢰도 기준
+- Phase 6 (진행 중): M6.A1 수집 ✅ → … → M6.A7 XAI ✅ → M6.A8 신뢰도 ✅ → 다음 M6.A9 DNN 판정(마지막)
   - 38차 범위 확정: **AI 책임 = 매출 예측(+고도화)** — 메뉴 분해는 공통 모델 없음, 재료 리스트업은 점주 관리
   - 데이터 카탈로그·검증 결과: [`data/README.md`](data/README.md)
   - EDA 보고서(분포·결측·이상치·관계): [`notebooks/01_eda.ipynb`](notebooks/01_eda.ipynb)
@@ -14,6 +14,7 @@
   - 초기 모델 확정(V1-t 튜닝·모델 카드·평가 지표): [`notebooks/05_model_selection.ipynb`](notebooks/05_model_selection.ipynb)
   - 매출 예측 고도화(다일 선행 계단·P10/P90 구간·expanding 윈도우 확정): [`notebooks/06_enhancement.ipynb`](notebooks/06_enhancement.ipynb)
   - XAI(TreeSHAP top-3 + rule-based 자연어 근거, API 스키마): [`notebooks/07_xai.ipynb`](notebooks/07_xai.ipynb)
+  - 신뢰도 경고 기준(트리거 6종·배지율 18%·lift 1.85×): [`notebooks/08_confidence.ipynb`](notebooks/08_confidence.ipynb)
   - **공개 저장소 데이터 정책**: 실매장 매출 절대액·노트북 실행 출력은 커밋 금지 — 노트북은 출력 제거 상태로 추적하고, 수치·그림은 로컬 재실행으로 전량 재현한다 (원본 데이터는 `data/raw/`·`data/processed/` gitignore)
   - 런타임 의존성과 분리된 `[ml]` extra로 모델링 라이브러리 관리 (Docker 이미지 미포함)
 
@@ -43,7 +44,7 @@ python preprocess.py      # (선택) 전처리 규칙 자가 점검 — 학습 �
 
 # 노트북 실행 — 커밋본은 출력 제거 상태(매출 비공개 정책), 수치·그림은 실행해서 확인
 cd ../notebooks
-jupyter nbconvert --to notebook --execute --inplace 01_eda.ipynb 02_features.ipynb 03_preprocessing.ipynb 04_baselines.ipynb 05_model_selection.ipynb 06_enhancement.ipynb 07_xai.ipynb
+jupyter nbconvert --to notebook --execute --inplace 01_eda.ipynb 02_features.ipynb 03_preprocessing.ipynb 04_baselines.ipynb 05_model_selection.ipynb 06_enhancement.ipynb 07_xai.ipynb 08_confidence.ipynb
 # ⚠️ 실행 후 커밋하려면 출력을 다시 비워야 한다: jupyter nbconvert --clear-output --inplace *.ipynb
 ```
 
