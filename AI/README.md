@@ -15,7 +15,7 @@
   - 전처리 규칙(보간·이상치·fold 확정): [`notebooks/03_preprocessing.ipynb`](notebooks/03_preprocessing.ipynb) — 규칙 SSOT는 `data_prep/preprocess.py`
   - 베이스라인 비교(12개 후보, 승자 = LGBM 비율 타깃 하이브리드): [`notebooks/04_baselines.ipynb`](notebooks/04_baselines.ipynb)
   - 초기 모델 확정(V1-t 튜닝·모델 카드·평가 지표): [`notebooks/05_model_selection.ipynb`](notebooks/05_model_selection.ipynb)
-  - 매출 예측 고도화(다일 선행 계단·P10/P90 구간·expanding 윈도우 확정): [`notebooks/06_enhancement.ipynb`](notebooks/06_enhancement.ipynb)
+  - 매출 예측 고도화(다일 선행 계단·P10/P90 구간·expanding 윈도우 확정): [`notebooks/06_enhancement.ipynb`](notebooks/06_enhancement.ipynb) — 38차 §6: 멀티 호라이즌 풀링 기각, 서빙 h=1 단일 모델 전략 승인(MA-7 대비 D+2 −4.1%·D+3 −1.4%)
   - XAI(TreeSHAP top-3 + rule-based 자연어 근거, API 스키마): [`notebooks/07_xai.ipynb`](notebooks/07_xai.ipynb)
   - 신뢰도 경고 기준(트리거 6종·배지율 18%·lift 1.85×): [`notebooks/08_confidence.ipynb`](notebooks/08_confidence.ipynb)
   - DNN probe(AutoGluon-TS — 보류 확정, Chronos cold-start 메모): [`notebooks/09_dnn_probe.ipynb`](notebooks/09_dnn_probe.ipynb) ※ 실행은 별도 `sajura-ag` env(autogluon 격리 — [ml] 미포함)
