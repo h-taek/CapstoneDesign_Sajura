@@ -19,6 +19,7 @@
   - XAI(TreeSHAP top-3 + rule-based 자연어 근거, API 스키마): [`notebooks/07_xai.ipynb`](notebooks/07_xai.ipynb)
   - 신뢰도 경고 기준(트리거 6종·배지율 18%·lift 1.85×): [`notebooks/08_confidence.ipynb`](notebooks/08_confidence.ipynb)
   - DNN probe(AutoGluon-TS — 보류 확정, Chronos cold-start 메모): [`notebooks/09_dnn_probe.ipynb`](notebooks/09_dnn_probe.ipynb) ※ 실행은 별도 `sajura-ag` env(autogluon 격리 — [ml] 미포함)
+  - **외부 검증(38차 후속)** — V1-t 레시피를 Kaggle Recruit 일본 음식점 814곳에 동결 이식: 승률 92.6%·상대 MAE 중앙값 −10.1%(우리 매장 −10.2%와 일치), Izakaya 95.9%, SHORT_HISTORY 60일 임계 실증: [`notebooks/10_recruit_validation.ipynb`](notebooks/10_recruit_validation.ipynb) ※ 데이터는 Kaggle 대회 규칙 동의 후 `data/raw/sales/kaggle/`에 로컬 배치(gitignore)
   - **공개 저장소 데이터 정책**: 실매장 매출 절대액·노트북 실행 출력은 커밋 금지 — 노트북은 출력 제거 상태로 추적하고, 수치·그림은 로컬 재실행으로 전량 재현한다 (원본 데이터는 `data/raw/`·`data/processed/` gitignore)
   - 런타임 의존성과 분리된 `[ml]` extra로 모델링 라이브러리 관리 (Docker 이미지 미포함)
 
