@@ -13,73 +13,71 @@ from pydantic import BaseModel, Field
 
 
 # ── 공통 ──────────────────────────────────────────────────────
-class StoreProfile(BaseModel):
-    business_type: str
-    store_size: str
-    operation_type: str
-
-
-class MenuIn(BaseModel):
-    menu_id: str
-    name: str
-    category: str
-
-
 class SalesRecord(BaseModel):
+    """메뉴-일 판매 레코드 — train[2단계]·recommend 계약용 (구 predict 계약 잔재 아님)."""
+
     date: dt.date
     menu_id: str
     quantity: int
 
 
-class WeatherRecord(BaseModel):
+# ── POST /ai/forecast/predict — 계약 v2 (38차 AI 범위 재확정 반영) ──
+# 타깃 = 매장 일 매출(model_spec §3), 다일 D+1~3(§3 고도화)·P10/P90 구간·예측 근거(§9)·
+# 신뢰도(feature_spec §5.3) 포함. 공휴일·학사일정은 AI Server 내장 지식이라 payload에 없음.
+class DailySales(BaseModel):
     date: dt.date
-    temperature: float
-    rainfall: float
-    humidity: float | None = None
+    total_amount: int = Field(ge=0)
+    order_count: int = Field(ge=0)
 
 
-class FootTrafficRecord(BaseModel):
+class WeatherDay(BaseModel):
+    """과거 관측 + 대상일 예보 — sales_history 기간과 target_dates를 커버해야 한다."""
+
     date: dt.date
-    estimated_count: int
+    temp_min: float
+    temp_max: float
+    rainfall_mm: float = 0.0
 
 
-class SearchTrendRecord(BaseModel):  # [조사 중]
-    date: dt.date
-    keyword: str
-    score: float
+class StoreConfig(BaseModel):
+    reopen_date: dt.date | None = None  # 리뉴얼 재개장일 — regime 피처 기준(EDA §2.6)
 
 
-class EventRecord(BaseModel):  # [조사 중]
-    date: dt.date
-    event_name: str
-    distance_km: float
-
-
-# ── POST /ai/forecast/predict ────────────────────────────────
 class PredictRequest(BaseModel):
     store_id: str
+    target_dates: list[dt.date] = Field(min_length=1, max_length=3)  # D+1~D+3
+    sales_history: list[DailySales] = Field(min_length=1)  # 일계 이력(무매출일 생략 가능)
+    weather: list[WeatherDay] = Field(default_factory=list)
+    store_config: StoreConfig | None = None
+
+
+class TopFactor(BaseModel):
+    feature: str
+    label: str
+    pct: float  # 평소 대비 기여(exp(φ)−1)
+
+
+class Explanation(BaseModel):
+    baseline: str  # "직전 7영업일 평균"
+    deviation_vs_baseline: float
+    top_factors: list[TopFactor]
+    sentence: str
+
+
+class Prediction(BaseModel):
     target_date: dt.date
-    store_profile: StoreProfile
-    menus: list[MenuIn]
-    sales_data: list[SalesRecord]
-    weather_data: list[WeatherRecord]
-    foot_traffic_data: list[FootTrafficRecord] = Field(default_factory=list)
-    search_trend_data: list[SearchTrendRecord] = Field(default_factory=list)  # [조사 중]
-    event_data: list[EventRecord] = Field(default_factory=list)  # [조사 중]
-
-
-class MenuPrediction(BaseModel):
-    menu_id: str
-    predicted_quantity: int
-    confidence_score: float
-    # 예측 근거 필드(top_factors·sentence — model_spec §9 확정 형태)는 spec §8 갱신과 함께 추가
+    horizon_days: int
+    predicted_sales: int
+    interval_p10: int
+    interval_p90: int
+    is_low_confidence: bool
+    low_confidence_reason: str | None = None  # feature_spec §5.3 코드 6종
+    explanation: Explanation
 
 
 class PredictResponse(BaseModel):
-    target_date: dt.date
-    is_low_confidence: bool
-    low_confidence_reason: str | None = None  # feature_spec §5.3 reason 코드 6종
-    predictions: list[MenuPrediction]
+    store_id: str
+    predictions: list[Prediction]
 
 
 # ── POST /ai/orders/recommend ────────────────────────────────
