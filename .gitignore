@@ -62,3 +62,6 @@ AI/data/processed/
 AI/notebooks/.ipynb_checkpoints/
 # CatBoost 학습 잔여물 (M6.A5 §3b 실행 시 생성)
 catboost_info/
+
+# MLflow 실험 추적 — 로컬 전용 (지표에 매출 절대액 포함 가능, 공개 저장소 정책)
+AI/mlruns/

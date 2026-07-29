@@ -21,6 +21,7 @@
   - DNN probe(AutoGluon-TS — 보류 확정, Chronos cold-start 메모): [`notebooks/09_dnn_probe.ipynb`](notebooks/09_dnn_probe.ipynb) ※ 실행은 별도 `sajura-ag` env(autogluon 격리 — [ml] 미포함)
   - **외부 검증(38차 후속)** — V1-t 레시피를 Kaggle Recruit 일본 음식점 814곳에 동결 이식: 승률 92.6%·상대 MAE 중앙값 −10.1%(우리 매장 −10.2%와 일치), Izakaya 95.9%, SHORT_HISTORY 60일 임계 실증: [`notebooks/10_recruit_validation.ipynb`](notebooks/10_recruit_validation.ipynb) ※ 데이터는 Kaggle 대회 규칙 동의 후 `data/raw/sales/kaggle/`에 로컬 배치(gitignore)
   - **모델 ② 메뉴 비중 분해 v1(M7.A3 재정의)** — 채택 = 최근 28영업일 합산 비중(요일 조건부 전패), top-5 적중 73%·TV 0.28, 신메뉴 질량 1%: [`notebooks/11_menu_decomposition.ipynb`](notebooks/11_menu_decomposition.ipynb) — recommend 파이프라인(①매출×②비중→BOM→재고) 근거
+  - **최신 모델 재비교 + MLflow(39차)** — 재평가 트리거 ④ 발동(Chronos-2 covariates)으로 TabPFN v2·Chronos-2 검증 → **둘 다 기각(V1-t 유지)**, covariates 효과는 확인·트리거 ④ 소진: [`notebooks/12_mlflow_model_comparison.ipynb`](notebooks/12_mlflow_model_comparison.ipynb) ※ 실행은 `sajura-ag` env(torch — tabpfn 2.0.9·chronos 2.3.1·mlflow), 실험 대장은 `mlruns/`(sqlite, gitignore 로컬 전용 — UI: `mlflow ui --backend-store-uri sqlite:///mlruns/mlflow.db`). `mlflow_beginner_session*.ipynb`는 학습 자료로 비추적
   - **공개 저장소 데이터 정책**: 실매장 매출 절대액·노트북 실행 출력은 커밋 금지 — 노트북은 출력 제거 상태로 추적하고, 수치·그림은 로컬 재실행으로 전량 재현한다 (원본 데이터는 `data/raw/`·`data/processed/` gitignore)
   - 런타임 의존성과 분리된 `[ml]` extra로 모델링 라이브러리 관리 (Docker 이미지 미포함)
 
