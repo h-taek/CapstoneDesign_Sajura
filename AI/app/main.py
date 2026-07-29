@@ -6,7 +6,8 @@ Spec refs:
   - docs/plan/ai/phase_07_api.md M7.A1~A7
 
 라우터: /ai/health · /ai/forecast/{predict,train,status} · /ai/orders/recommend.
-미구현 endpoint는 계약 스키마만 OpenAPI로 노출하고 501을 반환한다(M7.A2·A3·A5에서 구현).
+[MVP] 구현 완료: health(M7.A6)·predict(M7.A2)·recommend(M7.A3, 계약 v2 A안).
+train/status는 [2단계](M7.A5) — 계약 스키마만 OpenAPI로 노출하고 501을 반환한다.
 plan의 /ai/xai/{forecast_id}(M7.A4)는 api_spec §8에 없는 경로 — spec 방침(예측 근거를
 predict 응답 필드로 추가)을 따르며, 경로 신설 여부는 spec 갱신 시 결정한다.
 """

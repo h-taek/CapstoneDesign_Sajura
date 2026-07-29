@@ -116,3 +116,15 @@ def test_recommend_menu_history_too_short():
     r = client.post("/ai/orders/recommend", json=make_body(END, 120, TARGETS[:1], menu_days=5))
     assert r.status_code == 422
     assert "메뉴 판매 이력" in r.json()["detail"]
+
+
+def test_recommend_disjoint_histories_rejected():
+    """메뉴 이력이 일계 이력과 날짜가 안 겹치면 422 — 환산 계수 0으로 전량 0 발주 방지."""
+    body = make_body(END, 120, TARGETS[:1])
+    shifted = [{**m, "date": (dt.date.fromisoformat(m["date"]) + dt.timedelta(days=400)).isoformat()}
+               for m in body["menu_sales_history"]]
+    body["menu_sales_history"] = shifted
+    body["target_dates"] = [(END + dt.timedelta(days=500)).isoformat()]  # 이력 이후 유지
+    r = client.post("/ai/orders/recommend", json=body)
+    assert r.status_code == 422
+    assert "겹치지 않아" in r.json()["detail"]

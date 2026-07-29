@@ -56,8 +56,14 @@ async def recommend(body: RecommendRequest) -> RecommendResponse:
 
     # ② 비중 분해 — 예측 매출 × (수량/매출 계수) × 메뉴 비중 = 대상 기간 메뉴별 예상 수량
     shares = menu_shares(menu_hist)
+    ratio = qty_per_krw(menu_hist, history)
+    if ratio <= 0:  # 두 이력의 날짜 불일치 → 조용한 전량 0 발주를 막는다
+        raise HTTPException(
+            status_code=422,
+            detail="menu_sales_history와 sales_history의 날짜가 겹치지 않아 수량/매출 환산 불가",
+        )
     total_sales_hat = float(sum(p["predicted_sales"] for p in preds))
-    menu_qty = shares * total_sales_hat * qty_per_krw(menu_hist, history)
+    menu_qty = shares * total_sales_hat * ratio
     menu_forecast = [MenuForecastItem(menu_id=str(m), expected_quantity=round(float(q), 1))
                      for m, q in menu_qty.sort_values(ascending=False).items()]
 

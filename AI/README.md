@@ -7,7 +7,7 @@
 - **Phase 6 완료(main 머지)** → **Phase 7: M7.A1 골격 ✅ · A2 predict ✅ · A6 health ✅** — MVP 서빙 코어 완성
   - predict: V1-t stateless 서빙(요청 이력 학습 → 다일 D+1~3 + P10/P90 + 근거 + 신뢰도), E2E 340ms — 계약 v2는 PR #20
   - health: 자가 점검·내장 지식(학사 캘린더) 커버리지·컴포넌트 상태(degraded 판정)
-  - 잔여: M7.A3 recommend(재설계 결정 대기, `app/api/orders.py`) · A5 train/status([2단계]) · A7 BE 클라이언트(BE 트랙 착수 대기 — 계약은 OpenAPI 노출 완료)
+  - **A3 recommend ✅(39차, 계약 v2 A안)**: 단일 호출로 ①(V1-t 매출)×②(메뉴 비중 분해, `app/model/decompose.py`)→점주 레시피 BOM 전개→재고·리드타임 발주 참고치 + 신뢰도 배지 전파 — 잔여: A5 train/status([2단계]) · A7 BE 클라이언트(BE 트랙 착수 대기 — 계약 3종 OpenAPI 노출 완료)
   - 38차 범위 확정: **AI 책임 = 매출 예측(+고도화)** — 메뉴 분해는 공통 모델 없음, 재료 리스트업은 점주 관리
   - 데이터 카탈로그·검증 결과: [`data/README.md`](data/README.md)
   - EDA 보고서(분포·결측·이상치·관계): [`notebooks/01_eda.ipynb`](notebooks/01_eda.ipynb)
