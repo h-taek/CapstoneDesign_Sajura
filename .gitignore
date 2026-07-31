@@ -54,6 +54,14 @@ Thumbs.db
 
 # personal (개인용 작업 컨텍스트, 외부 공유 X)
 HANDOFF.md
+*발표대본*.txt
+발표_스크립트_실제진행분.txt
+AI_파이프라인_정리.txt
+유저플로우_시각화.md
+AI/notebooks/mlflow_beginner_session*.ipynb
+
+# 로컬 개발 로그
+.dev-fe.log
 
 # AI 모델링 데이터 — 원본·가공 산출물 커밋 금지 (실매장 매출 등 민감 데이터 포함)
 # 수동 정리 소스(AI/data/manual/)만 추적한다
@@ -64,4 +72,4 @@ AI/notebooks/.ipynb_checkpoints/
 catboost_info/
 
 # MLflow 실험 추적 — 로컬 전용 (지표에 매출 절대액 포함 가능, 공개 저장소 정책)
-AI/mlruns/
+mlruns/
