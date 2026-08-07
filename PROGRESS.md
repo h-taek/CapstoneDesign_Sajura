@@ -257,6 +257,8 @@ HANDOFF.md E단계 9개 검증 시나리오 수행 + 발견된 결함 일괄 정
 
 **M6.A9 DNN probe(2026-07-28, `09_dnn_probe.ipynb` — 별도 sajura-ag env)**: AutoGluon-TS 1.5 실측, 동일 하네스 1-step rolling — Chronos-bolt(zero-shot) V1-t 대비 +8.9%(regime fold +44% 붕괴가 결정적), DeepAR·PatchTST는 나이브 이하 → **DNN 도입 보류 확정**(model_spec §2·§3 반영, 본 PR). Chronos는 신규 매장 cold-start 후보 메모. **→ Phase 6 모델링 마일스톤(M6.A1~A9) 전체 완료 — ai → main 머지 PR로 이관.**
 
+**Phase 7 착수(2026-07-28, ai 브랜치)**: M7.A1 API 골격(`d4ab309` — api_spec §8 계약 5종 스키마+라우터, 미구현 501, plan의 /ai/xai 경로는 spec 부재로 기록) + **M7.A2 `/ai/forecast/predict` 구현**(`1c427eb` — V1-t stateless 서빙: 요청 이력 학습→다일 예측+P10/P90+pred_contrib 근거+신뢰도 트리거, 런타임 deps 승격 pandas·numpy·lightgbm·holidays, 합성 데이터 테스트 9종·E2E 340ms). **api_spec §8 predict 계약 v2**(매출 중심 재설계 — 본 PR): 메뉴별 필드 제거 근거는 38차 범위 재확정. M7.A3 recommend 재설계 결정 대기.
+
 ### 2026-07-27 (37차) — Phase 6 M6.A1 데이터 수집 착수 (ai 브랜치) + 수집 경로 결정
 
 Phase 6 첫 마일스톤 M6.A1 착수. 입력 데이터 전 소스를 당일 기준 전수 검증(웹 페이지 유효성 + 로컬 보유분 실측)하고 적재 파이프라인 구축.
