@@ -70,6 +70,8 @@ docs/plan/       → 구현 계획 (단계별 작업, 순서, 역할 분담)
 | AI 학습 데이터 수집 경로 (37차) | **모델링(Phase 6) 학습용 수집은 오프라인 우선**: 날씨=기상자료개방포털 **다운로드 CSV**(세종 AWS 4관측소 2020~2026.05, API 미사용) / 공휴일=`holidays` 패키지 오프라인 생성+수동 보정 / 학사일정=수동 정리 CSV(검수제) / 판매=실매장 매출리포트 복호화(2025-04~2026-04 확보). **API(기상청 단기예보·KASI 등)는 운영 배치(Phase 8 n8n) 전용**. **유동인구는 세담터에서 시간대별 데이터셋 미확보 → 세종시 행정동별 월간 생활·유동인구 리포트로 대체**(조치원읍, 월 단위 — 일별 조인 시 전월 lag, 누락 월 보간은 M6.A4). 원본·가공 데이터는 git 제외(`AI/data/raw·processed`), 수동 소스만 추적 | `AI/data/README.md`, `docs/research/ai/03_external_data_sources.md`, `ml_pipeline.md` §4 |
 | AI 전처리 규칙 확정 (38차) | 타깃 이상치 = **log1p IQR k=3.0** train-fit winsorize(파일럿 개입 0건 — raw·k1.5·P1/P99는 실수요 오탐으로 기각) · 결측 = 기상 선형 보간 / 유동인구 전월 **ffill+staleness**(선형 보간은 미래 월 참조라 금지) / lag 워밍업 NaN은 트리=네이티브·선형계=완비 행만 · 검증 분할 = **월 단위 walk-forward**(검증 fold=영업일 ≥10일 월, 최종 fold test 봉인, 휴업 월 자동 배제). 유동인구 피처는 ablation 악화(+1.2%)로 모델 1군 제외 | `08_ai/ml_pipeline.md` §6 + `AI/notebooks/03_preprocessing.ipynb` + `AI/data_prep/preprocess.py` (ai 브랜치) |
 | AI 초기 모델 확정 (38차) | 주 모델 = **LightGBM 비율 타깃 하이브리드**(타깃 log1p(일 매출)−log1p(7영업일 평균) — 수준은 이동평균·편차만 학습, keep 20열, Optuna 튜닝) + 보조 baseline **MA-7**(fallback·drift 감시). 순정 GBM·SARIMA·XGBoost·CatBoost는 MA-7도 못 이겨 기각 — 하이브리드만 유의미 우위(봉인 test sMAPE 30%·MA-7 대비 -19.6%). 평가 지표 **MAE(주)+sMAPE(보고), MAPE 제외**(소액일 왜곡 정정), 운영 목표 naive-요일 skill ≥+15%·MA-7 우위 유지(drift 경보선). **AI 산출 범위 확정(담당자): 매출 예측(+고도화)까지가 AI 책임** — 메뉴별 수요는 매장별 믹스 상이로 공통 분해 모델 없음(접근은 Phase 7), 재료 리스트업은 점주 관리(자동 산출 아님). 제품 spec의 "메뉴별 수요·추천발주" 표현 정리는 담당자 검토 항목 | `08_ai/model_spec.md` §2·§3·§4·§5·§7 + `AI/notebooks/04_baselines.ipynb`·`05_model_selection.ipynb` (ai 브랜치) |
+| AI 모델 ② 메뉴 분해 확정 (39차) | 산출 구조 = **2모델**(담당자 정정 — "공통 모델 없음"은 매장 간 통일 모델 부재의 뜻, 매장별 분해 유지): 모델 ① 매출 예측(V1-t) + **모델 ② 매장별 메뉴 비중 분해 = 최근 28영업일 합산 수량 비중(S1)** — 요일 조건부는 검증 5 fold 전패로 기각(요일은 총량의 문제). recommend는 **계약 v2(A안 단일 호출)**: 서버 내부 ①×②→점주 레시피(BOM) 전개→재고·리드타임 발주 참고치 + 신뢰도 배지 전파. 재료 리스트업(레시피 등록)은 점주 관리 유지 | `08_ai/model_spec.md` §3·§4 + `05_api/api_spec.md` §8 + `AI/notebooks/11_menu_decomposition.ipynb`·`AI/app/model/decompose.py`·`AI/app/api/orders.py` (ai 브랜치) |
+| AI 학습 데이터 확대 방향 (38차 후속) | **파일럿 5~7월 신규 매출분 부재 확인(담당자)** — 전향적 검증 불가. 모델링 트릭에 의한 유효 표본 확대는 **멀티 호라이즌 풀링(학습 행 3배) 실험 기각**(사전 등록 규칙 — D+1 +2.6%p 악화·개강 fold 붕괴)으로 종결, 부수 진단에서 **서빙의 h=1 단일 모델 재사용 전략이 h별 개별 모델보다 우위**로 확인(서빙 무변경 확정, MA-7 대비 D+1 -10.2/D+2 -4.1/D+3 -1.4%). 남은 확대 레버 = 실데이터: ① 2025-04 이전 과거분 소급(점주 문의) ② 유사 매장 확보 시 통합 학습. **외부 검증은 Kaggle Recruit로 완료(사전 기준 충족 — 814곳 승률 92.6%·중앙값 −10.1%, SHORT_HISTORY 60일 임계 실증)**; KADX 영수증별 POS는 접근 권한 없음 확정, 행정동 집계류 공공데이터는 부적합 판정 | `08_ai/model_spec.md` §3·§7 + `AI/notebooks/06_enhancement.ipynb` §6·`10_recruit_validation.ipynb` (ai 브랜치) |
 
 ---
 
@@ -243,9 +245,23 @@ HANDOFF.md E단계 9개 검증 시나리오 수행 + 발견된 결함 일괄 정
 
 차수별 상세 변경. 최근 항목을 위로, 옛 항목은 추상화한다. 1~27차 audit 상세는 git log + spec/research 본문 참조.
 
+### 2026-07-29 (39차) — M7.A3 recommend 재정의: 모델 ② 메뉴 비중 분해 확정 + 계약 v2 구현
+
+담당자 정정으로 산출 구조 재확립 — "공통 분해 모델 없음"은 **매장 간 통일 모델을 두지 않는다**는 뜻이며 **매장별 메뉴 분해(모델 ②)는 유지**. 이에 따라 ① 모델 ② v1 검증(`11_menu_decomposition.ipynb`, ai 브랜치): 후보 4개 사전 고정 평가에서 **최근 28영업일 합산 비중(S1) 채택** — TV 0.276·top-5 적중 73.1%, 요일 조건부는 5 fold 전패(요일은 총량의 문제 — 모델 ①의 몫). ② recommend **계약 v2(A안: 단일 호출)** 구현(ai `491f82b`): 서버 내부 ①(V1-t)×②(비중 분해)→점주 레시피 BOM 전개→재고·리드타임·안전재고 발주 참고치, 신뢰도 배지 전파. 구 forecast_results 입력 폐기. 테스트 13종 통과. 문서: `api_spec.md` §8 recommend v2(PR #20 동승), `model_spec.md` §3 "모델 ② 확정"·§4 산출 구조·말미 미확정 목록 갱신, §3 정책 표 행 추가(본 PR). 잔여: 제품 spec "메뉴별 수요·추천발주" 표현 정리(참고치 성격 명시 — 담당자 검토).
+
+**후속(같은 날) — 최신 모델 재비교 + MLflow 도입**: DNN 재평가 트리거 ④(Chronos covariates 릴리스) 발동 확인 → Chronos-2(2025-10)·TabPFN v2(Nature 2025)를 사전 등록 기준(M6.A9 동일: V1-t 대비 MAE −5% 개선 시 격상)으로 검증(`12_mlflow_model_comparison.ipynb`, ai 브랜치). **둘 다 기각** — Chronos-2+covariates +13.9%(covariates 효과 자체는 실재·bolt식 붕괴 해소), TabPFN v2 +29.0%(평시 fold 경쟁력이나 개강 fold 붕괴 — 문제의 난점은 표본 수가 아닌 비정상성임을 재확인) → **V1-t 유지, 트리거 ④ 소진**(model_spec §3 주석). 실험 관리 도구로 **MLflow 도입**(sqlite 백엔드, `AI/mlruns/` gitignore 로컬 전용 — 지표는 sMAPE·상대값만, Registry 등록은 기록용·서빙은 stateless 유지). **이어서 GBM 3사 그리드 서치**(가족별 자기 그리드 90조합 × 5 fold, `13_grid_search.ipynb`): XGB +10.2%·CatBoost +11.0%로 자기 튜닝 후에도 열세(라이브러리 격차 실재), LGBM 재탐색 −0.2% 동률(Optuna 채택값과 독립 수렴 — 파라미터 요행·과적합 가설 종결, 채택값 유지).
+
 ### 2026-07-28 (39차) — 화면 spec ↔ 라우팅 설계 정합 (디자인 핸드오프 준비)
 
 와이어프레임 외주/디자인 핸드오프 준비 중 `feature_spec.md` §12(화면별 UI 구성)와 `frontend_design.md` §3(라우팅)·`user_flow.md` 간 불일치 3건 발견 → §12를 이미 확정된 정책(§1.2 이메일 로그인, 33차 검증 게이트·관리자 심사) 기준으로 정합. ① **§12.1 로그인/회원가입**: 이메일 로그인 필드 + `/register` 회원가입 화면 구성 추가(기존엔 소셜 버튼만 있어 §1.2·M3.B1 구현과 불일치) ② **§12.2 Step 1**: `/verify-business` 분리 게이트임을 명시 + 등록증 업로드 영역·PENDING 안내·반려 사유 표시 UI 추가(33차 정책 반영 누락분) ③ **§12.11 관리자 심사 신설**: `/admin` 심사 큐·등록증 뷰어·승인/반려 UI 구성(33차 "심사 큐 1화면" 화면 spec 부재 해소) ④ `user_flow.md` §9 IA에 회원가입·검증 게이트 주석·`/admin` 추가. **미확정(담당자 검토)**: 온보딩 진행 표시를 4단계 유지(현행, Step 1=검증 게이트로 노출)할지 검증 분리 후 3단계로 갤지 — 현행 유지로 기술함. ⑤ 디자이너 전달용 파생본 `docs/디자인_핸드오프.md` 추가 — 흐름·IA·화면별 구성 Mermaid 시각화, SSOT 아님(원본: user_flow·feature_spec §12·frontend_design §3), 원본 변경 시 함께 갱신.
+
+### 2026-07-28 (38차 후속) — 멀티 호라이즌 풀링 실험 기각 + 다일 서빙 전략 확정 반영
+
+배경: 담당자 확인으로 파일럿 5~7월 신규 매출분 부재 → 학습 표본 확대(영업일 ~250일)의 모델링 대안으로 **멀티 호라이즌 풀링(h∈{1,2,3} 학습 행 3배 + horizon 피처)** 을 사전 등록 규칙 하에 검증 fold 5개에서 1회 실험 — **기각**(D+1 sMAPE +2.6%p 악화, 개강 fold 2026-03 붕괴). 부수 진단으로 서빙(M7.A2)의 **h=1 단일 모델 재사용 전략이 h별 개별 모델보다 우위**임을 실측(서빙 기준 계단 MA-7 대비 D+1 -10.2/D+2 -4.1/D+3 -1.4%) → `predictor.py` 무변경 확정. 문서 작업: ① `model_spec.md` §3에 "다일 서빙 전략 확정" 항목 추가(§1 계단은 h별 모델 기준임을 병기) ② §7 "학습 데이터 사용 방식 별도 확정 예정" 잔재를 expanding 확정(`ml_pipeline.md` §2 참조)으로 치환 ③ §3 정책 표 "AI 학습 데이터 확대 방향(38차 후속)" 행 추가(공공데이터 조사 결과 포함 — 행정동 집계류 부적합, KADX는 이후 접근 불가 확정). 실험 본체는 ai 브랜치 `06_enhancement.ipynb` §6(출력 제거 커밋).
+
+**후속(같은 날) — 외부 검증 완료 (Kaggle Recruit 레시피 이식)**: 단일 매장 검증 한계 보완을 위해 V1-t 레시피를 서빙 동일 구성으로 Kaggle Recruit 일본 음식점 814곳에 동결 이식(`10_recruit_validation.ipynb`, ai 브랜치 — 데이터는 대회 규칙 동의 후 로컬 배치, gitignore). 사전 등록 기준(D+1 과반 승 + 상대 MAE 중앙값 ≤ −3%) **충족**: 승률 92.6%·중앙값 −10.1%(파일럿 −10.2%와 일치), Izakaya 95.9%, h=1 서빙 전략 D+3까지 유지, SHORT_HISTORY 60일 임계 실증(경계 불연속 59%→79%). `model_spec.md` §3에 "외부 검증 통과" 항목 추가. **B단계도 완료(담당자 승인, 사전 선언 기준)**: ① pooling(기존 매장) 기각 — 글로벌 vs 매장별 승률 53.9%<55%, 매장별 fit-on-request 유지(stateless 서빙 설계 지지) ② cold-start 기준 충족 — 이력 10~59일 구간 글로벌 승률 72~79%·중앙값 −6~−7%(로컬 59.1%·−1.4%) → 다매장 확장 시 "신규 매장 첫 60일 global prior → 로컬 전환" 하이브리드 실증 근거(Chronos zero-shot의 GBM 대안, Phase 8+ 활성화·현 MVP 미적용). model_spec §3 외부 검증·DNN cold-start 메모 갱신.
+
+### 2026-07-27 (38차) — AI M6.A2~A4 완료(ai 브랜치) + ml_pipeline §6 전처리 규칙 확정 반영
 
 본 회차 문서 작업: ① `ml_pipeline.md` §6의 "별도 확정 예정" 2건(이상치 임계값·결측 보간)을 M6.A4 확정 규칙으로 치환 + 검증 분할(월 단위 walk-forward) 명문화 + 말미 미확정 목록 정리. ② §3 정책 표에 "AI 전처리 규칙 확정(38차)" 행 추가, "AI 미확정 항목" 행에서 확정분 제거. 모델링 산출물 본체는 ai 브랜치 M6.A2~A4 커밋(노트북 01~03 + `features_build.py`·`preprocess.py` — 공개 저장소 정책에 따라 실행 출력·매출 절대액 제외, 히스토리 재작성으로 커밋 SHA 변경됨)에 있으며 정책대로 Phase 6 마무리에 ai → main PR로 합류. EDA 핵심 발견(장기 휴업 후 낙곱새 업종 개편 = regime 변화)과 검수 대기 항목은 `AI/data/README.md` 참조.
 
@@ -258,6 +274,8 @@ HANDOFF.md E단계 9개 검증 시나리오 수행 + 발견된 결함 일괄 정
 **M6.A8 신뢰도 기준(2026-07-28, `08_confidence.ipynb`)**: 트리거 6종 확정 — SHORT_HISTORY(<60일)·MISSING_FEATURES·SPECIAL_DAY(공휴일)·LONG_HORIZON(D+3↑)·WIDE_INTERVAL(폭>θ=train P80)·DRIFT(운영). 실증: 폭→오차 Spearman 0.31·단조, 배지율 18%·lift 1.85×·삼일절 포착 → feature_spec §5.3 "probe 후 확정" 해소(본 PR). 잔여: M6.A9.
 
 **M6.A9 DNN probe(2026-07-28, `09_dnn_probe.ipynb` — 별도 sajura-ag env)**: AutoGluon-TS 1.5 실측, 동일 하네스 1-step rolling — Chronos-bolt(zero-shot) V1-t 대비 +8.9%(regime fold +44% 붕괴가 결정적), DeepAR·PatchTST는 나이브 이하 → **DNN 도입 보류 확정**(model_spec §2·§3 반영, 본 PR). Chronos는 신규 매장 cold-start 후보 메모. **→ Phase 6 모델링 마일스톤(M6.A1~A9) 전체 완료 — ai → main 머지 PR로 이관.**
+
+**Phase 7 착수(2026-07-28, ai 브랜치)**: M7.A1 API 골격(`d4ab309` — api_spec §8 계약 5종 스키마+라우터, 미구현 501, plan의 /ai/xai 경로는 spec 부재로 기록) + **M7.A2 `/ai/forecast/predict` 구현**(`1c427eb` — V1-t stateless 서빙: 요청 이력 학습→다일 예측+P10/P90+pred_contrib 근거+신뢰도 트리거, 런타임 deps 승격 pandas·numpy·lightgbm·holidays, 합성 데이터 테스트 9종·E2E 340ms). **api_spec §8 predict 계약 v2**(매출 중심 재설계 — 본 PR): 메뉴별 필드 제거 근거는 38차 범위 재확정. M7.A3 recommend 재설계 결정 대기.
 
 ### 2026-07-27 (37차) — Phase 6 M6.A1 데이터 수집 착수 (ai 브랜치) + 수집 경로 결정
 
