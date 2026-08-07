@@ -3,19 +3,24 @@ name = "sajura-ai"
 version = "0.1.0"
 description = "사주라 AI Server (FastAPI) — Phase 2 skeleton"
 # 런타임(dependencies)은 AI Server 이미지 전용. 모델링 작업은 [ml] extra 사용.
-# 최종 모델 라이브러리의 runtime 승격·버전 고정은 M6.A6(초기 모델 선정)에서 수행.
+# 모델 라이브러리 runtime 승격(M6.A6 예고분) — M7.A2에서 검증 env(sajura-ai) 버전으로 고정.
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "fastapi==0.115.6",
     "uvicorn[standard]==0.32.1",
     "pydantic==2.10.3",
     "pydantic-settings==2.7.0",
+    "pandas==2.3.3",     # M7.A2 서빙 피처 빌드
+    "numpy==2.4.6",
+    "lightgbm==4.7.0",   # 초기 모델 V1-t (model_spec §3) — SHAP은 내장 pred_contrib 사용(shap 패키지 불필요)
+    "holidays==0.101",   # 공휴일 캘린더 (AI 내장 지식 — 요청 payload에 안 받음)
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest==8.3.4",
     "ruff==0.8.4",
+    "httpx==0.28.1",  # fastapi TestClient용 (M7.A1 골격 테스트)
 ]
 # Phase 6 모델링(EDA·데이터 적재) 전용 — Docker 런타임 이미지에는 설치하지 않는다
 ml = [
