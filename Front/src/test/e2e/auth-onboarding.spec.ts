@@ -5,7 +5,7 @@
 //
 // 본 spec은 BE가 미완성 상태에서도 FE 라우팅·폼·가드만 검증 가능하도록
 // fetch을 라우트 인터셉트로 모킹한다.
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 const FAKE_USER = {
   user_id: "u-1",
@@ -14,6 +14,7 @@ const FAKE_USER = {
   auth_provider: "KAKAO",
   store_name: "길동 카페",
   business_no: "123-45-67890",
+  business_status: "VERIFIED",
   onboarding_completed: false,
 };
 

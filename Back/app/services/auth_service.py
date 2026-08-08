@@ -1,7 +1,6 @@
 """AuthService — service_design §4."""
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -10,12 +9,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import errors, security
-from app.integrations import nts
 from app.models.refresh_token import RefreshToken
-from app.models.store import OperationType, Store, StoreSize
+from app.models.store import Store
 from app.models.user import AuthProvider, User
-
-_BIZ_NO_RE = re.compile(r"^\d{3}-?\d{2}-?\d{5}$")
 
 
 @dataclass(slots=True)
@@ -25,26 +21,13 @@ class IssuedTokens:
     refresh_token: str
 
 
-def _normalize_business_no(raw: str) -> str:
-    d = raw.replace("-", "")
-    return f"{d[0:3]}-{d[3:5]}-{d[5:10]}"
-
-
 class AuthService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def register(
-        self, *, email: str, password: str, name: str, business_no: str, store_name: str
-    ) -> User:
-        if not _BIZ_NO_RE.match(business_no):
-            raise errors.DomainError(
-                status_code=400, error_code="AUTH_BUSINESS_NO_INVALID",
-                message="사업자등록번호 형식이 올바르지 않습니다.",
-            )
-        biz_no = _normalize_business_no(business_no)
-        await nts.assert_business_active(biz_no)
-
+    async def register(self, *, email: str, password: str, name: str) -> User:
+        # 회원가입은 email·password·name만 받는다. 사업자 검증·매장 정보는
+        # 가입 후 별도 단계(StoreService.verify_business, 온보딩)에서 채운다.
         existing = await self.session.scalar(select(User).where(User.email == email))
         if existing is not None:
             raise errors.auth_email_duplicate()
@@ -55,24 +38,14 @@ class AuthService:
         )
         self.session.add(user)
         await self.session.flush()
-        store = Store(
-            user_id=user.user_id, store_name=store_name, business_no=biz_no,
-            business_type="UNSET", store_size=StoreSize.SMALL,
-            operation_type=OperationType.HALL, onboarding_completed=False,
-        )
-        self.session.add(store)
+        # 계정 생성 시 빈 매장 행을 1:1로 함께 생성 (business_verified=False).
+        self.session.add(Store(user_id=user.user_id, onboarding_completed=False))
         try:
             await self.session.commit()
         except IntegrityError as exc:
             await self.session.rollback()
-            msg = str(exc.orig).lower()
-            if "uq_users_email" in msg:
+            if "uq_users_email" in str(exc.orig).lower():
                 raise errors.auth_email_duplicate() from exc
-            if "uq_stores_business_no" in msg:
-                raise errors.DomainError(
-                    status_code=409, error_code="AUTH_BUSINESS_NO_DUPLICATE",
-                    message="이미 등록된 사업자등록번호입니다.",
-                ) from exc
             raise
         await self.session.refresh(user)
         return user
@@ -113,16 +86,20 @@ class AuthService:
                 self.session.add(user)
                 await self.session.flush()
         store = await self.session.scalar(select(Store).where(Store.user_id == user.user_id))
-        tokens = await self._issue_tokens(
-            user_id=user.user_id, store_id=store.store_id if store else None
-        )
+        if store is None:
+            # 계정 생성 시 빈 매장 행 1:1 생성 (business_verified=False) — 이메일/소셜 공통.
+            store = Store(user_id=user.user_id, onboarding_completed=False)
+            self.session.add(store)
+            await self.session.flush()
+        tokens = await self._issue_tokens(user_id=user.user_id, store_id=store.store_id)
         await self.session.commit()
         return tokens, store
 
     async def refresh(self, *, raw_refresh: str) -> IssuedTokens:
         token_hash = security.hash_refresh_token(raw_refresh)
+        # 행 잠금: 같은 refresh_token으로 동시 요청이 와도 한 쪽만 회전에 성공하도록 한다.
         existing = await self.session.scalar(
-            select(RefreshToken).where(RefreshToken.token_hash == token_hash)
+            select(RefreshToken).where(RefreshToken.token_hash == token_hash).with_for_update()
         )
         if existing is None or existing.is_revoked:
             raise errors.auth_refresh_token_invalid()

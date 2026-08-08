@@ -153,6 +153,7 @@ fi
 printf '\n\033[1;32m✓ 모든 서버 준비 완료\033[0m\n'
 cat <<EOF
   · FE       : http://localhost:${FE_PORT}/        (login → /login)
+  · 관리자   : http://localhost:${FE_PORT}/admin/verifications   (role=ADMIN 필요, 네비 링크 없음)
   · BE 직접  : http://localhost:${BE_PORT}/health
   · BE Caddy : http://localhost/api/*
   · n8n      : http://localhost:5678

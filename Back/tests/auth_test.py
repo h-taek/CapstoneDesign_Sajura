@@ -18,14 +18,13 @@ def _make_biz_no() -> str:
     return f"{n % 1000:03d}-{(n // 1000) % 100:02d}-{(n // 100000) % 100000:05d}"
 
 
-def _register_payload(email: str, *, password: str = "Passw0rd!", biz_no: str | None = None) -> dict:
-    return {
-        "email": email,
-        "password": password,
-        "name": "테스트유저",
-        "business_no": biz_no or _make_biz_no(),
-        "store_name": "테스트매장",
-    }
+def _cert_file() -> dict:
+    """multipart 업로드용 더미 사업자등록증(PNG 헤더)."""
+    return {"cert": ("cert.png", b"\x89PNG\r\n\x1a\n_dummy_cert_", "image/png")}
+
+
+def _register_payload(email: str, *, password: str = "Passw0rd!") -> dict:
+    return {"email": email, "password": password, "name": "테스트유저"}
 
 
 async def _register_and_login(client: AsyncClient, email: str, password: str = "Passw0rd!") -> dict:
@@ -44,7 +43,7 @@ async def test_register_success(client: AsyncClient) -> None:
     assert r.status_code == 201
     body = r.json()
     assert body["email"] == email
-    assert body["store_name"] == "테스트매장"
+    assert body["name"] == "테스트유저"
     assert "user_id" in body and body["user_id"]
 
 
@@ -54,18 +53,21 @@ async def test_register_duplicate_email_returns_409(client: AsyncClient) -> None
     email = make_test_email()
     r1 = await client.post("/api/auth/register", json=_register_payload(email))
     assert r1.status_code == 201
-    biz2 = f"999-{uuid.uuid4().int % 100:02d}-{uuid.uuid4().int % 100000:05d}"
-    r2 = await client.post("/api/auth/register", json=_register_payload(email, biz_no=biz2))
+    r2 = await client.post("/api/auth/register", json=_register_payload(email))
     assert r2.status_code == 409
     assert r2.json()["error"] == "AUTH_EMAIL_DUPLICATE"
 
 
 # 3
 @pytest.mark.asyncio
-async def test_register_invalid_business_no_returns_400(client: AsyncClient) -> None:
+async def test_verify_business_invalid_format_returns_400(client: AsyncClient) -> None:
+    email = make_test_email()
+    tokens = await _register_and_login(client, email)
     r = await client.post(
-        "/api/auth/register",
-        json=_register_payload(make_test_email(), biz_no="abc-xx-yyyyy"),
+        "/api/store/business/verify",
+        data={"business_no": "abc-xx-yyyyy"},
+        files=_cert_file(),
+        headers={"Authorization": f"Bearer {tokens['access_token']}"},
     )
     assert r.status_code == 400
     assert r.json()["error"] == "AUTH_BUSINESS_NO_INVALID"
@@ -125,7 +127,66 @@ async def test_get_me_with_bearer_returns_profile(client: AsyncClient) -> None:
     body = r.json()
     assert body["email"] == email
     assert body["auth_provider"] == "LOCAL"
+    assert body["business_status"] == "UNVERIFIED"
     assert body["onboarding_completed"] is False
+
+
+# 8b — 사업자 검증: NTS 통과 + 등록증 업로드 → PENDING (stub 모드/유효 형식)
+@pytest.mark.asyncio
+async def test_verify_business_with_cert_sets_pending(client: AsyncClient) -> None:
+    email = make_test_email()
+    tokens = await _register_and_login(client, email)
+    auth = {"Authorization": f"Bearer {tokens['access_token']}"}
+    r = await client.post(
+        "/api/store/business/verify",
+        data={"business_no": _make_biz_no()}, files=_cert_file(), headers=auth,
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["business_status"] == "PENDING"
+    me = await client.get("/api/auth/me", headers=auth)
+    assert me.json()["business_status"] == "PENDING"
+
+
+# 8b-2 — 등록증 미첨부(비마스터) → 400
+@pytest.mark.asyncio
+async def test_verify_business_without_cert_returns_400(client: AsyncClient) -> None:
+    email = make_test_email()
+    tokens = await _register_and_login(client, email)
+    r = await client.post(
+        "/api/store/business/verify",
+        data={"business_no": _make_biz_no()},
+        headers={"Authorization": f"Bearer {tokens['access_token']}"},
+    )
+    assert r.status_code == 400
+    assert r.json()["error"] == "VALIDATION_ERROR"
+
+
+# 8c — 로그인 응답에 business_status 포함 (미검증 시 UNVERIFIED)
+@pytest.mark.asyncio
+async def test_login_includes_business_status_unverified(client: AsyncClient) -> None:
+    email = make_test_email()
+    tokens = await _register_and_login(client, email)
+    assert tokens["business_status"] == "UNVERIFIED"
+
+
+# 8d — 마스터 코드 강제 패스 → VERIFIED, 파일 불필요 (security.md §2.4). 미설정 시 skip.
+@pytest.mark.asyncio
+async def test_verify_business_master_code_bypass(client: AsyncClient) -> None:
+    from app.config import get_settings
+
+    master = get_settings().NTS_MASTER_BYPASS_CODE
+    if not master:
+        pytest.skip("NTS_MASTER_BYPASS_CODE 미설정")
+    email = make_test_email()
+    tokens = await _register_and_login(client, email)
+    auth = {"Authorization": f"Bearer {tokens['access_token']}"}
+    r = await client.post(
+        "/api/store/business/verify", data={"business_no": master}, headers=auth
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["business_status"] == "VERIFIED"
+    # 마스터 통과는 실 번호를 저장하지 않는다 (unique 충돌 방지).
+    assert r.json()["business_no"] is None
 
 
 # 9

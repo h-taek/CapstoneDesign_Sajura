@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import errors, security
 from app.db import get_session
+from app.models.user import User, UserRole
 
 
 @dataclass(slots=True)
@@ -41,3 +42,17 @@ async def get_current_user(
 
 
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
+
+
+async def get_admin_user(
+    current: CurrentUserDep,
+    session: SessionDep,
+) -> CurrentUser:
+    """관리자 가드 — role을 JWT가 아닌 DB에서 조회·확인 (security.md §5.1)."""
+    user = await session.get(User, current.user_id)
+    if user is None or user.role != UserRole.ADMIN:
+        raise errors.forbidden("관리자 권한이 필요합니다.")
+    return current
+
+
+AdminUserDep = Annotated[CurrentUser, Depends(get_admin_user)]

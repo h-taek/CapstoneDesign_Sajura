@@ -50,6 +50,26 @@ async def client() -> AsyncIterator[AsyncClient]:
 async def _cleanup_test_users() -> AsyncIterator[None]:
     yield
     async with app_db.SessionLocal() as session:
+        # sale_records / menus는 stores FK가 CASCADE가 아니라 user 삭제 시
+        # stores 삭제가 막힐 수 있다. user에 매달린 store_id 단위로 선삭제.
+        from sqlalchemy import select as _select
+
+        from app.models.menu import Menu
+        from app.models.sale_record import SaleRecord
+        from app.models.store import Store
+
+        store_ids = (
+            await session.scalars(
+                _select(Store.store_id).join(User, User.user_id == Store.user_id).where(
+                    User.email.like(f"{TEST_EMAIL_PREFIX}%@{TEST_EMAIL_DOMAIN}")
+                )
+            )
+        ).all()
+        if store_ids:
+            await session.execute(
+                delete(SaleRecord).where(SaleRecord.store_id.in_(store_ids))
+            )
+            await session.execute(delete(Menu).where(Menu.store_id.in_(store_ids)))
         await session.execute(
             delete(User).where(User.email.like(f"{TEST_EMAIL_PREFIX}%@{TEST_EMAIL_DOMAIN}"))
         )

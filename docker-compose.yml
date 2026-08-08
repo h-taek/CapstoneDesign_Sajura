@@ -79,6 +79,8 @@ services:
         condition: service_healthy
     ports:
       - "8000:8000"
+    volumes:
+      - be_uploads:/app/uploads   # 사업자등록증 등 업로드 파일 영속 (security.md §4.2)
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)\""]
       interval: 15s
@@ -134,3 +136,4 @@ volumes:
   n8n_data:
   caddy_data:
   caddy_config:
+  be_uploads:

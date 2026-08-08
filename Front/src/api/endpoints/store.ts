@@ -4,10 +4,14 @@ import { api } from "../../lib/api";
 export type StoreSize = "SMALL" | "MEDIUM" | "LARGE";
 export type OperationType = "HALL" | "DELIVERY" | "BOTH";
 
+export type BusinessStatus = "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
+
 export interface Store {
   store_id: string;
-  store_name: string;
-  business_no: string;
+  store_name: string | null;
+  business_no: string | null;
+  business_status: BusinessStatus;
+  business_reject_reason: string | null;
   business_type: string | null;
   store_size: StoreSize | null;
   operation_type: OperationType | null;
