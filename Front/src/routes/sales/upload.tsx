@@ -269,7 +269,8 @@ function UploadResult({ result }: { result: CSVUploadResponse }) {
 
   // 결과 카드가 폼 아래에 있어 스크롤 없이는 안 보일 수 있어, 뜨자마자 시야에 들어오게 한다.
   useEffect(() => {
-    ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // jsdom(테스트 환경)은 scrollIntoView 미구현이라 존재할 때만 호출.
+    ref.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
   }, []);
 
   return (

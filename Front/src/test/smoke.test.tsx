@@ -18,9 +18,9 @@ function renderLogin() {
 describe("LoginPage", () => {
   it("renders email/password form and OAuth buttons", () => {
     renderLogin();
-    expect(screen.getByRole("heading", { name: "사주라" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "로그인" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /카카오로 계속하기/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Google로 계속하기/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Sajura/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "로그인하기" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /카카오로 시작하기/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /구글로 시작하기/ })).toBeInTheDocument();
   });
 });
