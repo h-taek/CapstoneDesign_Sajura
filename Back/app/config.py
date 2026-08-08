@@ -74,6 +74,13 @@ class Settings(BaseSettings):
     # 시연/테스트용 강제 패스 코드 (security.md §2.4). 빈 값이면 비활성(운영 기본).
     NTS_MASTER_BYPASS_CODE: str = ""
 
+    # KAMIS(한국농수산식품유통공사) 농산물 가격정보 오픈API — 홈 화면 "실시간 최저가 추천".
+    # 키 미설정 또는 STUB_MODE=true 시 샘플 데이터 반환(NTS 어댑터와 동일 패턴).
+    KAMIS_API_BASE_URL: str = "http://www.kamis.co.kr/service/price/xml.do"
+    KAMIS_API_CERT_KEY: str = ""
+    KAMIS_API_CERT_ID: str = ""
+    KAMIS_API_STUB_MODE: bool = True
+
     # 사업자등록증 업로드 저장 (security.md §4.2) — be 컨테이너 볼륨 마운트 경로
     UPLOAD_DIR: str = "/app/uploads"
     UPLOAD_MAX_BYTES: int = 10 * 1024 * 1024  # 10MB

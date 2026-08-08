@@ -5,24 +5,28 @@
 // - multipart 전송 → /api/sales/upload.
 // - 결과: imported / skipped / skipped_reasons / anomaly_count 표 표시.
 import { useMutation } from "@tanstack/react-query";
-import { type DragEvent, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { type DragEvent, useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router";
 import {
   type CSVUploadColumns,
   type CSVUploadResponse,
   uploadSalesCsv,
 } from "../../api/endpoints/sales";
+import { DashboardShell } from "../../components/dashboard/shell";
 import { Button } from "../../components/ui/button";
 import { FormField, Input } from "../../components/ui/field";
 
 const MAX_BYTES = 50 * 1024 * 1024;
 
+// settings/pos.tsx CSV 템플릿(실제 POS 매출 리포트 형식)의 기본 매핑.
+// "상품코드"는 상품당 고정값이라 영수증번호 대체로 쓰면 같은 상품의 다른 거래가
+// 중복으로 오인되어 스킵될 수 있어 external_sale_id 기본값은 비워둔다(점주가 선택 입력).
 const DEFAULT_COLUMNS: CSVUploadColumns = {
-  date_column: "날짜",
-  menu_column: "메뉴명",
-  quantity_column: "수량",
-  price_column: "금액",
-  external_sale_id_column: "영수증번호",
+  date_column: "기간",
+  menu_column: "상품명",
+  quantity_column: "판매건수",
+  price_column: "실 판매 금액 (할인, 옵션 포함)",
+  external_sale_id_column: "",
 };
 
 interface ApiErrorBody {
@@ -97,7 +101,7 @@ export default function SalesUploadPage() {
   }
 
   return (
-    <main className="min-h-dvh bg-slate-50 p-6">
+    <DashboardShell active="home">
       <header className="mx-auto max-w-3xl pb-6">
         <h1 className="text-xl font-semibold text-slate-900">매출 CSV 업로드</h1>
         <p className="text-sm text-slate-500">
@@ -162,8 +166,8 @@ export default function SalesUploadPage() {
         <article className="rounded-xl bg-white p-6 shadow-sm">
           <h2 className="text-base font-semibold text-slate-900">2. 컬럼명 매핑</h2>
           <p className="mt-1 text-xs text-slate-500">
-            업로드할 CSV의 컬럼 헤더와 사주라가 기대하는 항목을 연결합니다. 사주라
-            기본 템플릿을 그대로 쓰면 변경할 필요 없습니다.
+            업로드할 CSV의 컬럼 헤더와 사주라가 기대하는 항목을 연결합니다. 사주라 기본 템플릿을
+            그대로 쓰면 변경할 필요 없습니다.
           </p>
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <FormField label="날짜 컬럼" htmlFor="date_column">
@@ -184,18 +188,14 @@ export default function SalesUploadPage() {
               <Input
                 id="quantity_column"
                 value={columns.quantity_column}
-                onChange={(e) =>
-                  setColumns({ ...columns, quantity_column: e.target.value })
-                }
+                onChange={(e) => setColumns({ ...columns, quantity_column: e.target.value })}
               />
             </FormField>
             <FormField label="금액 컬럼" htmlFor="price_column">
               <Input
                 id="price_column"
                 value={columns.price_column}
-                onChange={(e) =>
-                  setColumns({ ...columns, price_column: e.target.value })
-                }
+                onChange={(e) => setColumns({ ...columns, price_column: e.target.value })}
               />
             </FormField>
             <FormField
@@ -227,22 +227,17 @@ export default function SalesUploadPage() {
               data-testid="auto-create-menus"
             />
             <span>
-              <span className="font-medium text-slate-900">
-                매장 메뉴에 없는 항목 자동 등록
-              </span>
+              <span className="font-medium text-slate-900">매장 메뉴에 없는 항목 자동 등록</span>
               <span className="block text-xs text-slate-600">
-                체크하면 CSV에 있는 새 메뉴를 카테고리 <strong>"자동등록"</strong>으로
-                즉시 매장 메뉴에 추가합니다. 단가는 CSV의 금액÷수량으로 자동 산정됩니다.
-                나중에 메뉴 화면에서 수정할 수 있습니다.
+                체크하면 CSV에 있는 새 메뉴를 카테고리 <strong>"자동등록"</strong>으로 즉시 매장
+                메뉴에 추가합니다. 단가는 CSV의 금액÷수량으로 자동 산정됩니다. 나중에 메뉴 화면에서
+                수정할 수 있습니다.
               </span>
             </span>
           </label>
 
           <div className="mt-3 flex items-center gap-2">
-            <Button
-              onClick={() => mutation.mutate()}
-              disabled={!file || mutation.isPending}
-            >
+            <Button onClick={() => mutation.mutate()} disabled={!file || mutation.isPending}>
               {mutation.isPending ? "업로드 중…" : "업로드 시작"}
             </Button>
             <Button variant="secondary" onClick={() => navigate("/settings/pos")}>
@@ -262,19 +257,34 @@ export default function SalesUploadPage() {
         </article>
 
         {/* M4.F3 — 결과 */}
-        {mutation.isSuccess && mutation.data && (
-          <UploadResult result={mutation.data} />
-        )}
+        {mutation.isSuccess && mutation.data && <UploadResult result={mutation.data} />}
       </section>
-    </main>
+    </DashboardShell>
   );
 }
 
 function UploadResult({ result }: { result: CSVUploadResponse }) {
   const showAuto = result.auto_created_menus > 0;
+  const ref = useRef<HTMLElement>(null);
+
+  // 결과 카드가 폼 아래에 있어 스크롤 없이는 안 보일 수 있어, 뜨자마자 시야에 들어오게 한다.
+  useEffect(() => {
+    // jsdom(테스트 환경)은 scrollIntoView 미구현이라 존재할 때만 호출.
+    ref.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  }, []);
+
   return (
-    <article className="rounded-xl bg-white p-6 shadow-sm" data-testid="upload-result">
-      <h2 className="text-base font-semibold text-slate-900">업로드 결과</h2>
+    <article
+      ref={ref}
+      className="rounded-xl border-2 border-emerald-200 bg-white p-6 shadow-sm"
+      data-testid="upload-result"
+    >
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold text-emerald-700">업로드 완료</h2>
+        <Link to="/" className="text-sm font-medium text-[#7a5eff] hover:underline">
+          메인 화면으로
+        </Link>
+      </div>
       <div
         className={`mt-3 grid gap-3 text-center text-sm ${
           showAuto ? "grid-cols-4" : "grid-cols-3"
@@ -307,9 +317,7 @@ function UploadResult({ result }: { result: CSVUploadResponse }) {
               <li key={i}>{reason}</li>
             ))}
             {result.skipped_reasons.length > 50 && (
-              <li className="text-slate-400">
-                … 그 외 {result.skipped_reasons.length - 50}건
-              </li>
+              <li className="text-slate-400">… 그 외 {result.skipped_reasons.length - 50}건</li>
             )}
           </ul>
         </details>

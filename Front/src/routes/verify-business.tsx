@@ -62,12 +62,12 @@ export default function VerifyBusinessPage() {
   };
 
   return (
-    <main className="grid min-h-dvh place-items-center bg-slate-50 p-6">
-      <section className="w-full max-w-sm space-y-6 rounded-xl bg-white p-8 shadow-sm">
-        <header className="space-y-1 text-center">
-          <h1 className="text-2xl font-semibold text-slate-900">사업자 인증</h1>
-          <p className="text-sm text-slate-500">
-            사업자등록번호와 등록증을 제출하면 검증 후 매장 설정으로 진행합니다.
+    <main className="grid min-h-dvh place-items-center bg-[#f3f4f6] p-6">
+      <section className="w-full max-w-[560px] space-y-8 rounded-2xl bg-white p-10 shadow-sm">
+        <header className="space-y-2">
+          <h1 className="text-3xl font-semibold text-[#101828]">매장 인증을 완료해주세요</h1>
+          <p className="text-base text-[#364153]">
+            사업자등록번호와 등록증을 제출하면 검증 후 다음 단계로 진행합니다.
           </p>
         </header>
 
@@ -77,7 +77,7 @@ export default function VerifyBusinessPage() {
           </output>
         ) : null}
 
-        <form className="space-y-4" onSubmit={handleSubmit(onSubmit)} noValidate>
+        <form className="space-y-6" onSubmit={handleSubmit(onSubmit)} noValidate>
           <FormField
             label="사업자등록번호"
             htmlFor="business_no"
@@ -87,6 +87,8 @@ export default function VerifyBusinessPage() {
             <Input
               id="business_no"
               inputMode="numeric"
+              placeholder="사업자등록번호를 입력해 주세요."
+              className="h-[58px] rounded-xl border-[#d1d5dc] bg-[#f3f4f6] px-4 text-base"
               {...register("business_no", {
                 onChange: (e) => setValue("business_no", formatBusinessNo(e.target.value)),
               })}
@@ -94,14 +96,26 @@ export default function VerifyBusinessPage() {
           </FormField>
 
           <FormField label="사업자등록증" htmlFor="cert" hint="이미지(jpg/png) 또는 PDF, 최대 10MB">
-            <input
-              id="cert"
-              ref={fileRef}
-              type="file"
-              accept="image/*,application/pdf"
-              onChange={(e) => setCert(e.target.files?.[0] ?? null)}
-              className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm"
-            />
+            <div className="flex items-center gap-3">
+              <div className="flex h-[58px] flex-1 items-center rounded-xl border border-[#d1d5dc] bg-[#f3f4f6] px-4 text-base text-[#99a1af]">
+                {cert ? cert.name : "사업자등록증(파일을 첨부해주세요)"}
+              </div>
+              <Button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="h-[58px] shrink-0 rounded-xl bg-[#101828] px-6 text-base font-medium hover:bg-[#1f2937]"
+              >
+                파일 찾기
+              </Button>
+              <input
+                id="cert"
+                ref={fileRef}
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={(e) => setCert(e.target.files?.[0] ?? null)}
+                className="hidden"
+              />
+            </div>
           </FormField>
 
           {formError ? (
@@ -110,7 +124,11 @@ export default function VerifyBusinessPage() {
             </p>
           ) : null}
 
-          <Button type="submit" size="lg" className="w-full" disabled={mutation.isPending}>
+          <Button
+            type="submit"
+            disabled={mutation.isPending}
+            className="h-[68px] w-full rounded-full bg-[#7a5eff] text-xl font-semibold hover:bg-[#6a4eef]"
+          >
             {mutation.isPending ? "검증 중…" : "제출하기"}
           </Button>
         </form>

@@ -40,7 +40,37 @@ export async function uploadSalesCsv(
     form.append("auto_create_menus", "true");
   }
   // 업로드는 시간이 걸릴 수 있어 ky 기본 타임아웃(10s)을 늘림.
-  return api
-    .post("sales/upload", { body: form, timeout: 120_000 })
-    .json<CSVUploadResponse>();
+  return api.post("sales/upload", { body: form, timeout: 120_000 }).json<CSVUploadResponse>();
+}
+
+export interface SalesSummary {
+  total_revenue: number;
+  total_sales_count: number;
+  this_month_revenue: number;
+  this_month_sales_count: number;
+  last_sale_at: string | null;
+}
+
+export async function getSalesSummary(): Promise<SalesSummary> {
+  return api.get("sales/summary").json<SalesSummary>();
+}
+
+export interface MonthlyRevenuePoint {
+  year_month: string;
+  revenue: number;
+  sales_count: number;
+}
+
+export async function getMonthlyRevenue(months = 6): Promise<MonthlyRevenuePoint[]> {
+  return api.get("sales/monthly", { searchParams: { months } }).json<MonthlyRevenuePoint[]>();
+}
+
+export interface TopMenuItem {
+  menu_name: string;
+  quantity: number;
+  revenue: number;
+}
+
+export async function getTopMenus(limit = 5): Promise<TopMenuItem[]> {
+  return api.get("sales/top-menus", { searchParams: { limit } }).json<TopMenuItem[]>();
 }

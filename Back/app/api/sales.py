@@ -8,7 +8,12 @@ from fastapi import APIRouter, File, Form, UploadFile, status
 from app.adapters.pos.csv_adapter import CSVAdapter
 from app.api.deps import CurrentUserDep, SessionDep
 from app.core import errors
-from app.schemas.sales import CSVUploadResponse
+from app.schemas.sales import (
+    CSVUploadResponse,
+    MonthlyRevenuePoint,
+    SalesSummaryResponse,
+    TopMenuItem,
+)
 from app.services.sale_service import SaleService
 from app.services.store_service import StoreService
 
@@ -16,6 +21,38 @@ router = APIRouter(prefix="/api/sales", tags=["sales"])
 
 # 업로드 크기 상한 — 10만 행 CSV가 평균 5~10 MB 수준. 안전 마진으로 50 MB.
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
+
+
+@router.get("/summary", response_model=SalesSummaryResponse)
+async def get_sales_summary(
+    session: SessionDep,
+    current: CurrentUserDep,
+) -> SalesSummaryResponse:
+    """홈 화면 매출 요약 카드 — 전체/이번 달 매출 집계 + 최근 판매일."""
+    store_id = (await StoreService(session).get_store(current.user_id)).store_id
+    return await SaleService(session).get_summary(store_id=store_id)
+
+
+@router.get("/monthly", response_model=list[MonthlyRevenuePoint])
+async def get_monthly_revenue(
+    session: SessionDep,
+    current: CurrentUserDep,
+    months: int = 6,
+) -> list[MonthlyRevenuePoint]:
+    """홈/매출예측 화면 그래프용 — 데이터가 있는 월 기준 최근 N개월 매출."""
+    store_id = (await StoreService(session).get_store(current.user_id)).store_id
+    return await SaleService(session).get_monthly_revenue(store_id=store_id, months=months)
+
+
+@router.get("/top-menus", response_model=list[TopMenuItem])
+async def get_top_menus(
+    session: SessionDep,
+    current: CurrentUserDep,
+    limit: int = 5,
+) -> list[TopMenuItem]:
+    """홈 화면 인기 메뉴 랭킹 — 판매량 기준."""
+    store_id = (await StoreService(session).get_store(current.user_id)).store_id
+    return await SaleService(session).get_top_menus(store_id=store_id, limit=limit)
 
 
 @router.post("/upload", response_model=CSVUploadResponse, status_code=status.HTTP_201_CREATED)

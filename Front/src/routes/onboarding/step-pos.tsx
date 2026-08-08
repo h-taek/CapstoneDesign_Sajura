@@ -1,10 +1,13 @@
 // M3.F4 — 온보딩 2스텝: POS 연동 (BE M3.B6 stub 200 응답 사용).
+// Figma "POS 연동"(node 5:413) 라디오 선택 패턴 + "사용자 계정 인증 완료"(node 5:400) 웰컴 문구 반영.
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Navigate, useNavigate } from "react-router";
 import { Button } from "../../components/ui/button";
-import { FormField, Input, Select } from "../../components/ui/field";
-import { posStepSchema, type PosStepValues } from "../../schemas/onboarding";
+import { FormField, Input } from "../../components/ui/field";
+import { cn } from "../../lib/utils";
+import { type PosStepValues, posStepSchema } from "../../schemas/onboarding";
+import { useAuthStore } from "../../stores/auth-store";
 import { useOnboardingStore } from "../../stores/onboarding-store";
 
 const POS_TYPES: Array<{ value: PosStepValues["pos_type"]; label: string }> = [
@@ -16,6 +19,7 @@ const POS_TYPES: Array<{ value: PosStepValues["pos_type"]; label: string }> = [
 
 export default function PosStep() {
   const navigate = useNavigate();
+  const userName = useAuthStore((s) => s.user?.name);
   const store = useOnboardingStore((s) => s.store);
   const draft = useOnboardingStore((s) => s.pos);
   const setPos = useOnboardingStore((s) => s.setPos);
@@ -42,32 +46,85 @@ export default function PosStep() {
   };
 
   return (
-    <form className="space-y-4" onSubmit={handleSubmit(onSubmit)} noValidate>
-      <FormField label="POS 종류" htmlFor="pos_type" error={errors.pos_type?.message}>
-        <Select id="pos_type" {...register("pos_type")}>
-          {POS_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </Select>
-      </FormField>
+    <form className="space-y-6" onSubmit={handleSubmit(onSubmit)} noValidate>
+      <div className="space-y-1">
+        <h2 className="text-2xl font-semibold text-[#101828]">
+          {userName ? `${userName}님, ` : ""}Sajura에 오신 걸 환영합니다
+        </h2>
+        <p className="text-base text-[#364153]">POS 데이터를 연동해주세요.</p>
+      </div>
+
+      <div className="space-y-2">
+        <span className="text-sm font-medium text-[#364153]">POS 종류</span>
+        <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="POS 종류">
+          {POS_TYPES.map((t) => {
+            const active = posType === t.value;
+            return (
+              <label
+                key={t.value}
+                className={cn(
+                  "flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium transition-colors",
+                  active
+                    ? "border-[#7a5eff] bg-[#7a5eff]/5 text-[#101828]"
+                    : "border-[#d1d5dc] bg-white text-[#364153] hover:bg-[#f3f4f6]",
+                )}
+              >
+                <input
+                  type="radio"
+                  value={t.value}
+                  className="size-4 accent-[#7a5eff]"
+                  {...register("pos_type")}
+                />
+                {t.label}
+              </label>
+            );
+          })}
+        </div>
+        {errors.pos_type ? (
+          <p className="text-xs text-red-600" role="alert">
+            {errors.pos_type.message}
+          </p>
+        ) : null}
+      </div>
+
       <FormField
         label="POS API 키"
         htmlFor="api_key"
         error={errors.api_key?.message}
         hint={csvOnly ? "CSV 업로드 모드는 자격증명 없이 진행합니다." : undefined}
       >
-        <Input id="api_key" autoComplete="off" disabled={csvOnly} {...register("api_key")} />
+        <Input
+          id="api_key"
+          autoComplete="off"
+          disabled={csvOnly}
+          className="h-11 rounded-xl border-[#d1d5dc] bg-[#f3f4f6]"
+          {...register("api_key")}
+        />
       </FormField>
       <FormField label="매장 코드" htmlFor="store_code" error={errors.store_code?.message}>
-        <Input id="store_code" autoComplete="off" disabled={csvOnly} {...register("store_code")} />
+        <Input
+          id="store_code"
+          autoComplete="off"
+          disabled={csvOnly}
+          className="h-11 rounded-xl border-[#d1d5dc] bg-[#f3f4f6]"
+          {...register("store_code")}
+        />
       </FormField>
+
       <div className="flex justify-between pt-2">
-        <Button variant="secondary" onClick={() => navigate("/onboarding/1")}>
+        <Button
+          type="button"
+          onClick={() => navigate("/onboarding/1")}
+          className="h-11 rounded-full border border-[#d1d5dc] bg-white px-6 text-[#364153] hover:bg-[#f3f4f6]"
+        >
           이전
         </Button>
-        <Button type="submit" disabled={isSubmitting} data-testid="pos-next">
+        <Button
+          type="submit"
+          disabled={isSubmitting}
+          data-testid="pos-next"
+          className="h-11 rounded-full bg-[#7a5eff] px-8 font-semibold hover:bg-[#6a4eef]"
+        >
           다음
         </Button>
       </div>
