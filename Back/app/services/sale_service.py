@@ -18,11 +18,12 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from io import BytesIO
 from typing import Iterator
 
 import pandas as pd
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,6 +31,7 @@ from app.adapters.pos.csv_adapter import CSVAdapter, CommonSale, SkipReason
 from app.core import errors
 from app.models.menu import Menu
 from app.models.sale_record import SaleRecord, SaleSource
+from app.schemas.sales import MonthlyRevenuePoint, SalesSummaryResponse, TopMenuItem
 from app.services.anomaly_detector import AnomalyDetector
 
 CHUNK_SIZE = 10_000
@@ -149,6 +151,83 @@ class SaleService:
             )
 
         return result
+
+    async def get_summary(self, *, store_id: str) -> SalesSummaryResponse:
+        """홈 화면 매출 요약 — 전체 누계 + 이번 달(UTC 캘린더 월) 집계."""
+        totals = (
+            await self.session.execute(
+                select(
+                    func.coalesce(func.sum(SaleRecord.total_price), 0),
+                    func.count(SaleRecord.sale_id),
+                    func.max(SaleRecord.sold_at),
+                ).where(SaleRecord.store_id == store_id)
+            )
+        ).one()
+        total_revenue, total_sales_count, last_sale_at = totals
+
+        month_start = datetime.now(UTC).replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None
+        )
+        this_month = (
+            await self.session.execute(
+                select(
+                    func.coalesce(func.sum(SaleRecord.total_price), 0),
+                    func.count(SaleRecord.sale_id),
+                ).where(
+                    SaleRecord.store_id == store_id,
+                    SaleRecord.sold_at >= month_start,
+                )
+            )
+        ).one()
+        this_month_revenue, this_month_sales_count = this_month
+
+        return SalesSummaryResponse(
+            total_revenue=total_revenue,
+            total_sales_count=total_sales_count,
+            this_month_revenue=this_month_revenue,
+            this_month_sales_count=this_month_sales_count,
+            last_sale_at=last_sale_at,
+        )
+
+    async def get_monthly_revenue(
+        self, *, store_id: str, months: int = 6
+    ) -> list[MonthlyRevenuePoint]:
+        """월별 매출 추이 — 데이터가 존재하는 월 기준 최근 N개월(캘린더 공백월은 건너뜀)."""
+        ym = func.date_format(SaleRecord.sold_at, "%Y-%m")
+        rows = (
+            await self.session.execute(
+                select(ym, func.sum(SaleRecord.total_price), func.count(SaleRecord.sale_id))
+                .where(SaleRecord.store_id == store_id)
+                .group_by(ym)
+                .order_by(ym.desc())
+                .limit(months)
+            )
+        ).all()
+        return [
+            MonthlyRevenuePoint(year_month=year_month, revenue=revenue, sales_count=count)
+            for year_month, revenue, count in reversed(rows)
+        ]
+
+    async def get_top_menus(self, *, store_id: str, limit: int = 5) -> list[TopMenuItem]:
+        """판매량 기준 인기 메뉴 — 재고·최저가 추천과 달리 실제 판매 데이터로 산출 가능."""
+        rows = (
+            await self.session.execute(
+                select(
+                    Menu.name,
+                    func.sum(SaleRecord.quantity),
+                    func.sum(SaleRecord.total_price),
+                )
+                .join(Menu, Menu.menu_id == SaleRecord.menu_id)
+                .where(SaleRecord.store_id == store_id)
+                .group_by(Menu.menu_id, Menu.name)
+                .order_by(func.sum(SaleRecord.quantity).desc())
+                .limit(limit)
+            )
+        ).all()
+        return [
+            TopMenuItem(menu_name=name, quantity=quantity, revenue=revenue)
+            for name, quantity, revenue in rows
+        ]
 
     async def _load_menu_map(self, *, store_id: str) -> dict[str, str]:
         rows = (

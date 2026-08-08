@@ -52,6 +52,9 @@ Thumbs.db
 *.svg
 *.pdf
 
+# FE UI 정적 에셋(아이콘·로고·배경 이미지 등 실제 화면에 쓰이는 리소스)은 예외
+!Front/src/assets/**
+
 # personal (개인용 작업 컨텍스트, 외부 공유 X)
 HANDOFF.md
 .agentbridge/
