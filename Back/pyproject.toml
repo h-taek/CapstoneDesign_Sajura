@@ -35,6 +35,8 @@ dependencies = [
     "phonenumbers==8.13.50",
     "itsdangerous==2.2.0",
     "aiobreaker==1.2.0",
+    # Phase 4 POS·CSV
+    "pandas==2.2.3",
 ]
 
 [project.optional-dependencies]

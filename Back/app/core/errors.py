@@ -42,5 +42,9 @@ def auth_refresh_token_invalid() -> DomainError:
     return DomainError(status_code=401, error_code="AUTH_REFRESH_TOKEN_INVALID", message="Refresh Token이 유효하지 않습니다.")
 
 
+def state_conflict(message: str = "현재 상태에서는 수행할 수 없습니다.") -> DomainError:
+    return DomainError(status_code=409, error_code="STATE_CONFLICT", message=message)
+
+
 def auth_password_not_allowed() -> DomainError:
     return DomainError(status_code=422, error_code="AUTH_PASSWORD_NOT_ALLOWED", message="소셜 계정은 비밀번호를 변경할 수 없습니다.")
