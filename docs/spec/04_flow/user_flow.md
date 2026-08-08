@@ -139,12 +139,13 @@
 
 ```text
 / (루트)
-├── 로그인
+├── 로그인 / 이메일 회원가입
 ├── 온보딩  ← onboarding_completed: false 시 강제 진입
-│   ├── Step 1: 사업자 인증
+│   ├── Step 1: 사업자 인증  ← 온보딩과 분리된 검증 게이트 (/verify-business, business_status: UNVERIFIED·REJECTED 시 강제 진입)
 │   ├── Step 2: 매장 정보 입력
 │   ├── Step 3: POS 연동
 │   └── Step 4: 초기 재고/메뉴 입력
+├── 관리자 심사 (/admin)  ← role=ADMIN 전용, 심사 큐·승인/반려 (feature_spec §12.11)
 └── 메인  ← 온보딩 완료 후 접근 가능
     ├── 홈
     │   └── 알림 목록 (인앱)

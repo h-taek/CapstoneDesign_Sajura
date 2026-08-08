@@ -2,20 +2,46 @@
 name = "sajura-ai"
 version = "0.1.0"
 description = "사주라 AI Server (FastAPI) — Phase 2 skeleton"
-# 모델·전처리 라이브러리는 Phase 6 ai_model 확정 후 추가.
-# 본 Phase 2는 빈 FastAPI 골격 + /ai/health 만 둔다.
+# 런타임(dependencies)은 AI Server 이미지 전용. 모델링 작업은 [ml] extra 사용.
+# 모델 라이브러리 runtime 승격(M6.A6 예고분) — M7.A2에서 검증 env(sajura-ai) 버전으로 고정.
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "fastapi==0.115.6",
     "uvicorn[standard]==0.32.1",
     "pydantic==2.10.3",
     "pydantic-settings==2.7.0",
+    "pandas==2.3.3",     # M7.A2 서빙 피처 빌드
+    "numpy==2.4.6",
+    "lightgbm==4.7.0",   # 초기 모델 V1-t (model_spec §3) — SHAP은 내장 pred_contrib 사용(shap 패키지 불필요)
+    "holidays==0.101",   # 공휴일 캘린더 (AI 내장 지식 — 요청 payload에 안 받음)
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest==8.3.4",
     "ruff==0.8.4",
+    "httpx==0.28.1",  # fastapi TestClient용 (M7.A1 골격 테스트)
+]
+# Phase 6 모델링(EDA·데이터 적재) 전용 — Docker 런타임 이미지에는 설치하지 않는다
+ml = [
+    "pandas>=2.2,<3",
+    "numpy>=2,<3",
+    "pyarrow>=17",
+    "matplotlib>=3.9",
+    "seaborn>=0.13",
+    "scikit-learn>=1.5",
+    "lightgbm>=4.5",
+    "xgboost>=2.1",       # M6.A5 베이스라인 비교용
+    "catboost>=1.2",      # M6.A5 GBM 3사 비교용 (§3b)
+    "statsmodels>=0.14",  # M6.A5 SARIMA 베이스라인용
+    "optuna>=4",          # M6.A6 하이퍼파라미터 튜닝용
+    "shap>=0.52",         # M6.A7 XAI (TreeSHAP) — 서빙 이미지 포함 여부는 Phase 7 결정
+    "holidays>=0.60",
+    "msoffcrypto-tool>=5.4",
+    "openpyxl>=3.1",
+    "xlrd>=2.0",
+    "jupyterlab>=4.2",
+    "ipykernel>=6.29",
 ]
 
 [tool.ruff]
