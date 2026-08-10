@@ -1,16 +1,24 @@
 // 발주추천 화면 — Figma "발주추천"(node 9:989) 셸 적용.
-// AI 서버(/ai/orders/recommend)에 실제 추천 엔진이 있지만 리드타임 중 예상 소비량 계산에
-// 필요한 판매 이력 연동은 후속 작업이라, 우선 재고 임계값 기반(GET /api/inventory/reorder-suggestions)
-// 추천만 실데이터로 제공하고 AI 예측 발주는 정직하게 "준비 중"으로 표시.
+// 재고 임계값 기반(GET /api/inventory/reorder-suggestions) 추천과, AI 서버(/ai/orders/recommend
+// — 수요예측 × 메뉴 비중 분해 × 레시피(BOM) × 재고/리드타임/안전재고) 기반 추천을 함께 제공.
 // 점주 확정(체크박스 선택 + 수량 인라인 수정)은 POST /api/orders/confirm으로 실제 기록된다
 // (쿠팡 자동 담기·실제 입고 반영은 후속 작업 — 확정 = 기록만, 재고 수량은 자동 변경되지 않음).
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { HTTPError } from "ky";
+import { AlertTriangle, CheckCircle2, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
+import { getAIRecommend } from "../api/endpoints/forecast";
 import { getReorderSuggestions } from "../api/endpoints/inventory";
 import { confirmOrder, listOrders } from "../api/endpoints/orders";
 import { DashboardShell } from "../components/dashboard/shell";
 import { Button } from "../components/ui/button";
+
+function aiErrorMessage(error: unknown): string {
+  if (error instanceof HTTPError && error.response.status === 422) {
+    return "AI 추천에 필요한 판매 이력이 부족합니다 (최소 10일 이상 필요).";
+  }
+  return "AI 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.";
+}
 
 export default function OrdersPage() {
   const queryClient = useQueryClient();
@@ -21,6 +29,16 @@ export default function OrdersPage() {
   const { data: pastOrders = [] } = useQuery({
     queryKey: ["orders"],
     queryFn: listOrders,
+  });
+  const {
+    data: aiRecommend,
+    isLoading: aiLoading,
+    error: aiError,
+  } = useQuery({
+    queryKey: ["ai-orders-recommend"],
+    queryFn: getAIRecommend,
+    staleTime: 60_000,
+    retry: false,
   });
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -64,8 +82,7 @@ export default function OrdersPage() {
         <header className="space-y-1">
           <h1 className="text-2xl font-semibold text-[#101828]">발주 추천</h1>
           <p className="text-sm text-[#99a1af]">
-            재고관리에 등록한 임계값 기준 추천입니다. AI 수요예측 기반 발주 추천(리드타임 중 예상
-            소비량 반영)은 준비 중입니다.
+            재고관리에 등록한 임계값 기준 추천과, 아래 AI 수요예측 기반 추천을 함께 제공합니다.
           </p>
         </header>
 
@@ -175,11 +192,64 @@ export default function OrdersPage() {
         )}
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-[#364153]">AI 예측 발주</h2>
-          <div className="rounded-xl border border-dashed border-[#d1d5dc] bg-white p-6 text-sm text-[#99a1af]">
-            매출 예측(AI 서버) 기반으로 리드타임 동안 소비될 재료량을 미리 계산하는 발주 추천은 준비
-            중입니다.
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-semibold text-[#364153]">AI 예측 발주</h2>
+            {aiRecommend?.is_low_confidence && (
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
+                신뢰도 낮음
+              </span>
+            )}
           </div>
+          <p className="text-sm text-[#99a1af]">
+            매출 예측 × 메뉴별 판매 비중 × 레시피(재료 구성) × 재고/리드타임/안전재고를 반영한
+            참고치입니다. 위 표와 별개로 재고 임계값이 아직 안 걸려도 미리 보여줄 수 있습니다.
+          </p>
+          {aiLoading ? (
+            <p className="text-sm text-[#99a1af]">계산 중…</p>
+          ) : aiError ? (
+            <div className="flex items-start gap-2 rounded-xl border border-dashed border-[#d1d5dc] bg-white p-6">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
+              <p className="text-sm text-[#99a1af]">{aiErrorMessage(aiError)}</p>
+            </div>
+          ) : aiRecommend && aiRecommend.recommendations.length > 0 ? (
+            <div className="overflow-hidden rounded-xl border border-[#d1d5dc] bg-white">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-[#fafafa] text-[#61646b]">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">재료</th>
+                    <th className="px-4 py-3 font-medium">추천 수량</th>
+                    <th className="px-4 py-3 font-medium">예상 소진일</th>
+                    <th className="px-4 py-3 font-medium">근거</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {aiRecommend.recommendations.map((r) => (
+                    <tr key={r.item_id} className="border-t border-[#eef1f4]">
+                      <td className="px-4 py-3 font-medium text-[#364153]">
+                        <span className="flex items-center gap-2">
+                          <Sparkles className="size-4 text-[#7a5eff]" />
+                          {r.item_name}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-[#7a5eff]">
+                        {r.recommended_quantity} {r.unit}
+                      </td>
+                      <td className="px-4 py-3 text-[#364153]">
+                        {r.expected_stockout_date ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-[#99a1af]">
+                        {r.recommendation_reason}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="flex h-[100px] items-center justify-center rounded-xl border border-dashed border-[#d1d5dc] bg-white text-sm text-[#99a1af]">
+              AI 추천 결과가 없습니다 (레시피·재고 설정을 확인해주세요).
+            </div>
+          )}
         </section>
       </div>
     </DashboardShell>
