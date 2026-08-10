@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from io import BytesIO
 from typing import Iterator
 
@@ -31,7 +31,13 @@ from app.adapters.pos.csv_adapter import CSVAdapter, CommonSale, SkipReason
 from app.core import errors
 from app.models.menu import Menu
 from app.models.sale_record import SaleRecord, SaleSource
-from app.schemas.sales import MonthlyRevenuePoint, SalesSummaryResponse, TopMenuItem
+from app.schemas.sales import (
+    DailyRevenuePoint,
+    MonthlyRevenuePoint,
+    SalesSummaryResponse,
+    TopMenuItem,
+    WeeklyRevenuePoint,
+)
 from app.services.anomaly_detector import AnomalyDetector
 
 CHUNK_SIZE = 10_000
@@ -153,7 +159,7 @@ class SaleService:
         return result
 
     async def get_summary(self, *, store_id: str) -> SalesSummaryResponse:
-        """홈 화면 매출 요약 — 전체 누계 + 이번 달(UTC 캘린더 월) 집계."""
+        """홈 화면 매출 요약 — 전체 누계 + 이번 달(UTC 캘린더 월) + 오늘 집계."""
         totals = (
             await self.session.execute(
                 select(
@@ -165,9 +171,8 @@ class SaleService:
         ).one()
         total_revenue, total_sales_count, last_sale_at = totals
 
-        month_start = datetime.now(UTC).replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None
-        )
+        now = datetime.now(UTC).replace(tzinfo=None)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         this_month = (
             await self.session.execute(
                 select(
@@ -181,13 +186,120 @@ class SaleService:
         ).one()
         this_month_revenue, this_month_sales_count = this_month
 
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today = (
+            await self.session.execute(
+                select(
+                    func.coalesce(func.sum(SaleRecord.total_price), 0),
+                    func.count(SaleRecord.sale_id),
+                ).where(
+                    SaleRecord.store_id == store_id,
+                    SaleRecord.sold_at >= today_start,
+                )
+            )
+        ).one()
+        today_revenue, today_sales_count = today
+
         return SalesSummaryResponse(
             total_revenue=total_revenue,
             total_sales_count=total_sales_count,
             this_month_revenue=this_month_revenue,
             this_month_sales_count=this_month_sales_count,
+            today_revenue=today_revenue,
+            today_sales_count=today_sales_count,
             last_sale_at=last_sale_at,
         )
+
+    async def get_daily_revenue(self, *, store_id: str, days: int = 7) -> list[DailyRevenuePoint]:
+        """최근 N일 매출 추이 — 데이터 없는 날짜는 0으로 채운 연속 시계열."""
+        start = date.today() - timedelta(days=days - 1)
+        d = func.date(SaleRecord.sold_at)
+        rows = (
+            await self.session.execute(
+                select(d, func.sum(SaleRecord.total_price), func.count(SaleRecord.sale_id))
+                .where(SaleRecord.store_id == store_id, SaleRecord.sold_at >= start)
+                .group_by(d)
+            )
+        ).all()
+        by_day = {
+            (row[0] if isinstance(row[0], date) else datetime.strptime(row[0], "%Y-%m-%d").date()): (
+                int(row[1]),
+                int(row[2]),
+            )
+            for row in rows
+        }
+        return [
+            DailyRevenuePoint(
+                date=(start + timedelta(days=i)).isoformat(),
+                revenue=by_day.get(start + timedelta(days=i), (0, 0))[0],
+                sales_count=by_day.get(start + timedelta(days=i), (0, 0))[1],
+            )
+            for i in range(days)
+        ]
+
+    async def get_daily_revenue_for_month(
+        self, *, store_id: str, year_month: str
+    ) -> list[DailyRevenuePoint]:
+        """특정 월(YYYY-MM)의 1일~말일 매출 추이 — 데이터 없는 날짜는 0으로 채움."""
+        year, month = (int(p) for p in year_month.split("-"))
+        month_start = date(year, month, 1)
+        next_month_start = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+        days_in_month = (next_month_start - month_start).days
+
+        d = func.date(SaleRecord.sold_at)
+        rows = (
+            await self.session.execute(
+                select(d, func.sum(SaleRecord.total_price), func.count(SaleRecord.sale_id))
+                .where(
+                    SaleRecord.store_id == store_id,
+                    SaleRecord.sold_at >= datetime.combine(month_start, datetime.min.time()),
+                    SaleRecord.sold_at < datetime.combine(next_month_start, datetime.min.time()),
+                )
+                .group_by(d)
+            )
+        ).all()
+        by_day = {
+            (row[0] if isinstance(row[0], date) else datetime.strptime(row[0], "%Y-%m-%d").date()): (
+                int(row[1]),
+                int(row[2]),
+            )
+            for row in rows
+        }
+        return [
+            DailyRevenuePoint(
+                date=(month_start + timedelta(days=i)).isoformat(),
+                revenue=by_day.get(month_start + timedelta(days=i), (0, 0))[0],
+                sales_count=by_day.get(month_start + timedelta(days=i), (0, 0))[1],
+            )
+            for i in range(days_in_month)
+        ]
+
+    async def get_weekly_revenue_this_month(self, *, store_id: str) -> list[WeeklyRevenuePoint]:
+        """이번 달 주차별(1일 단위 7개씩 묶음) 매출 — 캘린더 주가 아닌 월초 기준 등분."""
+        today = date.today()
+        month_start = today.replace(day=1)
+        rows = (
+            await self.session.execute(
+                select(SaleRecord.sold_at, SaleRecord.total_price).where(
+                    SaleRecord.store_id == store_id,
+                    SaleRecord.sold_at >= datetime.combine(month_start, datetime.min.time()),
+                )
+            )
+        ).all()
+        buckets: dict[int, list[int]] = {}
+        for sold_at, total_price in rows:
+            day_of_month = (sold_at.date() if isinstance(sold_at, datetime) else sold_at).day
+            week_idx = (day_of_month - 1) // 7
+            buckets.setdefault(week_idx, []).append(total_price)
+        max_week = max(buckets.keys(), default=(today.day - 1) // 7)
+        return [
+            WeeklyRevenuePoint(
+                week_label=f"{i + 1}주차",
+                revenue=sum(buckets.get(i, [])),
+                sales_count=len(buckets.get(i, [])),
+            )
+            for i in range(max_week + 1)
+        ]
 
     async def get_monthly_revenue(
         self, *, store_id: str, months: int = 6
