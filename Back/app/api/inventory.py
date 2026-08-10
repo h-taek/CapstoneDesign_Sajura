@@ -28,6 +28,7 @@ def _to_dto(item: InventoryItem) -> InventoryItemResponse:
         current_quantity=item.current_quantity, low_stock_threshold=item.low_stock_threshold,
         lead_time_days=item.lead_time_days, safety_stock=item.safety_stock,
         is_low_stock=item.current_quantity <= item.low_stock_threshold,
+        updated_at=item.updated_at,
     )
 
 

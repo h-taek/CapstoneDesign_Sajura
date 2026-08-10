@@ -5,6 +5,7 @@ current_quantity 단일 수치로 관리하는 간소화 버전.
 """
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
@@ -37,6 +38,7 @@ class InventoryItemResponse(BaseModel):
     lead_time_days: int | None
     safety_stock: Decimal | None
     is_low_stock: bool
+    updated_at: datetime
 
 
 class InventoryListResponse(BaseModel):

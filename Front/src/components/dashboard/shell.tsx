@@ -2,6 +2,7 @@
 import {
   Boxes,
   ChefHat,
+  ChevronRight,
   ClipboardList,
   Home,
   LogOut,
@@ -17,7 +18,7 @@ import { useAuthStore } from "../../stores/auth-store";
 type NavKey = "home" | "forecast" | "inventory" | "orders" | "recipes" | "settings";
 
 const LINKED_ITEMS: Array<{ key: NavKey; to: string; label: string; icon: typeof Home }> = [
-  { key: "home", to: "/", label: "Dashboard", icon: Home },
+  { key: "home", to: "/", label: "홈", icon: Home },
   { key: "forecast", to: "/forecast", label: "매출예측", icon: TrendingUp },
   { key: "inventory", to: "/inventory", label: "재고관리", icon: Boxes },
   { key: "orders", to: "/orders", label: "발주추천", icon: ClipboardList },
@@ -42,7 +43,7 @@ export function DashboardShell({ active, children }: { active: NavKey; children:
     <div className="grid min-h-dvh grid-cols-[266px_1fr] bg-[#f3f4f6]">
       <aside className="flex flex-col justify-between bg-white p-4">
         <div className="space-y-1">
-          <p className="px-2 pb-4 text-2xl font-semibold text-[#364153]">Sajura</p>
+          <p className="px-2 pb-4 text-2xl font-semibold text-[#7a5eff]">Sajura</p>
           {LINKED_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = item.key === active;
@@ -56,7 +57,8 @@ export function DashboardShell({ active, children }: { active: NavKey; children:
                 )}
               >
                 <Icon className="size-5" />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                <ChevronRight className="size-4 text-[#c1c6cf]" />
               </Link>
             );
           })}
@@ -73,7 +75,8 @@ export function DashboardShell({ active, children }: { active: NavKey; children:
             )}
           >
             <SettingsIcon className="size-5" />
-            Settings
+            <span className="flex-1">설정</span>
+            <ChevronRight className="size-4 text-[#c1c6cf]" />
           </Link>
           <button
             type="button"
@@ -81,7 +84,8 @@ export function DashboardShell({ active, children }: { active: NavKey; children:
             className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-base font-medium text-[#364153] hover:bg-[#f3f4f6]"
           >
             <LogOut className="size-5" />
-            Sign Out
+            <span className="flex-1">로그아웃</span>
+            <ChevronRight className="size-4 text-[#c1c6cf]" />
           </button>
         </div>
       </aside>

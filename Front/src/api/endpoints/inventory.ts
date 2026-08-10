@@ -10,6 +10,7 @@ export interface InventoryItem {
   lead_time_days: number | null;
   safety_stock: number | null;
   is_low_stock: boolean;
+  updated_at: string;
 }
 
 export interface InventoryItemInput {
