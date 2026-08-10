@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     SENTRY_RELEASE: str = ""
 
     # External
-    AI_SERVER_BASE_URL: str = "http://ai-server:8001"
+    AI_SERVER_BASE_URL: str = "http://ai:8001"  # docker-compose 서비스명 = ai
     N8N_BASE_URL: str = "http://n8n:5678"
 
     # 국세청 사업자등록 조회 (M3.B3)
