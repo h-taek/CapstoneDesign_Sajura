@@ -2,6 +2,7 @@
 // 사업자번호 + 사업자등록증 업로드 → POST /api/store/business/verify (multipart).
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { LogOut } from "lucide-react";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
@@ -9,6 +10,7 @@ import { authErrorMessage, fetchMe, verifyBusiness } from "../api/endpoints/auth
 import { getStore } from "../api/endpoints/store";
 import { Button } from "../components/ui/button";
 import { FormField, Input } from "../components/ui/field";
+import { useLogout } from "../lib/use-logout";
 import { type VerifyBusinessValues, formatBusinessNo, verifyBusinessSchema } from "../schemas/auth";
 import { useAuthStore } from "../stores/auth-store";
 import { landingPath } from "./guards";
@@ -17,6 +19,7 @@ export default function VerifyBusinessPage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
+  const handleLogout = useLogout();
   const [cert, setCert] = useState<File | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -64,12 +67,26 @@ export default function VerifyBusinessPage() {
   return (
     <main className="grid min-h-dvh place-items-center bg-[#f3f4f6] p-6">
       <section className="w-full max-w-[560px] space-y-8 rounded-2xl bg-white p-10 shadow-sm">
-        <header className="space-y-2">
-          <h1 className="text-3xl font-semibold text-[#101828]">매장 인증을 완료해주세요</h1>
-          <p className="text-base text-[#364153]">
-            사업자등록번호와 등록증을 제출하면 검증 후 다음 단계로 진행합니다.
-          </p>
+        <header className="flex items-start justify-between gap-4">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-semibold text-[#101828]">매장 인증을 완료해주세요</h1>
+            <p className="text-base text-[#364153]">
+              사업자등록번호와 등록증을 제출하면 검증 후 다음 단계로 진행합니다.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[#364153] hover:bg-[#f3f4f6]"
+          >
+            <LogOut className="size-4" />
+            로그아웃
+          </button>
         </header>
+
+        <p className="text-sm text-[#99a1af]">
+          지금 서류가 없다면 로그아웃 후 나중에 다시 로그인해 이어서 진행할 수 있습니다.
+        </p>
 
         {user?.business_status === "REJECTED" && store?.business_reject_reason ? (
           <output className="block rounded-md bg-red-50 p-3 text-sm text-red-700">

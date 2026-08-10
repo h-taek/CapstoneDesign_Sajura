@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
-import { logout } from "../../api/endpoints/auth";
+import { useLogout } from "../../lib/use-logout";
 import { cn } from "../../lib/utils";
 import { useAuthStore } from "../../stores/auth-store";
 
@@ -28,16 +28,7 @@ const LINKED_ITEMS: Array<{ key: NavKey; to: string; label: string; icon: typeof
 export function DashboardShell({ active, children }: { active: NavKey; children: ReactNode }) {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const clear = useAuthStore((s) => s.clear);
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } finally {
-      clear();
-      window.location.assign("/login");
-    }
-  };
+  const handleLogout = useLogout();
 
   return (
     <div className="grid min-h-dvh grid-cols-[266px_1fr] bg-[#f3f4f6]">

@@ -1,5 +1,7 @@
 // 온보딩 레이아웃 — 스텝 진행 표시 + Outlet (frontend_design.md §3).
+import { LogOut } from "lucide-react";
 import { NavLink, Outlet, useLocation } from "react-router";
+import { useLogout } from "../../lib/use-logout";
 
 const STEPS = [
   { id: 1, label: "매장 정보" },
@@ -11,15 +13,26 @@ const STEPS = [
 export default function OnboardingLayout() {
   const { pathname } = useLocation();
   const current = Number(pathname.split("/").pop()) || 1;
+  const handleLogout = useLogout();
 
   return (
     <main className="min-h-dvh bg-[#f3f4f6] p-6">
       <div className="mx-auto w-full max-w-2xl space-y-6 py-6">
-        <header className="space-y-1">
-          <h1 className="text-3xl font-semibold text-[#101828]">매장 온보딩</h1>
-          <p className="text-base text-[#364153]">
-            기본 정보를 4단계로 입력하면 메인 화면으로 이동합니다.
-          </p>
+        <header className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-semibold text-[#101828]">매장 온보딩</h1>
+            <p className="text-base text-[#364153]">
+              기본 정보를 4단계로 입력하면 메인 화면으로 이동합니다.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[#364153] hover:bg-white"
+          >
+            <LogOut className="size-4" />
+            로그아웃
+          </button>
         </header>
         <ol className="grid grid-cols-4 gap-2" aria-label="온보딩 단계">
           {STEPS.map((step) => {
