@@ -1,5 +1,4 @@
 // 대시보드 공용 셸 — Figma "홈 화면"(node 7:337) 사이드 내비게이션 + 상단바.
-// 재고관리·발주추천·레시피 관리는 Phase 11 이전이라 라우트가 없어 "준비 중"으로 비활성 표시.
 import {
   Boxes,
   ChefHat,
@@ -15,17 +14,14 @@ import { logout } from "../../api/endpoints/auth";
 import { cn } from "../../lib/utils";
 import { useAuthStore } from "../../stores/auth-store";
 
-type NavKey = "home" | "forecast";
+type NavKey = "home" | "forecast" | "inventory" | "orders" | "recipes" | "settings";
 
 const LINKED_ITEMS: Array<{ key: NavKey; to: string; label: string; icon: typeof Home }> = [
   { key: "home", to: "/", label: "Dashboard", icon: Home },
   { key: "forecast", to: "/forecast", label: "매출예측", icon: TrendingUp },
-];
-
-const COMING_SOON_ITEMS = [
-  { label: "재고관리", icon: Boxes },
-  { label: "발주추천", icon: ClipboardList },
-  { label: "레시피 관리", icon: ChefHat },
+  { key: "inventory", to: "/inventory", label: "재고관리", icon: Boxes },
+  { key: "orders", to: "/orders", label: "발주추천", icon: ClipboardList },
+  { key: "recipes", to: "/recipes", label: "레시피 관리", icon: ChefHat },
 ];
 
 export function DashboardShell({ active, children }: { active: NavKey; children: ReactNode }) {
@@ -64,27 +60,17 @@ export function DashboardShell({ active, children }: { active: NavKey; children:
               </Link>
             );
           })}
-          {COMING_SOON_ITEMS.map((item) => {
-            const Icon = item.icon;
-            return (
-              <div
-                key={item.label}
-                className="flex cursor-not-allowed items-center justify-between rounded-lg px-4 py-3 text-base text-[#99a1af]"
-              >
-                <span className="flex items-center gap-3">
-                  <Icon className="size-5" />
-                  {item.label}
-                </span>
-                <span className="rounded-full bg-[#f3f4f6] px-2 py-0.5 text-xs">준비중</span>
-              </div>
-            );
-          })}
         </div>
 
         <div className="space-y-1 border-t border-[#eef1f4] pt-4">
           <Link
-            to="/settings/pos"
-            className="flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium text-[#364153] hover:bg-[#f3f4f6]"
+            to="/settings"
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium transition-colors",
+              active === "settings"
+                ? "bg-[#7a5eff]/10 text-[#7a5eff]"
+                : "text-[#364153] hover:bg-[#f3f4f6]",
+            )}
           >
             <SettingsIcon className="size-5" />
             Settings
@@ -108,7 +94,7 @@ export function DashboardShell({ active, children }: { active: NavKey; children:
           </div>
           <button
             type="button"
-            onClick={() => navigate("/settings/pos")}
+            onClick={() => navigate("/settings")}
             className="size-10 rounded-full bg-[#f3f4f6] text-sm font-medium text-[#364153]"
             aria-label="계정"
           >

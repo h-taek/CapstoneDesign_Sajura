@@ -26,7 +26,7 @@ export default function ForecastPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <section className="space-y-3">
             <h2 className="text-xl font-semibold text-[#364153]">월별 매출 추이</h2>
-            <RevenueBarChart data={monthly} metric="revenue" />
+            <RevenueBarChart data={monthly} metric="revenue" variant="dashed-line" />
           </section>
           <section className="space-y-3">
             <h2 className="text-xl font-semibold text-[#364153]">월별 판매 건수 추이</h2>
@@ -34,6 +34,7 @@ export default function ForecastPage() {
               data={monthly}
               metric="sales_count"
               emptyLabel="판매 데이터가 연결되면 표시됩니다."
+              variant="dashed-line"
             />
           </section>
         </div>

@@ -1,16 +1,16 @@
 // 홈 화면 — Figma "홈 화면"(node 7:337) 레이아웃(순서: 최저가 추천 → 매출 그래프+매출분석 → 재고 현황)에
-// 맞춰 재구성. 매출 그래프·매출분석(인기 메뉴)은 실제 GET /api/sales/* 데이터로 렌더링하고,
-// 데이터 소스가 없는 최저가 추천·재고 현황은 Figma의 Table 컴포넌트 모양 그대로 "준비 중" 스켈레톤으로 표시.
+// 맞춰 재구성. 매출 그래프·매출분석(인기 메뉴)·재고 현황은 실제 GET /api/sales/* · /api/inventory
+// 데이터로 렌더링하고, 데이터 소스가 없는 최저가 추천만 KAMIS 스텁으로 표시.
 import { useQuery } from "@tanstack/react-query";
 import { Minus, TrendingDown, TrendingUp } from "lucide-react";
 import { Link } from "react-router";
+import { listInventory } from "../api/endpoints/inventory";
 import { getIngredientPrices } from "../api/endpoints/prices";
 import { getMonthlyRevenue, getSalesSummary, getTopMenus } from "../api/endpoints/sales";
 import { IngredientIcon } from "../components/dashboard/ingredient-icon";
 import { MenuSharePieChart } from "../components/dashboard/menu-share-chart";
 import { RevenueBarChart } from "../components/dashboard/revenue-chart";
 import { DashboardShell } from "../components/dashboard/shell";
-import { TableSkeleton } from "../components/dashboard/table-skeleton";
 
 const won = new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW" });
 
@@ -35,6 +35,14 @@ export default function HomePage() {
     queryFn: getIngredientPrices,
     staleTime: 5 * 60_000,
   });
+  const { data: inventory = [] } = useQuery({
+    queryKey: ["inventory"],
+    queryFn: listInventory,
+    staleTime: 30_000,
+  });
+  const inventoryPreview = [...inventory]
+    .sort((a, b) => Number(b.is_low_stock) - Number(a.is_low_stock))
+    .slice(0, 5);
 
   const hasData = (summary?.total_sales_count ?? 0) > 0;
 
@@ -132,9 +140,54 @@ export default function HomePage() {
         </div>
 
         <section className="space-y-3">
-          <h2 className="text-2xl font-semibold text-[#364153]">재고 현황</h2>
-          <TableSkeleton columns={["재료", "현재 수량", "소비기한", "위험도"]} />
-          <p className="text-xs text-[#99a1af]">* 재고 관리는 준비 중입니다.</p>
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-semibold text-[#364153]">재고 현황</h2>
+            <Link to="/inventory" className="text-sm font-medium text-[#7a5eff] hover:underline">
+              전체 보기
+            </Link>
+          </div>
+          {inventoryPreview.length === 0 ? (
+            <div className="flex h-[120px] items-center justify-center rounded-xl border border-dashed border-[#d1d5dc] bg-white text-sm text-[#99a1af]">
+              등록된 재료가 없습니다.
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-xl border border-[#d1d5dc] bg-white">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-[#fafafa] text-[#61646b]">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">재료</th>
+                    <th className="px-4 py-3 font-medium">현재 수량</th>
+                    <th className="px-4 py-3 font-medium">재주문 임계값</th>
+                    <th className="px-4 py-3 font-medium">상태</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inventoryPreview.map((item) => (
+                    <tr key={item.item_id} className="border-t border-[#eef1f4]">
+                      <td className="px-4 py-3 font-medium text-[#364153]">{item.name}</td>
+                      <td className="px-4 py-3 text-[#364153]">
+                        {item.current_quantity} {item.unit}
+                      </td>
+                      <td className="px-4 py-3 text-[#364153]">
+                        {item.low_stock_threshold} {item.unit}
+                      </td>
+                      <td className="px-4 py-3">
+                        {item.is_low_stock ? (
+                          <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600">
+                            부족
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                            정상
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       </div>
     </DashboardShell>
