@@ -35,16 +35,19 @@ function yearMonthOf(date: Date): string {
 }
 
 export default function ForecastPage() {
-  const now = new Date();
-  const thisMonth = yearMonthOf(now);
-  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const lastMonth = yearMonthOf(lastMonthDate);
-
   const { data: summary } = useQuery({
     queryKey: ["sales-summary"],
     queryFn: getSalesSummary,
     staleTime: 60_000,
   });
+
+  // "이번 달"은 실제 오늘이 아니라 이 매장의 마지막 판매일 기준 — 과거 구간 시연/테스트
+  // 데이터를 올려도 항상 실데이터가 채워지게 한다 (summary 로딩 전엔 실제 오늘로 임시 대체).
+  const referenceDate = summary?.last_sale_at ? new Date(summary.last_sale_at) : new Date();
+  const thisMonth = yearMonthOf(referenceDate);
+  const lastMonthDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth() - 1, 1);
+  const lastMonth = yearMonthOf(lastMonthDate);
+
   const { data: monthly = [] } = useQuery({
     queryKey: ["sales-monthly", 2],
     queryFn: () => getMonthlyRevenue(2),
