@@ -159,7 +159,13 @@ class SaleService:
         return result
 
     async def get_summary(self, *, store_id: str) -> SalesSummaryResponse:
-        """홈 화면 매출 요약 — 전체 누계 + 이번 달(UTC 캘린더 월) + 오늘 집계."""
+        """홈 화면 매출 요약 — 전체 누계 + 이번 달 + 오늘 집계.
+
+        "이번 달"·"오늘"은 실제 달력이 아니라 **이 매장의 마지막 판매일 기준**으로 계산한다.
+        시연·테스트 데이터는 실제 오늘 날짜와 무관한 과거 구간을 업로드하는 경우가 많아서,
+        실제 달력 기준이면 "이번 달 매출 0원"처럼 데이터가 있어도 빈 값으로 보이는 문제가
+        있었다 — 마지막 판매일을 기준점으로 삼아 항상 실데이터가 채워지게 한다.
+        """
         totals = (
             await self.session.execute(
                 select(
@@ -171,7 +177,7 @@ class SaleService:
         ).one()
         total_revenue, total_sales_count, last_sale_at = totals
 
-        now = datetime.now(UTC).replace(tzinfo=None)
+        now = last_sale_at if last_sale_at is not None else datetime.now(UTC).replace(tzinfo=None)
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         this_month = (
             await self.session.execute(
@@ -210,9 +216,18 @@ class SaleService:
             last_sale_at=last_sale_at,
         )
 
+    async def _reference_date(self, *, store_id: str) -> date:
+        """이 매장의 마지막 판매일(없으면 오늘) — "최근 N일"·"이번 달" 계산 기준점.
+        실제 달력 대신 데이터 기준으로 잡아서, 과거 구간 시연 데이터도 항상 값이 채워지게 한다."""
+        latest = await self.session.scalar(
+            select(func.max(SaleRecord.sold_at)).where(SaleRecord.store_id == store_id)
+        )
+        return latest.date() if latest is not None else date.today()
+
     async def get_daily_revenue(self, *, store_id: str, days: int = 7) -> list[DailyRevenuePoint]:
         """최근 N일 매출 추이 — 데이터 없는 날짜는 0으로 채운 연속 시계열."""
-        start = date.today() - timedelta(days=days - 1)
+        reference = await self._reference_date(store_id=store_id)
+        start = reference - timedelta(days=days - 1)
         d = func.date(SaleRecord.sold_at)
         rows = (
             await self.session.execute(
@@ -276,7 +291,7 @@ class SaleService:
 
     async def get_weekly_revenue_this_month(self, *, store_id: str) -> list[WeeklyRevenuePoint]:
         """이번 달 주차별(1일 단위 7개씩 묶음) 매출 — 캘린더 주가 아닌 월초 기준 등분."""
-        today = date.today()
+        today = await self._reference_date(store_id=store_id)
         month_start = today.replace(day=1)
         rows = (
             await self.session.execute(
