@@ -3,7 +3,11 @@
 핵심 정책:
 - 청크 크기 = 1만 행 (메모리 부담 회피)
 - 트랜잭션 단위 = 청크 1개 (부분 실패 시 청크 단위 롤백 → 그 이전 청크는 보존)
-- UNIQUE(store_id, source, external_sale_id) 위반 행은 자동 skip
+- UNIQUE(store_id, source, external_sale_id) 위반 행은 자동 skip. 영수증번호
+  컬럼이 없는 CSV는 external_sale_id가 NULL이 되는데, MySQL UNIQUE 인덱스는
+  NULL끼리 서로 다르게 취급해 이 경로만으로는 중복 방지가 되지 않는다 — 그래서
+  external_sale_id가 없으면 (menu_id, sold_at) 기반 합성 식별자를 만들어 같은
+  UNIQUE 제약을 타게 한다(2026-08-17, 소주 8,984→98,824 11배 중복 적재 픽스).
 - menu_name → menu_id 매핑은 매장 메뉴 캐시 1회 조회 후 in-memory dict 매핑
 - auto_create_menus=True 시 미등록 메뉴를 카테고리='자동등록', use_inventory_deduction=False
   로 즉시 생성하여 menu_map 갱신 (feature_spec §2.2 + §4.4 옵션).
@@ -68,9 +72,9 @@ class UploadResult:
             out.append(f"매장 메뉴와 매핑 실패: {', '.join(parts)}")
         if self._dup_in_chunk_counts:
             parts = [f"{name} ({cnt}회)" for name, cnt in sorted(self._dup_in_chunk_counts.items())]
-            out.append(f"같은 파일 안에서 영수증번호 중복: {', '.join(parts)}")
+            out.append(f"같은 파일 안에서 중복(영수증번호 또는 상품+판매일 기준): {', '.join(parts)}")
         if self._dup_in_db_total > 0:
-            out.append(f"이미 저장된 영수증번호와 중복: {self._dup_in_db_total}건")
+            out.append(f"이미 저장된 판매 기록과 중복(영수증번호 또는 상품+판매일 기준): {self._dup_in_db_total}건")
         if self._auto_create_limit_hit:
             out.append(
                 "메뉴 자동 등록 상한에 도달했습니다 — "
@@ -442,20 +446,31 @@ class SaleService:
                 )
                 continue
 
-            if sale.external_sale_id is not None:
-                key = sale.external_sale_id
-                if key in seen_external:
-                    result.skipped += 1
-                    result._dup_in_chunk_counts[key] = (
-                        result._dup_in_chunk_counts.get(key, 0) + 1
-                    )
-                    continue
-                seen_external.add(key)
+            # 영수증번호(external_sale_id) 컬럼이 없는 CSV(기간별 상품 합계 리포트 등)는
+            # 원본에 거래 단위 식별자가 없다. UNIQUE(store_id, source, external_sale_id)는
+            # MySQL에서 NULL끼리 서로 다른 값으로 취급되어 DB 레벨 중복 방지가 전혀
+            # 동작하지 않는다 — 같은 파일을 여러 번 업로드하면 매번 전량 재적재된다
+            # (실사례: 소주 8,984개 → 98,824개로 11배 중복 적재, 2026-08-17 발견).
+            # (매장, 메뉴, 판매일시) 조합으로 합성 식별자를 만들어 같은 UNIQUE 제약·
+            # INSERT IGNORE 경로를 그대로 타게 한다.
+            dedup_key = sale.external_sale_id
+            dedup_label = sale.external_sale_id
+            if dedup_key is None:
+                dedup_key = f"AGG:{menu_id}:{sale.sold_at.isoformat()}"
+                dedup_label = f"{sale.menu_name} {sale.sold_at.date().isoformat()}"
+
+            if dedup_key in seen_external:
+                result.skipped += 1
+                result._dup_in_chunk_counts[dedup_label] = (
+                    result._dup_in_chunk_counts.get(dedup_label, 0) + 1
+                )
+                continue
+            seen_external.add(dedup_key)
 
             rows_to_insert.append({
                 "store_id": store_id,
                 "menu_id": menu_id,
-                "external_sale_id": sale.external_sale_id,
+                "external_sale_id": dedup_key,
                 "quantity": sale.quantity,
                 "unit_price": sale.unit_price,
                 "total_price": sale.total_price,
