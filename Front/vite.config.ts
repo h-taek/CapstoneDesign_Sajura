@@ -29,6 +29,14 @@ export default defineConfig({
       },
     }),
   ],
-  server: { port: 5173, host: true },
+  // dev에서 FE(5173) ↔ BE(8000)를 같은 origin으로 통합 — Safari ITP의 cross-site
+  // cookie 차단으로 OAuth refresh가 실패하는 것을 방지. /api/* 요청만 BE로 전달.
+  server: {
+    port: 5173,
+    host: true,
+    proxy: {
+      "/api": { target: "http://localhost:8000", changeOrigin: true },
+    },
+  },
   build: { sourcemap: true, target: "es2022" },
 });
